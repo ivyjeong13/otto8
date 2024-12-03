@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { ModelUsage } from "~/lib/model/models";
 import { ModelApiService } from "~/lib/service/api/modelApiService";
+import { cn } from "~/lib/utils";
 
 import { TypographyH4 } from "~/components/Typography";
 import {
@@ -93,17 +94,19 @@ export function AgentForm({ agent, onSubmit, onChange }: AgentFormProps) {
                     variant="ghost"
                     autoComplete="off"
                     control={form.control}
+                    label="Name"
                     name="name"
-                    className="text-3xl"
+                    className="text-3xl h-11"
                 />
 
                 <ControlledInput
                     variant="ghost"
                     control={form.control}
                     autoComplete="off"
+                    label="Description"
                     name="description"
                     placeholder="Add a description..."
-                    className="text-xl text-muted-foreground"
+                    className={cn("text-lg text-muted-foreground")}
                 />
 
                 <TypographyH4 className="flex items-center gap-2">

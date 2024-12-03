@@ -67,6 +67,7 @@ export function ControlledInput<
     description,
     onChange,
     onChangeConversion,
+    variant,
     classNames = {},
     ...inputProps
 }: ControlledInputProps<TValues, TName>) {
@@ -74,33 +75,50 @@ export function ControlledInput<
         <FormField
             control={control}
             name={name}
-            render={({ field, fieldState }) => (
-                <BasicInputItem
-                    classNames={classNames}
-                    label={label}
-                    description={description}
-                >
-                    <Input
-                        {...field}
-                        {...inputProps}
-                        onChange={(e) => {
-                            if (onChangeConversion) {
-                                e.target.value = onChangeConversion(
-                                    e.target.value
-                                );
-                            }
-
-                            field.onChange(e);
-                            onChange?.(e);
+            render={({ field, fieldState }) => {
+                const labelClasses = cn(
+                    classNames.label,
+                    variant === "ghost"
+                        ? "text-transparent transition-all peer-focus:animate-fade-out peer-hover:text-foreground peer-focus:text-primary text-xs absolute bottom-0 right-0"
+                        : ""
+                );
+                return (
+                    <BasicInputItem
+                        classNames={{
+                            ...classNames,
+                            label: labelClasses,
                         }}
-                        className={cn(
-                            getFieldStateClasses(fieldState),
-                            className,
-                            classNames.input
-                        )}
-                    />
-                </BasicInputItem>
-            )}
+                        label={label}
+                        description={description}
+                        dynamicLabel={variant === "ghost"}
+                    >
+                        <Input
+                            {...field}
+                            {...inputProps}
+                            onChange={(e) => {
+                                if (onChangeConversion) {
+                                    e.target.value = onChangeConversion(
+                                        e.target.value
+                                    );
+                                }
+
+                                field.onChange(e);
+                                onChange?.(e);
+                            }}
+                            className={cn(
+                                getFieldStateClasses(
+                                    fieldState,
+                                    variant === "ghost"
+                                ),
+                                className,
+                                classNames.input,
+                                "peer"
+                            )}
+                            variant={variant}
+                        />
+                    </BasicInputItem>
+                );
+            }}
         />
     );
 }
@@ -276,8 +294,13 @@ export function ControlledCustomInput<
     );
 }
 
-function getFieldStateClasses(fieldState: ControllerFieldState) {
+function getFieldStateClasses(
+    fieldState: ControllerFieldState,
+    isGhost = false
+) {
     return cn({
-        "focus-visible:ring-destructive border-destructive": fieldState.invalid,
+        "focus-visible:ring-destructive border-destructive":
+            fieldState.invalid && !isGhost,
+        "!border-b-destructive": fieldState.invalid && isGhost,
     });
 }

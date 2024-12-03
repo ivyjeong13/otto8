@@ -121,10 +121,16 @@ export default {
                         height: "0",
                     },
                 },
+                "fade-out": {
+                    "0%": { opacity: "1" },
+                    "99%": { opacity: "0", visibility: "visible" },
+                    "100%": { opacity: "0", visibility: "hidden" },
+                },
             },
             animation: {
                 "accordion-down": "accordion-down 0.2s ease-out",
                 "accordion-up": "accordion-up 0.2s ease-out",
+                "fade-out": "fade-out 0.2s ease-out 0.2s forwards",
             },
         },
     },

@@ -1,5 +1,7 @@
 import { ReactNode } from "react";
 
+import { cn } from "~/lib/utils";
+
 import {
     FormControl,
     FormDescription,
@@ -18,6 +20,7 @@ export type BasicInputItemProps = {
     };
     label?: ReactNode;
     description?: ReactNode;
+    dynamicLabel?: boolean;
 };
 
 export function BasicInputItem({
@@ -25,14 +28,19 @@ export function BasicInputItem({
     classNames = {},
     label,
     description,
+    dynamicLabel = false,
 }: BasicInputItemProps) {
     return (
-        <FormItem className={classNames.wrapper}>
-            {label && (
+        <FormItem className={cn(classNames.wrapper, "relative")}>
+            {label && !dynamicLabel && (
                 <FormLabel className={classNames.label}>{label}</FormLabel>
             )}
 
             <FormControl className={classNames.control}>{children}</FormControl>
+
+            {label && dynamicLabel && (
+                <FormLabel className={classNames.label}>{label}</FormLabel>
+            )}
 
             <FormMessage />
 
