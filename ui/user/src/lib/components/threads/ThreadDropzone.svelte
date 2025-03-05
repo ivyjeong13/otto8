@@ -40,7 +40,7 @@
 
 <FileDropzone
 	{onFilesDrop}
-	placeholder="Drop file here to add as knowledge."
+	placeholder="Drop file here to add to the conversation or knowledge base."
 	class="relative w-full"
 >
 	{@render children()}
