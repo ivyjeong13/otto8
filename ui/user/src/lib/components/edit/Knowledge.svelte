@@ -5,16 +5,16 @@
 	import { fade } from 'svelte/transition';
 	import KnowledgeUpload from '$lib/components/navbar/KnowledgeUpload.svelte';
 	import KnowledgeFile from '$lib/components/navbar/KnowledgeFile.svelte';
+	import { knowledge } from '$lib/stores';
 
 	interface Props {
 		project: Project;
 	}
 
 	let { project }: Props = $props();
-	let knowledgeFiles = $state<KnowledgeFileType[]>([]);
+	let knowledgeFiles = $derived(knowledge.knowledgeFiles);
 
 	async function reload() {
-		knowledgeFiles = (await ChatService.listKnowledgeFiles(project.assistantID, project.id)).items;
 		const pending = knowledgeFiles.find(
 			(file) => file.state === 'pending' || file.state === 'ingesting'
 		);

@@ -3,12 +3,18 @@
 	import Input from '$lib/components/messages/Input.svelte';
 	import Message from '$lib/components/messages/Message.svelte';
 	import { Thread } from '$lib/services/chat/thread.svelte';
-	import { ChatService, EditorService, type Messages, type Project } from '$lib/services';
+	import {
+		ChatService,
+		EditorService,
+		type Messages,
+		type Project
+	} from '$lib/services';
 	import { fade } from 'svelte/transition';
 	import { onDestroy } from 'svelte';
 	import { toHTMLFromMarkdown } from '$lib/markdown';
 	import type { EditorItem } from '$lib/services/editor/index.svelte';
 	import { getLayout } from '$lib/context/layout.svelte';
+	import ThreadDropzone from './ThreadDropzone.svelte';
 
 	interface Props {
 		id?: string;
@@ -92,7 +98,7 @@
 	}
 </script>
 
-<div class="relative w-full">
+<ThreadDropzone {project} {thread}>
 	<div
 		bind:this={container}
 		class="flex h-full grow justify-center overflow-y-auto scrollbar-none"
@@ -158,4 +164,4 @@
 			/>
 		</div>
 	</div>
-</div>
+</ThreadDropzone>

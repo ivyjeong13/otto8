@@ -4,8 +4,8 @@
 	import Editor from '$lib/components/Editors.svelte';
 	import { type AssistantTool, ChatService, type Project, type Version } from '$lib/services';
 	import Notifications from '$lib/components/Notifications.svelte';
-	import Thread from '$lib/components/Thread.svelte';
-	import Threads from '$lib/components/Threads.svelte';
+	import Thread from '$lib/components/threads/Thread.svelte';
+	import Threads from '$lib/components/threads/Threads.svelte';
 	import { columnResize } from '$lib/actions/resize';
 	import { hasTool } from '$lib/tools';
 	import { onMount } from 'svelte';

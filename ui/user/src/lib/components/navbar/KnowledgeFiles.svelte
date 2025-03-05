@@ -9,6 +9,8 @@
 	import KnowledgeUpload from '$lib/components/navbar/KnowledgeUpload.svelte';
 	import Menu from '$lib/components/navbar/Menu.svelte';
 	import KnowledgeFile from './KnowledgeFile.svelte';
+	import { popover } from '$lib/actions';
+	import { knowledge } from '$lib/stores';
 
 	interface Props {
 		project: Project;
@@ -16,17 +18,14 @@
 	}
 
 	let { project, currentThreadID }: Props = $props();
-	let knowledgeFiles = $state<KnowledgeFileType[]>([]);
+	let { refresh } = knowledge;
+	let knowledgeFiles = $derived(knowledge.knowledgeFiles);
 
 	async function loadFiles() {
 		if (!currentThreadID) {
 			return;
 		}
-		knowledgeFiles = (
-			await ChatService.listKnowledgeFiles(project.assistantID, project.id, {
-				threadID: currentThreadID
-			})
-		).items;
+		await refresh(project.assistantID, project.id, currentThreadID);
 	}
 
 	let fileToDelete = $state<string>();
