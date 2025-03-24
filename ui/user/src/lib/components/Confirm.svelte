@@ -24,7 +24,7 @@
 	tabIndex="-1"
 	class:hidden={!show}
 	class:flex={show}
-	class="fixed top-0 right-0 left-0 z-50 h-[calc(100%-1rem)] max-h-full w-full items-center
+	class="fixed top-0 right-0 left-0 z-50 h-full max-h-full w-full items-center
  justify-center overflow-x-hidden overflow-y-auto bg-black/50 md:inset-0"
 	role="none"
 	onkeydown={(e) => {
