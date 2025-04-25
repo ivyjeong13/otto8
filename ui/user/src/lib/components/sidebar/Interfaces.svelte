@@ -49,7 +49,7 @@
 	const optionMap = new Map(options.map((option) => [option.id, option]));
 </script>
 
-<div class="flex flex-col gap-2">
+<div class="flex flex-col">
 	<div class="mb-1 flex items-center justify-between">
 		<p class="grow text-sm font-semibold">Interfaces</p>
 		<DotDotDot class="p-0">
@@ -69,14 +69,15 @@
 		</DotDotDot>
 	</div>
 
-	<div class="flex flex-col gap-2">
+	<div class="flex flex-col">
 		{#each selected as item}
 			{@const configedInterface = optionMap.get(item)}
 			{#if configedInterface}
-				<div
-					class="group flex min-h-6 w-full items-center rounded-md transition-colors duration-300"
+				<button
+					onclick={() => openSidebarConfig(layout, configedInterface.id as Layout['sidebarConfig'])}
+					class="group hover:bg-surface3 flex min-h-6 w-full items-center rounded-md py-1 transition-colors duration-300"
 				>
-					<button class="flex h-full grow items-center gap-2 pl-1.5" onclick={() => {}}>
+					<div class="flex h-full grow items-center gap-2 pl-1.5">
 						<div class="rounded-md bg-gray-50 p-1 dark:bg-gray-600">
 							<img
 								src={configedInterface.icon || '/user/images/obot-icon-blue.svg'}
@@ -87,15 +88,13 @@
 						<p class="w-[calc(100%-24px)] truncate text-left text-xs font-light">
 							{configedInterface.label}
 						</p>
-					</button>
-					<button
+					</div>
+					<div
 						class="py-2 pr-3 transition-opacity duration-200 group-hover:opacity-100 md:opacity-0"
-						onclick={() =>
-							openSidebarConfig(layout, configedInterface.id as Layout['sidebarConfig'])}
 					>
 						<Settings class="size-4" />
-					</button>
-				</div>
+					</div>
+				</button>
 			{/if}
 		{/each}
 	</div>

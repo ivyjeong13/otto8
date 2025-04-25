@@ -26,9 +26,10 @@
 		project: Project;
 		items?: EditorItem[];
 		currentThreadID?: string;
+		shared?: boolean;
 	}
 
-	let { project = $bindable(), currentThreadID = $bindable(), assistant }: Props = $props();
+	let { project = $bindable(), currentThreadID = $bindable(), assistant, shared }: Props = $props();
 	let layout = getLayout();
 	let editor: HTMLDivElement | undefined = $state();
 
@@ -81,7 +82,7 @@
 				class="bg-surface1 w-screen min-w-screen md:w-1/6 md:min-w-[275px]"
 				transition:slide={{ axis: 'x' }}
 			>
-				<Sidebar {assistant} bind:project bind:currentThreadID />
+				<Sidebar {assistant} bind:project bind:currentThreadID {shared} />
 			</div>
 		{/if}
 
@@ -118,7 +119,7 @@
 					{/snippet}
 				</Navbar>
 			</div>
-			{#if !layout.projectEditorOpen && !layout.fileEditorOpen && !layout.sidebarConfigOpen}
+			{#if !layout.projectEditorOpen && !layout.fileEditorOpen && !layout.sidebarConfig}
 				<div class="absolute top-[76px] right-5 z-30 flex flex-col gap-4" in:fade={{ delay: 300 }}>
 					<button
 						use:tooltip={'New Agent'}
@@ -158,10 +159,10 @@
 								runID={layout.displayTaskRun.id}
 							/>
 						{/key}
-					{:else if layout.sidebarConfigOpen}
-						<SidebarConfig bind:project />
+					{:else if layout.sidebarConfig}
+						<SidebarConfig bind:project bind:currentThreadID {assistant} />
 					{:else}
-						<Thread bind:id={currentThreadID} bind:project />
+						<Thread bind:id={currentThreadID} bind:project {shared} />
 					{/if}
 				{/if}
 

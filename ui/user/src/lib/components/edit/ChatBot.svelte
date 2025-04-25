@@ -2,6 +2,7 @@
 	import { ChatService, EditorService, type Project, type ProjectShare } from '$lib/services';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Toggle from '../Toggle.svelte';
+	import { browser } from '$app/environment';
 
 	interface Props {
 		project: Project;
@@ -9,12 +10,11 @@
 
 	let { project }: Props = $props();
 	let share = $state<ProjectShare>();
-	let url = $derived.by(() => {
-		if (share?.publicID && typeof window !== 'undefined') {
-			return `${window.location.protocol}//${window.location.host}/s/${share.publicID}`;
-		}
-		return '';
-	});
+	let url = $derived(
+		browser && share?.publicID
+			? `${window.location.protocol}//${window.location.host}/s/${share.publicID}`
+			: ''
+	);
 
 	async function updateShare() {
 		share = await ChatService.getProjectShare(project.assistantID, project.id);
@@ -57,21 +57,22 @@
 	}
 </script>
 
-<div class="flex flex-col gap-2">
+<div class="flex flex-col gap-4 p-8">
+	<h4 class="grow text-xl font-semibold">ChatBot</h4>
 	<div class="mb-1 flex items-center justify-between">
-		<p class="grow text-sm font-semibold">ChatBot</p>
-		<Toggle label="Toggle ChatBot" checked={!!share} onChange={handleChange} />
+		<p class="text-md font-semibold">Enable ChatBot</p>
+		<Toggle label="Toggle ChatBot" checked={!!share?.publicID} onChange={handleChange} />
 	</div>
 
-	{#if share}
+	{#if share?.publicID}
 		<div class="bg-surface2 flex flex-col gap-2 rounded-xl p-3">
-			<p class="text-xs text-gray-500">
+			<p class="text-sm text-gray-500">
 				<b>Anyone with this link</b> can use this agent, which includes <b>any credentials</b> assigned
 				to this agent.
 			</p>
 			<div class="flex gap-1">
 				<CopyButton text={url} />
-				<a href={url} class="overflow-hidden text-sm text-ellipsis hover:underline">{url}</a>
+				<a href={url} class="text-md overflow-hidden text-ellipsis hover:underline">{url}</a>
 			</div>
 		</div>
 	{/if}

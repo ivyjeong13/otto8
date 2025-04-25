@@ -1,19 +1,25 @@
 <script lang="ts">
 	import { autoHeight } from '$lib/actions/textarea';
 	import { closeSidebarConfig, getLayout, type Layout } from '$lib/context/layout.svelte';
-	import type { Project } from '$lib/services';
-	import { ChevronsLeft, Plus, Trash2, X } from 'lucide-svelte';
+	import type { Assistant, AssistantTool, Project } from '$lib/services';
+	import { ChevronsLeft } from 'lucide-svelte';
 	import { fade } from 'svelte/transition';
 	import { twMerge } from 'tailwind-merge';
-	import EditIcon from './edit/EditIcon.svelte';
 	import Slack from './slack/Slack.svelte';
 	import ChatBot from './edit/ChatBot.svelte';
+	import Introduction from './edit/Introduction.svelte';
+	import Knowledge from './edit/Knowledge.svelte';
+	import Members from './edit/Members.svelte';
+	import CustomTool from './edit/CustomTool.svelte';
+	import { getProjectTools } from '$lib/context/projectTools.svelte';
 
 	interface Props {
 		project: Project;
+		currentThreadID?: string;
+		assistant?: Assistant;
 	}
 
-	let { project = $bindable() }: Props = $props();
+	let { project = $bindable(), currentThreadID = $bindable(), assistant }: Props = $props();
 	const layout = getLayout();
 
 	const agentViews = ['introduction', 'template'];
@@ -25,103 +31,34 @@
 	const isInterfaceConfigView = $derived(
 		layout.sidebarConfig && interfaceViews.includes(layout.sidebarConfig)
 	);
+
+	const projectTools = getProjectTools();
+	let toEdit = $state<AssistantTool>();
+
+	$effect(() => {
+		if (layout.customToolId) {
+			toEdit = projectTools.tools.find((t) => t.id === layout.customToolId);
+		}
+	});
 </script>
 
-<div class="flex w-full" in:fade>
+<div
+	class="default-scrollbar-thin border-surface1 dark:border-surface2 relative flex w-full overflow-y-auto border-t"
+	in:fade
+>
 	{#if isAgentConfigView}
 		{@const agentTabs = [
 			{ label: 'Introduction & Starter Messages', value: 'introduction' },
 			{ label: 'Create Agent Template', value: 'template' }
 		]}
 		{@render tabs(agentTabs)}
-		<div class="w-full overflow-visible p-8">
-			{#if layout.sidebarConfig === 'introduction'}
-				<h4 class="mb-8 text-lg font-semibold">Introduction & Starter Messages</h4>
-				<div class="text-md flex w-full gap-4">
-					<EditIcon bind:project inline />
-					<div class="flex grow flex-col gap-4 pt-5">
-						<div class="flex w-full flex-col gap-1">
-							<label for="project-name" class="font-semibold">Name</label>
-							<input
-								id="project-name"
-								disabled={!project.editor}
-								type="text"
-								class="dark:bg-surface1 grow rounded-lg bg-white p-2 shadow-sm"
-								bind:value={project.name}
-							/>
-						</div>
-						<div class="flex w-full flex-col gap-1">
-							<label for="project-desc" class="font-semibold">Description</label>
-							<textarea
-								id="project-desc"
-								class="dark:bg-surface1 grow resize-none rounded-lg bg-white p-2 shadow-sm"
-								disabled={!project.editor}
-								rows="1"
-								placeholder="A small blurb or tagline summarizing your agent"
-								use:autoHeight
-								bind:value={project.description}
-							></textarea>
-						</div>
-						<div class="flex w-full flex-col gap-1">
-							<label for="project-introduction" class="font-semibold">Introduction</label>
-							<textarea
-								id="project-introduction"
-								class="dark:bg-surface1 grow resize-none rounded-lg bg-white p-2 shadow-sm"
-								rows="5"
-								placeholder="This will be your agent's go-to message."
-								use:autoHeight
-								bind:value={project.introductionMessage}
-							></textarea>
-						</div>
-					</div>
-				</div>
-				<div class="border-surface-3 mt-8 flex flex-col gap-2 border-t pt-6">
-					<h4 class="text-lg font-semibold">Starter Messages</h4>
-					<p class="text-sm font-light text-gray-500">
-						These messages are conversation options that are provided to the user. <br />
-						Help break the ice with your agent by providing a few different options!
-					</p>
-					<div
-						class="default-scrollbar-thin mt-2 flex max-h-36 w-full flex-col gap-2 overflow-y-auto p-1 pr-4"
-					>
-						{#each project.starterMessages?.keys() ?? [] as i}
-							{#if project.starterMessages}
-								<div class="flex gap-2">
-									<textarea
-										id="project-instructions"
-										class="dark:bg-surface1 grow resize-none rounded-lg bg-white p-2 shadow-sm"
-										rows="1"
-										use:autoHeight
-										bind:value={project.starterMessages[i]}
-									></textarea>
-									<button
-										class="icon-button"
-										onclick={() =>
-											(project.starterMessages = [
-												...(project.starterMessages ?? []).slice(0, i),
-												...(project.starterMessages ?? []).slice(i + 1)
-											])}
-									>
-										<Trash2 class="size-4" />
-									</button>
-								</div>
-							{/if}
-						{/each}
-					</div>
-					<div class="flex justify-end">
-						<button
-							class="button flex items-center gap-1"
-							onclick={() => (project.starterMessages = [...(project.starterMessages ?? []), ''])}
-						>
-							<Plus class="size-4" />
-							<span class="text-sm">Starter Message</span>
-						</button>
-					</div>
-				</div>
-			{:else}
+		{#if layout.sidebarConfig === 'introduction'}
+			<Introduction {project} />
+		{:else}
+			<div class="w-full p-8">
 				{@render underConstruction()}
-			{/if}
-		</div>
+			</div>
+		{/if}
 	{:else if isInterfaceConfigView}
 		{@const interfacesTabs = [
 			{ label: 'Chatbot', value: 'chatbot' },
@@ -132,7 +69,7 @@
 			{ label: 'Webhook', value: 'webhook' }
 		]}
 		{@render tabs(interfacesTabs)}
-		<div class="default-scrollbar-thin flex grow flex-col gap-4 overflow-y-auto p-8">
+		<div class="flex grow flex-col gap-4">
 			{#if layout.sidebarConfig === 'slack'}
 				<Slack {project} inline />
 			{:else if layout.sidebarConfig === 'chatbot'}
@@ -144,24 +81,28 @@
 			{/if}
 		</div>
 	{:else if layout.sidebarConfig === 'system-prompt'}
-		<div class="flex w-full flex-col gap-4 p-8 pt-4">
-			<button
-				onclick={() => closeSidebarConfig(layout)}
-				class="mb-4 flex w-fit items-center gap-1 rounded-full pr-6 font-light"
+		<div class="flex w-full flex-col">
+			<div class="dark:border-surface2 flex flex-col border-b border-transparent px-8 py-4">
+				<button
+					onclick={() => closeSidebarConfig(layout)}
+					class="flex w-fit items-center gap-1 rounded-full pr-6 text-base font-medium"
+				>
+					<ChevronsLeft class="size-6" /> Go Back
+				</button>
+			</div>
+			<div
+				class="dark:from-surface1 to-surface1 flex grow flex-col gap-4 bg-radial-[at_25%_25%] from-white to-75% p-8 shadow-inner dark:to-black"
 			>
-				<ChevronsLeft class="size-6" /> Go Back
-			</button>
-			<h4 class="text-lg font-semibold">System Prompt</h4>
-			<div class="flex flex-col gap-4">
-				<div class="text-md flex flex-col">
+				<div class="text-md flex flex-col gap-2">
+					<h3 class="text-xl font-semibold">System Prompt</h3>
 					<p class="text-md mb-4 font-light text-gray-500">
 						Describe your agent's personality, goals, and any other relevant information.
 					</p>
 
 					<textarea
 						id="project-instructions"
-						class="dark:bg-surface1 grow resize-none rounded-lg bg-white p-4 shadow-sm"
-						rows="3"
+						class="dark:border-surface3 grow resize-none rounded-lg bg-white p-4 shadow-sm dark:border dark:bg-black"
+						rows="12"
 						use:autoHeight
 						bind:value={project.prompt}
 					></textarea>
@@ -169,17 +110,33 @@
 			</div>
 		</div>
 	{:else if layout.sidebarConfig === 'members'}
-		<div></div>
+		<Members {project} />
+	{:else if layout.sidebarConfig === 'knowledge'}
+		<Knowledge {assistant} {project} {currentThreadID} />
+	{:else if layout.sidebarConfig === 'custom-tool' && layout.customToolId && toEdit}
+		{#key layout.customToolId}
+			<CustomTool
+				bind:tool={toEdit}
+				{project}
+				onSave={async (tool) => {
+					projectTools.tools = projectTools.tools.map((t) => (t.id === tool.id ? tool : t));
+				}}
+				onDelete={async (tool) => {
+					projectTools.tools = projectTools.tools.filter((t) => t.id !== tool.id);
+					closeSidebarConfig(layout);
+				}}
+			/>
+		{/key}
 	{/if}
 </div>
 
 {#snippet tabs(tabs: { label: string; value: string }[])}
 	<div
-		class="text-md border-surface2 mb-8 flex w-xs flex-shrink-0 flex-col border-r-1 px-8 font-light"
+		class="text-md border-surface2 sticky top-0 left-0 mb-8 flex w-xs flex-shrink-0 flex-col border-r-1 px-8 font-light"
 	>
 		<button
 			onclick={() => closeSidebarConfig(layout)}
-			class="mb-4 flex w-full items-center gap-1 py-4"
+			class="mb-4 flex w-full items-center gap-1 py-4 text-base font-medium"
 		>
 			<ChevronsLeft class="size-6" /> Go Back
 		</button>

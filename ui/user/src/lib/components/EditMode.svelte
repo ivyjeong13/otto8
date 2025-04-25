@@ -5,7 +5,6 @@
 	import Obot from '$lib/components/Obot.svelte';
 	import { getLayout } from '$lib/context/layout.svelte';
 	import { goto } from '$app/navigation';
-	import { responsive } from '$lib/stores';
 	import { getProjectTools } from '$lib/context/projectTools.svelte';
 	interface Props {
 		project: Project;
@@ -56,15 +55,8 @@
 
 <div class="bg-surface1 flex size-full flex-col">
 	<div class="flex grow overflow-auto">
-		<div
-			class="h-full grow border-r-0"
-			class:contents={!layout.projectEditorOpen}
-			class:hidden={layout.projectEditorOpen && responsive.isMobile}
-		>
-			<div
-				class="size-full overflow-clip transition-all"
-				class:rounded-none={!layout.projectEditorOpen}
-			>
+		<div class="contents h-full grow border-r-0">
+			<div class="size-full overflow-clip rounded-none transition-all">
 				<Obot bind:project bind:currentThreadID {assistant} />
 			</div>
 		</div>

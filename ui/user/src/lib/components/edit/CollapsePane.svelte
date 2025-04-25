@@ -12,7 +12,6 @@
 		onOpen?: () => void | Promise<void>;
 		classes?: { header?: string; content?: string; root?: string };
 		showDropdown?: boolean;
-		compact?: boolean;
 	}
 
 	onMount(() => {
@@ -28,15 +27,14 @@
 		open = $bindable(false),
 		onOpen,
 		classes = {},
-		showDropdown = true,
-		compact
+		showDropdown = true
 	}: Props = $props();
 </script>
 
 <div class={twMerge('flex flex-col', classes.root)}>
 	{#if header}
 		<button
-			class={twMerge('flex items-center gap-2 px-5 py-2', compact && 'pr-1.5 pl-3', classes.header)}
+			class={twMerge('flex items-center gap-2 px-5 py-2 font-extralight', classes.header)}
 			onclick={() => {
 				if (!open) {
 					onOpen?.();
@@ -45,12 +43,7 @@
 			}}
 		>
 			{#if typeof header === 'string'}
-				<span
-					class={twMerge(
-						'grow text-start text-base font-extralight',
-						compact && 'text-sm font-semibold'
-					)}
-				>
+				<span class="grow text-start text-base">
 					{header}
 				</span>
 			{:else}
@@ -58,10 +51,7 @@
 			{/if}
 
 			{#if showDropdown}
-				<span
-					class:rotate-180={open}
-					class={twMerge('transition-transform duration-200', compact && 'text-gray-500')}
-				>
+				<span class:rotate-180={open} class="transition-transform duration-200">
 					<ChevronDown />
 				</span>
 			{/if}

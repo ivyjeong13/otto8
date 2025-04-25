@@ -8,7 +8,7 @@
 	import { onDestroy } from 'svelte';
 	import { toHTMLFromMarkdown } from '$lib/markdown';
 	import { getLayout } from '$lib/context/layout.svelte';
-	import Files from '$lib/components/edit/Files.svelte';
+	import Files from '$lib/components/sidebar/Files.svelte';
 	import Tools from '$lib/components/navbar/Tools.svelte';
 	import type { UIEventHandler } from 'svelte/elements';
 	import AssistantIcon from '$lib/icons/AssistantIcon.svelte';
@@ -22,9 +22,10 @@
 	interface Props {
 		id?: string;
 		project: Project;
+		shared?: boolean;
 	}
 
-	let { id = $bindable(), project = $bindable() }: Props = $props();
+	let { id = $bindable(), project = $bindable(), shared }: Props = $props();
 
 	let messagesDiv = $state<HTMLDivElement>();
 	let nameInput: HTMLInputElement;
@@ -233,7 +234,7 @@
 				<div class="message-content mt-4 w-fit self-center border-2 border-transparent pt-4">
 					{@render basicSection()}
 				</div>
-			{:else}
+			{:else if project.editor && !shared}
 				<button
 					class="message-content group hover:bg-surface1 hover:border-surface2 relative mt-4 w-fit self-center rounded-md border-2 border-dashed border-transparent pt-4 transition-all duration-200"
 					onclick={() => (editBasicDetails = true)}
@@ -241,6 +242,8 @@
 				>
 					{@render basicSection()}
 				</button>
+			{:else}
+				{@render basicSection()}
 			{/if}
 			{#if project?.introductionMessage}
 				<div class="message-content w-full self-center">
@@ -294,14 +297,8 @@
 					bind:items={layout.items}
 				>
 					<div class="flex w-fit items-center gap-1">
-						<Files
-							thread
-							{project}
-							bind:currentThreadID={id}
-							helperText={'Files'}
-							placeholder={'No files'}
-						/>
-						{#if project.editor}
+						<Files thread {project} bind:currentThreadID={id} helperText={'Files'} />
+						{#if project.editor && !shared}
 							<Tools {project} bind:currentThreadID={id} thread />
 						{/if}
 					</div>

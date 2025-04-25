@@ -57,7 +57,7 @@
 	<div>
 		{#each projectMCPs.items as mcp}
 			<div
-				class="group hover:bg-surface3 ransition-colors flex min-h-9 w-full items-center rounded-md duration-300"
+				class="group hover:bg-surface3 flex min-h-9 w-full items-center rounded-md transition-colors duration-300"
 			>
 				<button
 					class="flex grow items-center gap-1 py-2 pl-1.5"

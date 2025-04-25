@@ -9,7 +9,7 @@
 	import { X } from 'lucide-svelte/icons';
 	import { slide } from 'svelte/transition';
 	import { twMerge } from 'tailwind-merge';
-	import Files from './edit/Files.svelte';
+	import Files from './sidebar/Files.svelte';
 
 	interface Props {
 		project: Project;
@@ -66,14 +66,7 @@
 		<div class="file-tabs relative flex items-center pt-1">
 			{#if currentThreadID}
 				<div class="pb-1 pl-1">
-					<Files
-						{project}
-						thread
-						{currentThreadID}
-						primary={false}
-						helperText={'Browse Files'}
-						placeholder={'No files'}
-					/>
+					<Files {project} thread {currentThreadID} primary={false} helperText={'Browse Files'} />
 				</div>
 			{/if}
 			<ul

@@ -66,7 +66,9 @@
 				{/each}
 			</ul>
 		{/if}
-		<KnowledgeUpload onUpload={loadFiles} {project} thread {currentThreadID} />
+		<div class="flex justify-end">
+			<KnowledgeUpload onUpload={loadFiles} {project} thread {currentThreadID} />
+		</div>
 	{/snippet}
 </Menu>
 

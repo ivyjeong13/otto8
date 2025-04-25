@@ -32,7 +32,7 @@
 		type="text"
 		{placeholder}
 		class={twMerge(
-			'peer bg-surface1 w-full rounded-xl border-none px-2.5 py-3 pl-12 ring-2 ring-transparent transition-all duration-200 hover:ring-2 hover:ring-blue-500 focus:w-full focus:ring-2 focus:ring-blue-500 focus:outline-hidden',
+			'peer bg-surface1 w-full rounded-xl px-2.5 py-3 pl-12 ring-2 ring-transparent transition-all duration-200 hover:ring-2 hover:ring-blue-500 focus:w-full focus:ring-2 focus:ring-blue-500 focus:outline-hidden',
 			klass
 		)}
 		oninput={search}

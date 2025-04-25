@@ -13,26 +13,20 @@
 	import { getProjectTools } from '$lib/context/projectTools.svelte';
 	import MemoriesDialog from '$lib/components/MemoriesDialog.svelte';
 	import McpServers from './sidebar/McpServers.svelte';
-	// import Instructions from './edit/Instructions.svelte';
-	import Knowledge from './edit/Knowledge.svelte';
-	import Sites from './edit/Sites.svelte';
-	import CustomTools from './edit/CustomTools.svelte';
-	import Files from './edit/Files.svelte';
-	import Slack from './slack/Slack.svelte';
-	import { version } from '$lib/stores';
-	import { browser } from '$app/environment';
-	import ChatBot from './edit/ChatBot.svelte';
-	import Introduction from './edit/Introduction.svelte';
-	import Members from './edit/Members.svelte';
-	import Interfaces from './edit/Interfaces.svelte';
+	import Knowledge from './sidebar/Knowledge.svelte';
+	import Files from './sidebar/Files.svelte';
+	import Members from './sidebar/Members.svelte';
+	import Interfaces from './sidebar/Interfaces.svelte';
+	import CustomTools from './sidebar/CustomTools.svelte';
 
 	interface Props {
 		project: Project;
 		currentThreadID?: string;
 		assistant?: Assistant;
+		shared?: boolean;
 	}
 
-	let { project = $bindable(), currentThreadID = $bindable(), assistant }: Props = $props();
+	let { project = $bindable(), currentThreadID = $bindable(), assistant, shared }: Props = $props();
 	let credentials = $state<ReturnType<typeof Credentials>>();
 	let memories = $state<ReturnType<typeof MemoriesDialog>>();
 	let projectsOpen = $state(false);
@@ -88,7 +82,7 @@
 	</div>
 
 	<div class="default-scrollbar-thin flex w-full grow flex-col gap-4 px-3 pb-5">
-		{#if project.editor}
+		{#if project.editor && !shared}
 			<McpServers {project} />
 			<Tasks {project} bind:currentThreadID />
 			<Threads {project} bind:currentThreadID />
@@ -96,20 +90,12 @@
 				<Tables {project} />
 			{/if}
 			<Knowledge {project} />
-			<!-- {#if assistant?.websiteKnowledge?.siteTool}
-				<Sites {project} />
-			{/if}
-			{#if version.current.dockerSupported}
+			<!-- {#if version.current.dockerSupported}
 				<CustomTools {project} />
 			{/if} -->
+			<CustomTools {project} />
 			<Files {project} compact />
 			<Members {project} />
-			<!--
-			<Instructions bind:project />
-			<Introduction bind:project />
-			<Slack {project} />
-			<ChatBot {project} />
-			 -->
 			<Interfaces {project} />
 			{#each sidebarConfigValues as config}
 				<div class="flex flex-col gap-2">

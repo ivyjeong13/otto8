@@ -34,10 +34,10 @@
 		{/if}
 		<div class="grow"></div>
 		<div class="flex items-center gap-4">
+			<a class="nav-link" href="/agents" id="navbar-home-link">
+				<Home class="size-6" />
+			</a>
 			{#if !responsive.isMobile}
-				<a class="nav-link" href="/agents" id="navbar-home-link">
-					<Home class="size-6" />
-				</a>
 				<a href="https://discord.gg/9sSf4UyAMC" rel="external" target="_blank" class="nav-link">
 					{#if darkMode.isDark}
 						<img src="/user/images/discord-mark/discord-mark-white.svg" alt="Discord" class="h-6" />
