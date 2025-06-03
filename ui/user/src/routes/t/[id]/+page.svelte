@@ -31,7 +31,7 @@
 		<div class="bg-surface1 dark:bg-surface2 w-full max-w-xl p-6 md:rounded-xl">
 			<AgentCopy
 				inline={true}
-				onBack={() => goto('/agents')}
+				onBack={() => goto('/projects')}
 				template={data.template}
 				mcps={data.mcps}
 			/>
@@ -40,5 +40,5 @@
 </div>
 
 <svelte:head>
-	<title>Copy Agent Template | Obot</title>
+	<title>Copy Project Template | Obot</title>
 </svelte:head>

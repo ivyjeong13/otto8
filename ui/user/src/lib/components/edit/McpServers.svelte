@@ -261,8 +261,8 @@
 				</DotDotDot>
 				<McpSetupWizard
 					bind:this={mcpSetupWizard}
-					catalogDescription="Extend your agent's capabilities by adding multiple MCP servers from our evergrowing catalog."
-					catalogSubmitText="Add to agent"
+					catalogDescription="Extend your project's capabilities by adding multiple MCP servers from our evergrowing catalog."
+					catalogSubmitText="Add to project"
 					{selectedMcpIds}
 					{project}
 					onFinish={(newProjectMcp) => {

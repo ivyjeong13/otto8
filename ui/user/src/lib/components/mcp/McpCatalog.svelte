@@ -304,7 +304,7 @@
 				<h2 class="text-3xl font-semibold md:text-4xl">MCP Servers</h2>
 				<p class="mb-8 max-w-full text-center text-base font-light md:max-w-md">
 					{subtitle ||
-						'Browse over evergrowing catalog of MCP servers and find the perfect one to set up your agent with.'}
+						'Browse over evergrowing catalog of MCP servers and find the perfect one to set up your project with.'}
 				</p>
 			</div>
 			<div class="pr-12 pb-4">

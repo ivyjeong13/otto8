@@ -5,7 +5,21 @@ import errors from '$lib/stores/errors.svelte';
 export let baseURL = 'http://localhost:8080/api';
 
 if (typeof window !== 'undefined') {
-	baseURL = baseURL.replace('http://localhost:8080', window.location.origin);
+	// Handle Tauri protocol
+	if (window.location.protocol === 'tauri:') {
+		baseURL = 'http://localhost:8080/api';
+		// Handle OAuth2 URLs in Tauri
+		const originalFetch = window.fetch;
+		window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
+			if (typeof input === 'string' && input.startsWith('tauri://')) {
+				// Convert tauri:// URLs to http:// for OAuth2
+				input = input.replace('tauri://', 'http://');
+			}
+			return originalFetch(input, init);
+		};
+	} else {
+		baseURL = baseURL.replace('http://localhost:8080', window.location.origin);
+	}
 }
 
 interface GetOptions {

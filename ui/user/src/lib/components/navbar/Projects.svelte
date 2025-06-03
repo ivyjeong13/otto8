@@ -127,7 +127,7 @@
 				onclick={() => (toDelete = p)}
 				use:tooltip={{
 					disablePortal: true,
-					text: p.editor ? 'Delete agent' : 'Remove agent'
+					text: p.editor ? 'Delete project' : 'Remove project'
 				}}
 			>
 				{#if p.editor}
@@ -156,8 +156,8 @@
 
 <Confirm
 	msg={toDelete?.editor
-		? `Delete the agent ${toDelete?.name || DEFAULT_PROJECT_NAME}?`
-		: `Remove recently used agent ${toDelete?.name || DEFAULT_PROJECT_NAME}?`}
+		? `Delete the project ${toDelete?.name || DEFAULT_PROJECT_NAME}?`
+		: `Remove recently used project ${toDelete?.name || DEFAULT_PROJECT_NAME}?`}
 	show={!!toDelete}
 	onsuccess={async () => {
 		if (!toDelete) return;
@@ -168,7 +168,7 @@
 			if (toDelete.id === project.id && projects.length > 0) {
 				await goto(`/o/${projects[0].id}`);
 			} else if (projects.length === 0) {
-				await goto('/agents');
+				await goto('/projects');
 			}
 			toDelete = undefined;
 		}

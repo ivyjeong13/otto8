@@ -56,7 +56,7 @@
 		currentThreadID = thread.id;
 	}
 
-	async function createNewAgent() {
+	async function createNewProject() {
 		try {
 			const project = await EditorService.createObot();
 			await goto(`/o/${project.id}`);
@@ -152,26 +152,6 @@
 			<div class="w-full">
 				<Navbar>
 					{#snippet leftContent()}
-						{#if !layout.sidebarOpen || layout.fileEditorOpen}
-							<button
-								in:fade={{ delay: 350, duration: 0 }}
-								onclick={() => {
-									layout.sidebarOpen = true;
-									layout.fileEditorOpen = false;
-								}}
-								use:tooltip={'Open Sidebar'}
-							>
-								<Logo class="ml-0" />
-							</button>
-							<button
-								class="icon-button p-0.5"
-								in:fade={{ delay: 350, duration: 0 }}
-								use:tooltip={'Start New Thread'}
-								onclick={() => createNewThread()}
-							>
-								<MessageCirclePlus class="size-6" />
-							</button>
-						{/if}
 						{#if !layout.sidebarOpen && responsive.isMobile}
 							{@render openSidebar()}
 						{/if}
@@ -183,15 +163,15 @@
 									<Projects {project} />
 								</div>
 								{#if responsive.isMobile}
-									<button class="icon-button flex-shrink-0" onclick={() => createNewAgent()}>
+									<button class="icon-button flex-shrink-0" onclick={() => createNewProject()}>
 										<Plus class="size-5" />
 									</button>
 								{:else}
 									<button
 										class="button flex flex-shrink-0 items-center gap-1 text-xs"
-										onclick={() => createNewAgent()}
+										onclick={() => createNewProject()}
 									>
-										<Plus class="size-4" /> Create New Agent
+										<Plus class="size-4" /> Create New Project
 									</button>
 								{/if}
 							</div>

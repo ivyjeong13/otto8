@@ -22,7 +22,7 @@
 
 <div class="flex h-full flex-col items-center">
 	<Navbar />
-	{#if type === 'agents'}
+	{#if type === 'projects'}
 		<main class="colors-background relative flex w-full flex-col items-center justify-center py-12">
 			<div class="flex w-full max-w-(--breakpoint-2xl) flex-col items-center justify-center">
 				<AgentCatalog inline {templates} {preselected} />
@@ -53,13 +53,13 @@
 				{/if}
 				<p class="mb-8 max-w-full text-center text-base font-light md:max-w-md">
 					Browse over evergrowing catalog of MCP servers and find the perfect one to set up your
-					agent with.
+					project with.
 				</p>
 			</div>
 
 			<McpSetupWizard
 				inline
-				catalogDescription="Extend your agent's capabilities by adding multiple MCP servers from our evergrowing catalog."
+				catalogDescription="Extend your project's capabilities by adding multiple MCP servers from our evergrowing catalog."
 				{preselected}
 			/>
 		</main>
@@ -68,5 +68,5 @@
 </div>
 
 <svelte:head>
-	<title>Obot | {type === 'agents' ? 'Agent Catalog' : 'MCP Servers'}</title>
+	<title>Obot | {type === 'projects' ? 'Project Catalog' : 'MCP Servers'}</title>
 </svelte:head>

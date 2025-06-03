@@ -191,7 +191,7 @@
 					}}
 					class="button-primary flex w-full items-center justify-center gap-1 self-end md:w-fit"
 				>
-					{selected ? 'Update' : (submitText ?? 'Add to Agent')}
+					{selected ? 'Update' : (submitText ?? 'Add to Project')}
 					<ChevronsRight class="size-4" />
 				</button>
 			</div>

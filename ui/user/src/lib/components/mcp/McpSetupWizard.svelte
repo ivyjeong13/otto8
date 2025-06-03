@@ -96,7 +96,7 @@
 			processing = false;
 			projectMcpServerToolsDialog?.showModal();
 		} catch (error) {
-			console.error('error occurred during agent mcp server setup', error);
+			console.error('error occurred during project mcp server setup', error);
 			processing = false;
 			await new Promise((resolve) => setTimeout(resolve, 200));
 			mcpInfoConfig?.open();
@@ -135,7 +135,7 @@
 			>
 				Click here
 			</button>
-			{refProject ? 'to return to your agent.' : 'to continue to your agent.'}
+			{refProject ? 'to return to your project.' : 'to continue to your project.'}
 		</p>
 	{/snippet}
 </PageLoading>

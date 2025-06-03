@@ -278,7 +278,7 @@
 			>
 				Click here
 			</button>
-			to return to your agent.
+			to return to your project.
 		</p>
 	{/snippet}
 </PageLoading>

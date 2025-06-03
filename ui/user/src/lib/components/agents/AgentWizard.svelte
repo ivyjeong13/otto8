@@ -65,7 +65,7 @@
 		};
 	}}
 >
-	<Plus class="size-6" /> Create New Agent
+	<Plus class="size-6" /> Create New Project
 </button>
 
 <dialog
@@ -295,7 +295,7 @@
 								>
 									Go Back
 								</button>
-								<button class="button-primary w-full" onclick={createNew}>Launch Agent</button>
+								<button class="button-primary w-full" onclick={createNew}>Launch Project</button>
 							</div>
 						</div>
 					{:else}

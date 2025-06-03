@@ -3,22 +3,16 @@
 	import { MessageCirclePlus, SidebarClose } from 'lucide-svelte';
 	import { hasTool } from '$lib/tools';
 	import { closeAll, getLayout } from '$lib/context/layout.svelte';
-	import Tasks from '$lib/components/edit/Tasks.svelte';
 	import General from '$lib/components/edit/General.svelte';
 	import McpServers from '$lib/components/edit/McpServers.svelte';
 	import Knowledge from '$lib/components/edit/Knowledge.svelte';
-	import Files from '$lib/components/edit/Files.svelte';
-	import Sharing from '$lib/components/edit/Sharing.svelte';
-	import Interfaces from '$lib/components/edit/Interfaces.svelte';
-	import CustomTools from '$lib/components/edit/CustomTools.svelte';
 	import { tooltip } from '$lib/actions/tooltip.svelte';
 	import { getProjectTools } from '$lib/context/projectTools.svelte';
 	import Threads from '$lib/components/sidebar/Threads.svelte';
 	import Tables from '$lib/components/sidebar/Tables.svelte';
 	import ModelProviders from '$lib/components/sidebar/ModelProviders.svelte';
 	import SystemPrompt from '$lib/components/edit/SystemPrompt.svelte';
-	import Introduction from '$lib/components/edit/Introduction.svelte';
-	import { responsive, version } from '$lib/stores';
+	import { responsive } from '$lib/stores';
 	import Logo from '$lib/components/navbar/Logo.svelte';
 	import CollapsePane from '$lib/components/edit/CollapsePane.svelte';
 	import { getHelperMode, HELPER_TEXTS } from '$lib/context/helperMode.svelte';
@@ -52,7 +46,6 @@
 
 <div class="bg-surface1 dark:bg-surface2 relative flex size-full flex-col">
 	<div class="flex h-16 w-full flex-shrink-0 items-center px-3">
-		<Logo class="ml-0" />
 		<div class="flex grow"></div>
 		{#if !shared}
 			<button
@@ -70,7 +63,6 @@
 	<div class="default-scrollbar-thin flex w-full grow flex-col" use:scrollFocus>
 		{#if project.editor && !shared}
 			<Threads {project} bind:currentThreadID editor />
-			<Tasks {project} bind:currentThreadID />
 			<McpServers {project} />
 			{#if hasTool(projectTools.tools, 'memory')}
 				<Memories {project} />
@@ -89,19 +81,13 @@
 					header="Configuration"
 					helpText={HELPER_TEXTS.configuration}
 					iconSize={5}
+					open={true}
 				>
 					<General bind:project />
 					<SystemPrompt bind:project />
 					<BuiltInCapabilities bind:project />
-					<Introduction bind:project />
 					<Knowledge {project} />
-					<Files {project} classes={{ list: 'text-sm flex flex-col gap-2' }} />
 					<ModelProviders {project} />
-					{#if version.current.dockerSupported}
-						<CustomTools {project} />
-					{/if}
-					<Interfaces />
-					<Sharing {project} />
 				</CollapsePane>
 			</div>
 		{:else}

@@ -36,8 +36,8 @@
 					Things look different? We just released a big upgrade!
 				</p>
 				<p class="text-xs text-white">
-					Unfortunately, in the name of progress, older agents may no longer work. If that's the
-					case for you, please delete and recreate your agent. Thanks for your patience while we
+					Unfortunately, in the name of progress, older projects may no longer work. If that's the
+					case for you, please delete and recreate your project. Thanks for your patience while we
 					make Obot awesome!
 				</p>
 			</div>

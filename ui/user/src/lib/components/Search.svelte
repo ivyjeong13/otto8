@@ -13,7 +13,7 @@
 	let {
 		onChange,
 		class: klass,
-		placeholder = 'Search Agents...',
+		placeholder = 'Search Projects...',
 		onMouseDown,
 		compact
 	}: Props = $props();

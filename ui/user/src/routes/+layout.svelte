@@ -53,6 +53,7 @@
 		rel="stylesheet"
 	/>
 </svelte:head>
+<div class="fixed top-0 right-0 left-0 z-[9999] h-6" data-tauri-drag-region></div>
 
 <Notifications />
 <SuccessNotifications />

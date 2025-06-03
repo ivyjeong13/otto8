@@ -13,12 +13,12 @@
 	let { leftContent, centerContent }: Props = $props();
 </script>
 
-<nav class="flex h-16 w-full items-center bg-white px-3 dark:bg-black" in:fade|global>
+<nav class="flex h-16 w-full items-center bg-white px-3 pt-4 dark:bg-black" in:fade|global>
 	<div class="flex w-full items-center justify-between">
 		{#if leftContent}
 			{@render leftContent()}
 		{:else}
-			<a href="/agents" class="relative flex items-end">
+			<a href="/projects" class="relative flex items-end">
 				{#if darkMode.isDark}
 					<img src="/user/images/obot-logo-blue-white-text.svg" class="h-12" alt="Obot logo" />
 				{:else}
@@ -39,7 +39,7 @@
 			{/if}
 		</div>
 		<div class="flex items-center gap-4">
-			<a class="nav-link" href="/agents" id="navbar-home-link">
+			<a class="nav-link" href="/projects" id="navbar-home-link">
 				<Home class="size-6" />
 			</a>
 			<Profile />

@@ -115,7 +115,7 @@
 							<Server class="size-4" /> Browse MCP Catalog
 						</p>
 						<span class="text-sm text-gray-500"
-							>Explore our catalog and set up an agent with an MCP server.</span
+							>Explore our catalog and set up a project with an MCP server.</span
 						>
 					</button>
 				</div>
@@ -126,7 +126,7 @@
 
 {#snippet agentsSection()}
 	<div class="flex items-center justify-between">
-		<h1 class="text-2xl font-semibold">Agents</h1>
+		<h1 class="text-2xl font-semibold">Projects</h1>
 		<div class="relative flex items-center gap-4">
 			<button
 				class="button-primary flex items-center gap-1 text-sm"
@@ -134,7 +134,7 @@
 					createDropdown?.show();
 				}}
 			>
-				<Plus class="size-6" /> Create New Agent
+				<Plus class="size-6" /> Create New Project
 			</button>
 
 			<dialog
@@ -245,7 +245,7 @@
 				<button
 					class="icon-button"
 					onclick={() => (toDelete = project)}
-					use:tooltip={'Delete agent'}
+					use:tooltip={'Delete project'}
 				>
 					<Trash2 class="size-4" />
 				</button>
@@ -256,8 +256,8 @@
 
 <Confirm
 	msg={toDelete?.editor
-		? `Delete agent: ${toDelete?.name || 'Untitled'}?`
-		: `Remove agent: ${toDelete?.name || 'Untitled'}?`}
+		? `Delete project: ${toDelete?.name || 'Untitled'}?`
+		: `Remove project: ${toDelete?.name || 'Untitled'}?`}
 	show={!!toDelete}
 	onsuccess={async () => {
 		if (!toDelete) return;
@@ -280,10 +280,10 @@
 
 <McpSetupWizard
 	bind:this={mcpSetupWizard}
-	catalogDescription="Extend your agent's capabilities by adding multiple MCP servers from our evergrowing catalog."
-	catalogSubmitText="Create agent with server"
+	catalogDescription="Extend your project's capabilities by adding multiple MCP servers from our evergrowing catalog."
+	catalogSubmitText="Create project with server"
 />
 
 <svelte:head>
-	<title>Obot | Agents</title>
+	<title>Obot | Projects</title>
 </svelte:head>
