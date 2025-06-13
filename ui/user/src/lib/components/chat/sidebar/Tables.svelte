@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { ChatService, EditorService, type Project, type TableList } from '$lib/services';
 	import { RefreshCcw } from 'lucide-svelte';
-	import { getLayout } from '$lib/context/layout.svelte';
+	import { getLayout } from '$lib/context/chatLayout.svelte';
 	import { fade } from 'svelte/transition';
 	import { overflowToolTip } from '$lib/actions/overflow';
 	import { tooltip } from '$lib/actions/tooltip.svelte';

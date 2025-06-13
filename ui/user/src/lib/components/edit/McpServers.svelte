@@ -15,7 +15,11 @@
 	import CollapsePane from '$lib/components/edit/CollapsePane.svelte';
 	import { HELPER_TEXTS } from '$lib/context/helperMode.svelte';
 	import DotDotDot from '$lib/components/DotDotDot.svelte';
-	import { getLayout, openEditProjectMcp, openMCPServerTools } from '$lib/context/layout.svelte';
+	import {
+		getLayout,
+		openEditProjectMcp,
+		openMCPServerTools
+	} from '$lib/context/chatLayout.svelte';
 	import McpSetupWizard from '$lib/components/mcp/McpSetupWizard.svelte';
 	import { getToolBundleMap } from '$lib/context/toolReferences.svelte';
 	import { DEFAULT_CUSTOM_SERVER_NAME } from '$lib/constants';

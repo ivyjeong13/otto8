@@ -6,7 +6,7 @@
 	import { onMount } from 'svelte';
 	import Profile from '$lib/components/navbar/Profile.svelte';
 	import { LoaderCircle } from 'lucide-svelte';
-	import { initLayout } from '$lib/context/layout.svelte';
+	import { initLayout } from '$lib/context/chatLayout.svelte';
 	import Obot from '$lib/components/Obot.svelte';
 	import { browser } from '$app/environment';
 	import { initProjectTools, getProjectTools } from '$lib/context/projectTools.svelte';

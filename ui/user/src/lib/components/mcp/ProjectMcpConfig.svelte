@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { closeSidebarConfig, getLayout } from '$lib/context/layout.svelte';
 	import { ChatService, type MCPServerTool, type Project, type ProjectMCP } from '$lib/services';
 	import {
 		createProjectMcp,
@@ -7,7 +6,7 @@
 		updateProjectMcp,
 		type MCPServerInfo
 	} from '$lib/services/chat/mcp';
-	import { ChevronsRight, LoaderCircle, PencilLine, Server, X } from 'lucide-svelte';
+	import { ChevronsRight, LoaderCircle, PencilLine, Server } from 'lucide-svelte';
 	import { twMerge } from 'tailwind-merge';
 	import { onMount } from 'svelte';
 	import { errors, responsive } from '$lib/stores';
@@ -18,10 +17,14 @@
 	import PageLoading from '$lib/components/PageLoading.svelte';
 	import { DEFAULT_CUSTOM_SERVER_NAME } from '$lib/constants';
 	import { fade } from 'svelte/transition';
-	import { getProjectMCPs } from '$lib/context/projectMcps.svelte';
 
 	interface Props {
-		projectMcp?: ProjectMCP;
+		projectMcp?: ProjectMCP & {
+			description?: string;
+			icon?: string;
+			name?: string;
+			id?: string;
+		};
 		project?: Project;
 		onCreate?: (newProjectMcp: ProjectMCP) => void;
 		onUpdate?: (updatedProjectConfig: MCPServerInfo) => void;
@@ -75,8 +78,6 @@
 	let showObotHosted = $state(projectMcp ? isObotHosted(projectMcp) : true);
 	let showSubmitError = $state(false);
 	let showMcpError = $state(false);
-	const layout = getLayout();
-	const projectMCPs = getProjectMCPs();
 
 	onMount(() => {
 		if (projectMcp && project) {
@@ -132,7 +133,6 @@
 					: await createProjectMcp(config, project);
 				if (!savedProjectMcp) {
 					savedProjectMcp = newProjectMcp;
-					projectMCPs.items.push(newProjectMcp);
 				}
 				projectMcpServerTools = await ChatService.listProjectMCPServerTools(
 					project.assistantID,
@@ -151,8 +151,8 @@
 </script>
 
 <div class="flex h-full w-full flex-col">
-	<div class="mt-8 flex w-full flex-col gap-2 px-4 md:px-8">
-		<div class="flex w-full flex-col gap-2 self-center md:max-w-[900px]">
+	<div class="flex w-full flex-col gap-2">
+		<div class="flex w-full flex-col gap-2 self-center">
 			<div class="flex items-center justify-between gap-8">
 				{#if projectMcp}
 					<div class="flex flex-col gap-4">
@@ -167,7 +167,7 @@
 								{/if}
 							</div>
 							<div class="flex flex-col gap-1">
-								<h3 class="text-lg leading-4.5 font-semibold">
+								<h3 class="text-2xl leading-4.5 font-semibold">
 									{projectMcp.name || DEFAULT_CUSTOM_SERVER_NAME}
 								</h3>
 							</div>
@@ -183,25 +183,17 @@
 						<PencilLine class="size-5" /> Create MCP Config
 					</h3>
 				{/if}
-				<button
-					class="icon-button h-fit w-fit flex-shrink-0 self-start"
-					onclick={() => closeSidebarConfig(layout)}
-				>
-					<X class="size-6" />
-				</button>
 			</div>
 		</div>
 	</div>
 
 	{#if !projectMcp?.catalogID && !chatbot}
-		<div
-			class="dark:bg-gray-980 mt-4 flex w-full flex-col gap-2 bg-gray-50 px-4 pt-4 pb-2 shadow-inner md:px-8"
-		>
-			<div class="flex w-full self-center md:max-w-[900px]">
+		<div class="mt-4 flex w-full flex-col gap-2 pt-4 pb-2">
+			<div class="flex w-full self-center">
 				<div class="flex w-full gap-1">
 					<button
 						class={twMerge(
-							'dark:bg-gray-980 flex-1 bg-gray-50 py-3',
+							'flex-1 py-3',
 							showObotHosted &&
 								'dark:bg-surface2 dark:border-surface3 rounded-md bg-white shadow-sm dark:border'
 						)}
@@ -211,7 +203,7 @@
 					</button>
 					<button
 						class={twMerge(
-							'dark:bg-gray-980 flex-1 bg-gray-50 py-3',
+							'flex-1 py-3',
 							!showObotHosted &&
 								'dark:bg-surface2 dark:border-surface3 rounded-md bg-white shadow-sm dark:border'
 						)}
@@ -224,12 +216,9 @@
 		</div>
 	{/if}
 
-	<div
-		class="dark:bg-gray-980 relative flex flex-col gap-4 bg-gray-50 px-4 pb-4 md:px-8"
-		class:pt-4={projectMcp?.catalogID}
-	>
+	<div class="relative flex flex-col gap-4 pb-4" class:pt-4={projectMcp?.catalogID}>
 		<div
-			class="dark:bg-surface2 dark:border-surface3 flex w-full flex-col gap-4 self-center rounded-lg bg-white px-4 py-8 shadow-sm md:max-w-[900px] md:px-8 dark:border"
+			class="dark:bg-surface2 dark:border-surface3 flex w-full flex-col gap-4 self-center rounded-lg bg-white px-4 py-8 shadow-sm md:px-8 dark:border"
 		>
 			{#if showMcpError}
 				<p class="notification-error" in:fade>
@@ -246,8 +235,8 @@
 
 	<div class="flex grow"></div>
 
-	<div class="flex w-full flex-col gap-2 self-center md:max-w-[900px]">
-		<div class="flex justify-end p-4 md:p-8">
+	<div class="flex w-full flex-col gap-2 self-center">
+		<div class="flex justify-end">
 			<button
 				disabled={processing}
 				class="button-primary flex items-center gap-1"

@@ -4,16 +4,21 @@
 	import type { Snippet } from 'svelte';
 	import { darkMode } from '$lib/stores';
 	import { Home } from 'lucide-svelte';
+	import { twMerge } from 'tailwind-merge';
 
 	interface Props {
 		leftContent?: Snippet;
 		centerContent?: Snippet;
+		class?: string;
 	}
 
-	let { leftContent, centerContent }: Props = $props();
+	let { leftContent, centerContent, class: klass }: Props = $props();
 </script>
 
-<nav class="flex h-16 w-full items-center bg-white px-3 dark:bg-black" in:fade|global>
+<nav
+	class={twMerge('flex h-16 w-full items-center bg-white px-3 dark:bg-black', klass)}
+	in:fade|global
+>
 	<div class="flex w-full items-center justify-between">
 		{#if leftContent}
 			{@render leftContent()}

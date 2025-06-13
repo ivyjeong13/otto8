@@ -161,6 +161,7 @@ export async function doPost(
 	opts?: {
 		dontLogErrors?: boolean;
 		fetch?: typeof fetch;
+		headers?: Record<string, string>;
 	}
 ): Promise<unknown> {
 	return await doWithBody('POST', path, input, opts);

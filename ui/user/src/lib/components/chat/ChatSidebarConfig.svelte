@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { closeSidebarConfig, getLayout } from '$lib/context/layout.svelte';
+	import { closeSidebarConfig, getLayout } from '$lib/context/chatLayout.svelte';
 	import type { Assistant, AssistantTool, Project } from '$lib/services';
 	import { fade } from 'svelte/transition';
 	import Slack from '$lib/components/integrations/slack/Slack.svelte';
@@ -11,12 +11,12 @@
 	import { updateProjectMcp, getKeyValuePairs } from '$lib/services/chat/mcp';
 	import { getProjectMCPs } from '$lib/context/projectMcps.svelte';
 	import McpServerTools from '$lib/components/mcp/McpServerTools.svelte';
-	import ModelProviders from './ModelProviders.svelte';
+	import ModelProviders from '../ModelProviders.svelte';
 	import ChatbotConfig from '$lib/components/edit/ChatbotConfig.svelte';
 	import { X } from 'lucide-svelte';
-	import Discord from './integrations/discord/Discord.svelte';
-	import Webhook from './integrations/webhook/Webhook.svelte';
-	import Email from './integrations/email/Email.svelte';
+	import Discord from '../integrations/discord/Discord.svelte';
+	import Webhook from '../integrations/webhook/Webhook.svelte';
+	import Email from '../integrations/email/Email.svelte';
 	import { ChatService } from '$lib/services';
 
 	interface Props {
@@ -50,6 +50,7 @@
 				{project}
 				projectMcp={layout.editProjectMcp}
 				chatbot={layout.chatbotMcpEdit}
+				onClose={() => closeSidebarConfig(layout)}
 				onCreate={async (newProjectMcp) => {
 					projectMCPs.items.push(newProjectMcp);
 					closeSidebarConfig(layout);
