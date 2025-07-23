@@ -1,11 +1,26 @@
 <script lang="ts">
-	import { AdminService, type MCPCatalogServer, type MCPServerInstance } from '$lib/services';
+	import {
+		AdminService,
+		ChatService,
+		type MCPCatalogServer,
+		type MCPServerInstance
+	} from '$lib/services';
 	import type { AccessControlRule, MCPCatalogEntry, OrgUser } from '$lib/services/admin/types';
 	import { twMerge } from 'tailwind-merge';
 	import McpServerInfo from '../mcp/McpServerInfo.svelte';
 	import CatalogServerForm from './CatalogServerForm.svelte';
 	import Table from '../Table.svelte';
-	import { GlobeLock, ListFilter, LoaderCircle, Router, Trash2, Users } from 'lucide-svelte';
+	import {
+		GlobeLock,
+		ListFilter,
+		LoaderCircle,
+		Router,
+		Square,
+		SquareCheck,
+		Trash2,
+		TriangleAlert,
+		Users
+	} from 'lucide-svelte';
 	import { tooltip } from '$lib/actions/tooltip.svelte';
 	import { goto } from '$app/navigation';
 	import Confirm from '../Confirm.svelte';
@@ -52,6 +67,8 @@
 		resourceId: string;
 	}>();
 	let view = $state<string>(entry ? 'overview' : 'configuration');
+	let updating = $state<Record<string, { inProgress: boolean; error: string }>>({});
+	let selected = $state<Record<string, boolean>>({});
 
 	$effect(() => {
 		if (view === 'access-control') {
@@ -93,11 +110,37 @@
 			JSON.stringify({ id: entry.id, name, type })
 		);
 	}
+
+	function logServers(servers: MCPCatalogServer[]) {
+		console.log(servers);
+	}
+
+	async function handleUpdateSelectedServers() {
+		for (const id of Object.keys(selected)) {
+			updating[id] = { inProgress: true, error: '' };
+			try {
+				await ChatService.triggerMcpServerUpdate(id);
+				updating[id] = { inProgress: false, error: '' };
+			} catch (error) {
+				updating[id] = {
+					inProgress: false,
+					error: error instanceof Error ? error.message : 'An unknown error occurred'
+				};
+			} finally {
+				delete updating[id];
+			}
+		}
+
+		selected = {};
+	}
 </script>
 
 <div
 	class="flex h-full w-full flex-col gap-4"
-	class:mb-8={view !== 'configuration' || (view === 'configuration' && readonly)}
+	class:mb-8={view !== 'configuration' &&
+		view !== 'server-instances' &&
+		view === 'configuration' &&
+		readonly}
 >
 	{#if entry}
 		<div class="flex items-center justify-between gap-4">
@@ -138,7 +181,7 @@
 			{/if}
 		</div>
 	{/if}
-	<div class="flex flex-col gap-2">
+	<div class="flex grow flex-col gap-2">
 		{#if tabs.length > 0}
 			<div
 				class="grid grid-cols-3 items-center gap-2 text-sm font-light md:grid-cols-4 lg:grid-cols-6"
@@ -343,10 +386,31 @@
 				<LoaderCircle class="size-6 animate-spin" />
 			</div>
 		{:then servers}
+			{@const numServerUpdatesNeeded = servers.filter((s) => s.needsUpdate).length}
 			{#if servers.length > 0}
+				<button class="group mb-2 w-fit rounded-md bg-white dark:bg-black">
+					<div
+						class="flex items-center gap-1 rounded-md border border-yellow-500 bg-yellow-500/10 px-4 py-2 transition-colors duration-300 group-hover:bg-yellow-500/20 dark:bg-yellow-500/30 dark:group-hover:bg-yellow-500/40"
+					>
+						<TriangleAlert class="size-4 text-yellow-500" />
+						<p class="text-sm font-light text-yellow-500">
+							{#if numServerUpdatesNeeded === 1}
+								1 instance has an update available.
+							{:else}
+								{numServerUpdatesNeeded} instances have updates available.
+							{/if}
+						</p>
+					</div>
+				</button>
 				<Table
 					data={servers}
 					fields={['id', 'created']}
+					setRowClasses={(d) => {
+						if (d.needsUpdate) {
+							return 'bg-yellow-500/10';
+						}
+						return '';
+					}}
 					onSelectRow={type === 'single'
 						? (d) => {
 								setLastVisitedMcpServer();
@@ -355,7 +419,24 @@
 						: undefined}
 				>
 					{#snippet onRenderColumn(property, d)}
-						{#if property === 'created'}
+						{#if property === 'id'}
+							<span class="flex items-center gap-1">
+								{d.id}
+								{#if d.needsUpdate}
+									<button
+										onclick={() => {
+											// TODO: show diff between current and new server config
+										}}
+										use:tooltip={{
+											text: 'This server needs an update. Click to see more details.',
+											classes: ['break-words']
+										}}
+									>
+										<TriangleAlert class="size-4 text-yellow-500" />
+									</button>
+								{/if}
+							</span>
+						{:else if property === 'created'}
 							{formatTimeAgo(d[property] as unknown as string).fullDate}
 						{:else}
 							{d[property as keyof typeof d]}
@@ -364,7 +445,7 @@
 
 					{#snippet actions(d)}
 						<button
-							class="button-text"
+							class="button-text px-2"
 							onclick={(e) => {
 								e.stopPropagation();
 								goto(`/v2/admin/audit-logs?mcpId=${encodeURIComponent(d.id)}`);
@@ -372,8 +453,80 @@
 						>
 							View Audit Logs
 						</button>
+
+						{#if d.needsUpdate}
+							<button
+								class="button-text px-2"
+								disabled={updating[d.id]?.inProgress}
+								onclick={async () => {
+									if (!catalogId || !entry) return;
+									updating[d.id] = { inProgress: true, error: '' };
+									try {
+										await ChatService.triggerMcpServerUpdate(d.id);
+										listEntryServers = AdminService.listMCPServersForEntry(catalogId, entry.id);
+									} catch (err) {
+										updating[d.id] = {
+											inProgress: false,
+											error: err instanceof Error ? err.message : 'An unknown error occurred'
+										};
+									} finally {
+										delete updating[d.id];
+									}
+								}}
+							>
+								{#if updating[d.id]?.inProgress}
+									<LoaderCircle class="size-4 animate-spin" />
+								{:else}
+									Update
+								{/if}
+							</button>
+
+							<button class="button-text px-2" onclick={() => (selected[d.id] = !selected[d.id])}>
+								{#if selected[d.id]}
+									<SquareCheck class="size-5" />
+								{:else}
+									<Square class="size-5" />
+								{/if}
+							</button>
+						{/if}
 					{/snippet}
 				</Table>
+
+				{#if Object.keys(selected).length > 0}
+					{@const numSelected = Object.keys(selected).length}
+					{@const updatingInProgress = Object.values(updating).some((u) => u.inProgress)}
+					<div
+						class="bg-surface1 sticky bottom-0 left-0 mt-auto flex w-[calc(100%+2em)] -translate-x-4 justify-end gap-4 p-4 md:w-[calc(100%+4em)] md:-translate-x-8 md:px-8 dark:bg-black"
+					>
+						<div class="flex w-full items-center justify-between">
+							<p class="text-sm font-medium">
+								{numSelected} server instance{numSelected === 1 ? '' : 's'} selected
+							</p>
+							<div class="flex items-center gap-4">
+								<button
+									class="button flex items-center gap-1"
+									onclick={() => {
+										selected = {};
+										updating = {};
+									}}
+								>
+									Cancel
+								</button>
+								<button
+									class="button-primary flex items-center gap-1"
+									onclick={handleUpdateSelectedServers}
+									disabled={updatingInProgress}
+								>
+									{#if updatingInProgress}
+										<LoaderCircle class="size-5" />
+									{:else}
+										Update Servers
+									{/if}
+								</button>
+							</div>
+						</div>
+					</div>
+				{/if}
 			{:else}
 				{@render emptyInstancesContent()}
 			{/if}
