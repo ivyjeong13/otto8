@@ -1,23 +1,24 @@
 <script lang="ts">
 	import { twMerge } from 'tailwind-merge';
 	import { tooltip } from '$lib/actions/tooltip.svelte';
-	import type { OrgUser } from '$lib/services';
 
 	let {
 		data = [],
 		onSelectRow,
 		emptyContent,
-		fetchUserById,
 		currentFragmentIndex = 0,
 		getFragmentIndex,
 		getFragmentRowIndex,
-		onLoadNextFragment
+		onLoadNextFragment,
+		usersMap
 	} = $props();
 
-	function getUserDisplayName(userId: string): Promise<string> {
-		const trimmedId = userId.trim();
-		return fetchUserById(trimmedId)!.then((user: OrgUser) => user?.displayName || 'Unknown User');
-	}
+	let tableData = $derived(
+		data.map((item) => ({
+			...item,
+			user: usersMap.get(item.userID)
+		}))
+	);
 </script>
 
 <!-- Data Table -->
@@ -78,7 +79,7 @@
 
 			<tbody class="">
 				<!-- Audit Data Rows -->
-				{#each data as item, i (item.id)}
+				{#each tableData as item, i (item.id)}
 					{@const fragmentIndex = getFragmentIndex?.(i)}
 					{@const fragmentRowIndex = getFragmentRowIndex?.(i)}
 					<tr
@@ -133,11 +134,7 @@
 								.replace(/,/g, '')}</td
 						>
 						<td class="px-6 py-4 text-sm whitespace-nowrap">
-							{#await getUserDisplayName(item.userID)}
-								<span class="text-gray-500">Loading...</span>
-							{:then displayName}
-								{displayName}
-							{/await}
+							{item.user?.email ?? item.user?.username ?? 'Unknown User'}
 						</td>
 						<td class="px-6 py-4 text-sm whitespace-nowrap">{item.mcpServerDisplayName}</td>
 						<td class="px-6 py-4 text-sm whitespace-nowrap">{item.callType}</td>

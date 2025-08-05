@@ -25,15 +25,16 @@
 	import type { AuditLogURLFilters, OrgUser } from '$lib/services/admin/types';
 	import { AdminService } from '$lib/services';
 	import { untrack } from 'svelte';
+	import type { SvelteMap } from 'svelte/reactivity';
 
 	interface Props {
 		filters?: AuditLogURLFilters;
 		onClose: () => void;
-		fetchUserById: (userId: string) => Promise<OrgUser | undefined>;
+		usersMap: SvelteMap<string, OrgUser>;
 		getFilterDisplayLabel?: (key: keyof AuditLogURLFilters) => string;
 	}
 
-	let { filters: externFilters, onClose, fetchUserById, getFilterDisplayLabel }: Props = $props();
+	let { filters: externFilters, onClose, usersMap, getFilterDisplayLabel }: Props = $props();
 
 	let filters = $derived({ ...(externFilters ?? {}) });
 
@@ -80,11 +81,10 @@
 			const response = await AdminService.listAuditLogFilterOptions(filterId);
 
 			if (filterId === 'user_id') {
-				return await Promise.all(
-					response.options
-						.map((d) => fetchUserById(d).then((user) => ({ id: d, label: user?.displayName ?? d })))
-						.filter(Boolean)
-				);
+				return response.options.map((d) => {
+					const user = usersMap.get(d);
+					return { id: d, label: user?.email || user?.username || d };
+				});
 			}
 
 			return response.options.map((d) => ({

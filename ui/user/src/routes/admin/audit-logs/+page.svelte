@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { fade, slide } from 'svelte/transition';
 	import { X, ChevronLeft, ChevronRight, Funnel, Captions } from 'lucide-svelte';
-	import { delay, throttle } from 'es-toolkit';
+	import { throttle } from 'es-toolkit';
 	import { page } from '$app/state';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { type DateRange } from '$lib/components/Calendar.svelte';
@@ -14,7 +14,7 @@
 		AdminService,
 		type AuditLog
 	} from '$lib/services';
-	import { getUser, type PaginatedResponse } from '$lib/services/admin/operations';
+	import { type PaginatedResponse } from '$lib/services/admin/operations';
 	import { clickOutside } from '$lib/actions/clickoutside';
 	import { dialogAnimation } from '$lib/actions/dialogAnimation';
 	import AuditLogDetails from '$lib/components/admin/audit-logs/AuditLogDetails.svelte';
@@ -24,6 +24,7 @@
 	import AuditLogCalendar from './AuditLogCalendar.svelte';
 	import { endOfDay, set, subDays } from 'date-fns';
 	import { localState } from '$lib/runes/localState.svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	const duration = PAGE_TRANSITION_DURATION;
 
@@ -55,7 +56,7 @@
 
 	const fragmentedAuditLogs = $derived(remoteAuditLogs.slice(fragmentSliceStart, fragmentSliceEnd));
 
-	const users = new Map<string, OrgUser>();
+	let users = new SvelteMap<string, OrgUser>();
 
 	let showFilters = $state(false);
 	let selectedAuditLog = $state<AuditLog & { user: string }>();
@@ -175,42 +176,6 @@
 		}
 	}
 
-	let fetchUserPromises: Map<string, Promise<OrgUser>> = new Map<string, Promise<OrgUser>>();
-
-	async function fetchUserById(id: string): Promise<OrgUser | undefined> {
-		// Input validation
-		if (!id || typeof id !== 'string' || id.trim() === '') {
-			console.warn('fetchUserById: Invalid user ID provided:', id);
-			return undefined;
-		}
-
-		const trimmedId = id.trim();
-
-		if (users.has(trimmedId)) {
-			return users.get(trimmedId);
-		}
-
-		if (!fetchUserPromises.has(trimmedId)) {
-			fetchUserPromises.set(trimmedId, getUser(trimmedId, { dontLogErrors: true }));
-		}
-
-		const fetchUserPromise = fetchUserPromises.get(trimmedId)!;
-		try {
-			const remote = await fetchUserPromise;
-
-			users.set(trimmedId, remote);
-
-			// Invalidate promise cache after 1 minute
-			delay(1000 * 60).then(() => {
-				fetchUserPromises.delete(trimmedId);
-			});
-
-			return remote;
-		} catch (_) {
-			return undefined;
-		}
-	}
-
 	function getFilterDisplayLabel(key: keyof AuditLogURLFilters) {
 		if (key === 'mcp_server_display_name') return 'Server';
 		if (key === 'mcp_server_catalog_entry_name') return 'Server ID';
@@ -228,27 +193,26 @@
 		return key.replace(/_(\w)/g, ' $1');
 	}
 
-	async function getFilterValue(label: keyof AuditLogURLFilters, value: string | number) {
+	function getFilterValue(label: keyof AuditLogURLFilters, value: string | number) {
 		if (label === 'start_time' || label === 'end_time') {
-			return Promise.resolve(
-				new Date(value).toLocaleString(undefined, {
-					year: 'numeric',
-					month: 'short',
-					day: 'numeric',
-					hour: '2-digit',
-					minute: '2-digit',
-					second: '2-digit',
-					hour12: true,
-					timeZoneName: 'short'
-				})
-			);
+			return new Date(value).toLocaleString(undefined, {
+				year: 'numeric',
+				month: 'short',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit',
+				second: '2-digit',
+				hour12: true,
+				timeZoneName: 'short'
+			});
 		}
 
-		if (label === 'user_id') {
-			return (await fetchUserById(value + ''))?.displayName;
+		if (label === 'user_id' && value?.toString()) {
+			const userMatch = users.get(value.toString());
+			return userMatch?.email || userMatch?.username || value.toString();
 		}
 
-		return Promise.resolve(value + '');
+		return value;
 	}
 
 	function handleRightSidebarClose() {
@@ -388,7 +352,7 @@
 						showFilters = false;
 						rightSidebar?.show();
 					}}
-					{fetchUserById}
+					usersMap={users}
 				>
 					{#snippet emptyContent()}
 						<!-- Just to skip ts checker, have to added later -->
@@ -421,7 +385,7 @@
 		<AuditFilters
 			onClose={handleRightSidebarClose}
 			filters={{ ...searchParamFilters }}
-			{fetchUserById}
+			usersMap={users}
 			{getFilterDisplayLabel}
 		/>
 	{/if}
@@ -453,18 +417,17 @@
 						<span>:</span>
 						{#each values as value (value)}
 							{@const isMultiple = values.length > 1}
+							{@const displayValue = getFilterValue(key, value)}
 
-							{#await getFilterValue(key, value) then response}
-								{#if isMultiple}
-									<span class="font-light">
-										<span>{response}</span>
-									</span>
+							{#if isMultiple}
+								<span class="font-light">
+									<span>{displayValue}</span>
+								</span>
 
-									<span class="mx-1 font-bold last:hidden">OR</span>
-								{:else}
-									<span class="font-light">{response}</span>
-								{/if}
-							{/await}
+								<span class="mx-1 font-bold last:hidden">OR</span>
+							{:else}
+								<span class="font-light">{displayValue}</span>
+							{/if}
 						{/each}
 					</div>
 
