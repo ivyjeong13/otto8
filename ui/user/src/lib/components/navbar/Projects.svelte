@@ -56,61 +56,45 @@
 </script>
 
 <div class="flex" bind:this={container} use:ref>
-	<div
+	<button
 		class={twMerge(
 			'relative z-10 flex min-h-10 grow items-center justify-between gap-2 truncate bg-blue-500/10 py-2 pr-6 pl-2 transition-colors duration-200 ',
 			classes?.button,
 			!disabled && 'hover:bg-blue-500/20'
 		)}
 		class:cursor-default={disabled}
+		onclick={async () => {
+			if (disabled) {
+				toggle(false);
+				return;
+			}
+			projects = (await ChatService.listProjects()).items.sort((a, b) => {
+				if (a.id === project.id) return -1;
+				if (b.id === project.id) return 1;
+				return b.created.localeCompare(a.created);
+			});
+			toggle();
+		}}
 	>
-		<button
-			class="flex w-[calc(100%-24px)] items-center justify-between"
-			onclick={async () => {
-				if (disabled) {
-					toggle(false);
-					return;
-				}
-				projects = (await ChatService.listProjects()).items.sort((a, b) => {
-					if (a.id === project.id) return -1;
-					if (b.id === project.id) return 1;
-					return b.created.localeCompare(a.created);
-				});
-				toggle();
-			}}
+		<div
+			class="text-on-background text-md flex w-full max-w-[100%-24px] flex-col truncate text-left"
 		>
-			<div
-				class="text-on-background text-md flex w-full max-w-[100%-24px] flex-col truncate text-left"
-			>
-				<span class="text-[11px] font-normal">Project</span>
-				<p class="truncate text-base font-semibold text-blue-500">
-					{project.name || DEFAULT_PROJECT_NAME}
-				</p>
-			</div>
-			{#if !disabled}
-				<div
-					class={twMerge(
-						'text-gray mr-2 translate-x-[1px] transition-transform duration-200',
-						open && 'rotate-180'
-					)}
-				>
-					<ChevronDown class="size-5" />
-				</div>
-			{/if}
-		</button>
-
+			<span class="text-[11px] font-normal">Project</span>
+			<p class="truncate text-base font-semibold text-blue-500">
+				{project.name || DEFAULT_PROJECT_NAME}
+			</p>
+		</div>
 		{#if !disabled}
-			<button
-				onclick={(e) => {
-					e.stopPropagation();
-					layout.sidebarConfig = 'project-configuration';
-				}}
-				use:tooltip={'Configure Project'}
+			<div
+				class={twMerge(
+					'text-gray translate-x-[1px] transition-transform duration-200',
+					open && 'rotate-180'
+				)}
 			>
-				<Settings class="size-5 text-gray-500" />
-			</button>
+				<ChevronDown class="size-5" />
+			</div>
 		{/if}
-	</div>
+	</button>
 </div>
 
 {#if open}
