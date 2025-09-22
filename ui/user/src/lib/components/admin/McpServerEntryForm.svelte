@@ -51,32 +51,31 @@
 	}
 
 	let { entry, id, entity = 'catalog', type, readonly, onCancel, onSubmit }: Props = $props();
-	let isAtLeastPowerUserPlus = $derived(
-		profile.current?.role === Role.POWERUSER_PLUS || profile.current?.role === Role.ADMIN
-	);
+	let isAdmin = $derived(profile.current?.role === Role.ADMIN);
+	let isAtLeastPowerUserPlus = $derived(profile.current?.role === Role.POWERUSER_PLUS || isAdmin);
 
 	const tabs = $derived(
 		entry
-			? entity === 'workspace'
+			? entity === 'workspace' && !isAdmin
 				? [
 						{ label: 'Overview', view: 'overview' },
+						{ label: 'Server Details', view: 'server-instances' },
 						{ label: 'Tools', view: 'tools' },
 						{ label: 'Configuration', view: 'configuration' },
 						// TODO: support workspace usage and audit logs
 						// { label: 'Usage', view: 'usage' },
 						// { label: 'Audit Logs', view: 'audit-logs' },
 						...(isAtLeastPowerUserPlus ? [{ label: 'Access Control', view: 'access-control' }] : [])
-						// TODO: enable when we have workspace server instances
-						// { label: 'Server Details', view: 'server-instances' }
+						//
 					]
 				: [
 						{ label: 'Overview', view: 'overview' },
+						{ label: 'Server Details', view: 'server-instances' },
 						{ label: 'Tools', view: 'tools' },
 						{ label: 'Configuration', view: 'configuration' },
 						{ label: 'Usage', view: 'usage' },
 						{ label: 'Audit Logs', view: 'audit-logs' },
 						{ label: 'Access Control', view: 'access-control' },
-						{ label: 'Server Details', view: 'server-instances' },
 						{ label: 'Filters', view: 'filters' }
 					]
 			: []
@@ -147,7 +146,7 @@
 	});
 
 	onMount(() => {
-		if (profile.current?.role === Role.ADMIN) {
+		if (isAdmin) {
 			AdminService.listUsersIncludeDeleted().then((data) => {
 				users = data;
 			});
@@ -455,9 +454,7 @@
 		{:else if selected === 'server-instances'}
 			<McpServerInstances {id} {entity} {entry} {users} {type} />
 		{:else if selected === 'filters'}
-			{#if entity !== 'workspace'}
-				{@render filtersView()}
-			{/if}
+			{@render filtersView()}
 		{/if}
 	</div>
 </div>
@@ -604,9 +601,7 @@
 
 		<div class="mt-4 flex flex-1 flex-col gap-8 pb-8">
 			<!-- temporary filter mcp server by name and catalog entry id-->
-			<!-- TODO: support auditLogsPageContent for workspace entity -->
-
-			{#if entity === 'catalog' && id}
+			{#if id}
 				<AuditLogsPageContent
 					mcpId={isMultiUserServer ? entryId : null}
 					mcpServerCatalogEntryName={isSingleUserServer || isRemoteServer ? entryId : null}
