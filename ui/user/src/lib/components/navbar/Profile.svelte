@@ -181,7 +181,7 @@
 					Chat
 				</button>
 			{/if}
-			{#if profile.current.groups.includes(Group.POWERUSER) && showMcpPublisherLink}
+			{#if profile.current.groups.includes(Group.POWERUSER) && showMcpPublisherLink && version.current.authEnabled}
 				<a href="/mcp-publisher" rel="external" class="link">
 					<ServerCog class="size-4" /> MCP Publisher
 				</a>
