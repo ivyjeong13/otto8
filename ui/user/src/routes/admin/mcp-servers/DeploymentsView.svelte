@@ -29,6 +29,7 @@
 		SquareCheck
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
+	import { slide } from 'svelte/transition';
 
 	interface Props {
 		usersMap?: Map<string, OrgUser>;
@@ -49,6 +50,7 @@
 	>();
 	let selected = $state<Record<string, MCPCatalogServer>>({});
 	let updating = $state<Record<string, { inProgress: boolean; error: string }>>({});
+	let bulkRestarting = $state(false);
 
 	let serversData = $state<MCPCatalogServer[]>([]);
 	let instancesData = $state<MCPServerInstance[]>([]);
@@ -76,13 +78,19 @@
 			{}
 		);
 		return serversData.map((deployment) => {
+			const powerUserWorkspaceID =
+				deployment.powerUserWorkspaceID ||
+				(deployment.catalogEntryID
+					? entriesMap[deployment.catalogEntryID]?.powerUserWorkspaceID
+					: undefined);
+			const powerUserID = deployment.catalogEntryID
+				? entriesMap[deployment.catalogEntryID]?.powerUserID
+				: undefined;
 			return {
 				...deployment,
 				displayName: deployment.manifest.name ?? '',
 				userName: getUserDisplayName(usersMap, deployment.userID),
-				registry: deployment.powerUserWorkspaceID
-					? getUserDisplayName(usersMap, deployment.powerUserWorkspaceID)
-					: 'Global Registry',
+				registry: powerUserID ? getUserDisplayName(usersMap, powerUserID) : 'Global Registry',
 				type:
 					deployment.manifest.runtime === 'remote'
 						? 'Remote'
@@ -94,10 +102,7 @@
 						...instance,
 						userName: getUserDisplayName(usersMap, instance.userID)
 					})) ?? [],
-				powerUserWorkspaceID:
-					deployment.powerUserWorkspaceID || deployment.catalogEntryID
-						? entriesMap[deployment.catalogEntryID]?.powerUserWorkspaceID
-						: undefined
+				powerUserWorkspaceID
 			};
 		});
 	});
@@ -348,9 +353,6 @@
 									<div>
 										{instance.userName}
 									</div>
-									<div class="pr-6">
-										{formatTimeAgo(instance.created).relativeTime}
-									</div>
 								</div>
 							</div>
 						{/each}
@@ -363,6 +365,7 @@
 
 {#if hasSelected}
 	{@const numSelected = Object.keys(selected).length}
+	{@const canBulkUpdate = Object.values(selected).every((s) => s.needsUpdate)}
 	{@const updatingInProgress = Object.values(updating).some((u) => u.inProgress)}
 	<div
 		class="bg-surface1 sticky bottom-0 left-0 mt-auto flex w-[calc(100%+2em)] -translate-x-4 justify-end gap-4 p-4 md:w-[calc(100%+4em)] md:-translate-x-8 md:px-8 dark:bg-black"
@@ -384,18 +387,34 @@
 				<button
 					class="button-primary flex items-center gap-1"
 					onclick={() => {
-						showConfirm = {
-							type: 'multi'
-						};
+						// TODO: bulk reload servers
 					}}
-					disabled={updatingInProgress || readonly}
+					disabled={bulkRestarting}
 				>
-					{#if updatingInProgress}
+					{#if bulkRestarting}
 						<LoaderCircle class="size-5" />
 					{:else}
-						Update Servers
+						Restart All
 					{/if}
 				</button>
+				{#if canBulkUpdate}
+					<button
+						class="button-primary flex items-center gap-1 text-nowrap"
+						onclick={() => {
+							showConfirm = {
+								type: 'multi'
+							};
+						}}
+						transition:slide={{ axis: 'x', duration: 100 }}
+						disabled={updatingInProgress || readonly}
+					>
+						{#if updatingInProgress}
+							<LoaderCircle class="size-5" />
+						{:else}
+							Update All
+						{/if}
+					</button>
+				{/if}
 			</div>
 		</div>
 	</div>
