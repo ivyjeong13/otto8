@@ -19,12 +19,12 @@
 	import { getUserDisplayName, openUrl } from '$lib/utils';
 	import {
 		CircleAlert,
+		CircleFadingArrowUp,
 		Ellipsis,
 		GitCompare,
 		LoaderCircle,
 		Power,
 		Server,
-		ServerCog,
 		Square,
 		SquareCheck
 	} from 'lucide-svelte';
@@ -244,6 +244,12 @@
 			}}
 			sortable={['displayName', 'type', 'deploymentStatus', 'userName', 'registry', 'created']}
 			noDataMessage="No catalog servers added."
+			setRowClasses={(d) => {
+				if (d.needsUpdate) {
+					return 'bg-blue-500/10';
+				}
+				return '';
+			}}
 		>
 			{#snippet onRenderColumn(property, d)}
 				{#if property === 'checkbox'}
@@ -282,6 +288,15 @@
 					</div>
 				{:else if property === 'created'}
 					{formatTimeAgo(d.created).relativeTime}
+				{:else if property === 'deploymentStatus'}
+					<div class="flex items-center gap-2">
+						{d.deploymentStatus || '--'}
+						{#if d.needsUpdate}
+							<div use:tooltip={'Upgrade available'}>
+								<CircleFadingArrowUp class="size-4 text-blue-500" />
+							</div>
+						{/if}
+					</div>
 				{:else}
 					{d[property as keyof typeof d]}
 				{/if}
@@ -295,7 +310,7 @@
 					<div class="default-dialog flex min-w-max flex-col gap-1 p-2">
 						{#if d.needsUpdate}
 							<button
-								class="menu-button bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20"
+								class="menu-button bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
 								disabled={updating[d.id]?.inProgress || readonly}
 								onclick={async (e) => {
 									e.stopPropagation();
@@ -309,7 +324,7 @@
 								{#if updating[d.id]?.inProgress}
 									<LoaderCircle class="size-4 animate-spin" />
 								{:else}
-									<ServerCog class="size-4" />
+									<CircleFadingArrowUp class="size-4" />
 								{/if}
 								Update Server
 							</button>
@@ -384,7 +399,7 @@
 			</p>
 			<div class="flex items-center gap-4">
 				<button
-					class="button flex items-center gap-1"
+					class="button flex min-h-[44px] items-center gap-1 text-sm"
 					onclick={() => {
 						selected = {};
 						updating = {};
@@ -393,21 +408,21 @@
 					Cancel
 				</button>
 				<button
-					class="button-primary flex items-center gap-1"
+					class="button-primary flex items-center gap-1 text-sm"
 					onclick={() => {
 						// TODO: bulk reload servers
 					}}
 					disabled={bulkRestarting}
 				>
 					{#if bulkRestarting}
-						<LoaderCircle class="size-5" />
+						<LoaderCircle class="size-4" />
 					{:else}
 						Restart All
 					{/if}
 				</button>
 				{#if canBulkUpdate}
 					<button
-						class="button-primary flex items-center gap-1 text-nowrap"
+						class="button-primary flex items-center gap-1 text-sm text-nowrap"
 						onclick={() => {
 							showConfirm = {
 								type: 'multi'
@@ -417,7 +432,7 @@
 						disabled={updatingInProgress || readonly}
 					>
 						{#if updatingInProgress}
-							<LoaderCircle class="size-5" />
+							<LoaderCircle class="size-4" />
 						{:else}
 							Update All
 						{/if}

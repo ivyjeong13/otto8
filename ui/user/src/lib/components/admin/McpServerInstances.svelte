@@ -11,15 +11,13 @@
 
 	import {
 		CircleAlert,
+		CircleFadingArrowUp,
 		Ellipsis,
 		GitCompare,
 		LoaderCircle,
 		Router,
-		Server,
-		ServerCog,
 		Square,
-		SquareCheck,
-		TriangleAlert
+		SquareCheck
 	} from 'lucide-svelte';
 	import { formatTimeAgo } from '$lib/time';
 	import { profile } from '$lib/stores';
@@ -175,10 +173,10 @@
 					}}
 				>
 					<div
-						class="flex items-center gap-1 rounded-md border border-yellow-500 bg-yellow-500/10 px-4 py-2 transition-colors duration-300 group-hover:bg-yellow-500/20 dark:bg-yellow-500/30 dark:group-hover:bg-yellow-500/40"
+						class="flex items-center gap-1 rounded-md border border-blue-500 bg-blue-500/10 px-4 py-2 transition-colors duration-300 group-hover:bg-blue-500/20 dark:bg-blue-500/30 dark:group-hover:bg-blue-500/40"
 					>
-						<TriangleAlert class="size-4 text-yellow-500" />
-						<p class="text-sm font-light text-yellow-500">
+						<CircleFadingArrowUp class="size-4 text-blue-500" />
+						<p class="text-sm font-light text-blue-500">
 							{#if numServerUpdatesNeeded === 1}
 								1 instance has an update available.
 							{:else}
@@ -220,7 +218,7 @@
 										classes: ['break-words', 'w-58']
 									}}
 								>
-									<TriangleAlert class="size-4 text-yellow-500" />
+									<CircleFadingArrowUp class="size-4 text-blue-500" />
 								</div>
 							{/if}
 						</span>
@@ -236,7 +234,7 @@
 											classes: ['break-words', 'w-58']
 										}}
 									>
-										<TriangleAlert class="size-4 text-yellow-500" />
+										<CircleFadingArrowUp class="size-4 text-blue-500" />
 									</div>
 								{/if}
 							{/if}
@@ -276,7 +274,7 @@
 										<GitCompare class="size-4" /> View Diff
 									</button>
 									<button
-										class="menu-button bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20"
+										class="menu-button bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
 										disabled={updating[d.id]?.inProgress}
 										onclick={async (e) => {
 											e.stopPropagation();
@@ -289,7 +287,7 @@
 										{#if updating[d.id]?.inProgress}
 											<LoaderCircle class="size-4 animate-spin" />
 										{:else}
-											<ServerCog class="size-4" />
+											<CircleFadingArrowUp class="size-4" />
 										{/if}
 										Update Server
 									</button>
