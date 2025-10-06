@@ -225,13 +225,21 @@
 			headerClasses={[{ property: 'checkbox', class: 'w-4' }]}
 			onSelectRow={(d, isCtrlClick) => {
 				const isRemote = d.manifest?.runtime === 'remote';
-				if (isRemote) return;
+				const isMulti = !d.catalogEntryID;
 				setLastVisitedMcpServer(d);
 
 				const belongsToWorkspace = d.powerUserWorkspaceID ? true : false;
-				const url = belongsToWorkspace
-					? `/admin/mcp-servers/w/${d.powerUserWorkspaceID}/c/${d.catalogEntryID}/instance/${d.id}?from=deployed-servers`
-					: `/admin/mcp-servers/c/${d.catalogEntryID}/instance/${d.id}?from=deployed-servers`;
+
+				let url = '';
+				if (isMulti) {
+					url = belongsToWorkspace
+						? `/admin/mcp-servers/w/${d.powerUserWorkspaceID}/s/${d.id}/details`
+						: `/admin/mcp-servers/s/${d.id}/details`;
+				} else {
+					url = belongsToWorkspace
+						? `/admin/mcp-servers/w/${d.powerUserWorkspaceID}/c/${d.catalogEntryID}/instance/${d.id}?from=deployed-servers`
+						: `/admin/mcp-servers/c/${d.catalogEntryID}/instance/${d.id}?from=deployed-servers`;
+				}
 				openUrl(url, isCtrlClick);
 			}}
 			sortable={['displayName', 'type', 'deploymentStatus', 'userName', 'registry', 'created']}
