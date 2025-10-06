@@ -2,13 +2,14 @@
 	import BackLink from '$lib/components/BackLink.svelte';
 	import McpServerK8sInfo from '$lib/components/admin/McpServerK8sInfo.svelte';
 	import Layout from '$lib/components/Layout.svelte';
-	import { PAGE_TRANSITION_DURATION } from '$lib/constants';
+	import { DEFAULT_MCP_CATALOG_ID, PAGE_TRANSITION_DURATION } from '$lib/constants';
 	import { AdminService, ChatService, type OrgUser } from '$lib/services/index.js';
 	import { Info } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import { profile } from '$lib/stores/index.js';
 	import { page } from '$app/state';
+	import McpServerRemoteInfo from '$lib/components/admin/McpServerRemoteInfo.svelte';
 
 	let { data } = $props();
 	let { catalogEntry, mcpServerId } = data;
@@ -37,13 +38,24 @@
 			<BackLink fromURL={from} {currentLabel} />
 		{/if}
 
-		{#if mcpServerId && catalogEntry?.manifest.runtime !== 'remote'}
-			<McpServerK8sInfo
-				{mcpServerId}
-				name={catalogEntryName}
-				{connectedUsers}
-				readonly={profile.current.isAdminReadonly?.()}
-			/>
+		{#if mcpServerId}
+			{#if catalogEntry?.manifest.runtime === 'remote'}
+				<McpServerRemoteInfo
+					{mcpServerId}
+					name={catalogEntryName}
+					{connectedUsers}
+					entity="catalog"
+					entityId={DEFAULT_MCP_CATALOG_ID}
+					catalogEntryId={catalogEntry?.id}
+				/>
+			{:else}
+				<McpServerK8sInfo
+					{mcpServerId}
+					name={catalogEntryName}
+					{connectedUsers}
+					readonly={profile.current.isAdminReadonly?.()}
+				/>
+			{/if}
 		{:else}
 			<h1 class="text-2xl font-semibold">
 				{catalogEntryName} | {mcpServerId}

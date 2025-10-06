@@ -32,6 +32,7 @@
 	import McpServerK8sInfo from './McpServerK8sInfo.svelte';
 	import { openUrl } from '$lib/utils';
 	import DiffDialog from './DiffDialog.svelte';
+	import { page } from '$app/state';
 
 	interface Props {
 		id?: string;
@@ -56,7 +57,7 @@
 
 	let hasSelected = $derived(Object.values(selected).some((v) => v));
 	let usersMap = $derived(new Map(users.map((u) => [u.id, u])));
-	let isAdminUrl = $state(false);
+	let isAdminUrl = $derived(page.url.pathname.includes('/admin'));
 
 	onMount(() => {
 		if (entry && !('isCatalogEntry' in entry) && id) {
@@ -71,10 +72,6 @@
 			} else {
 				listEntryServers = AdminService.listMCPServersForEntry(id, entry.id);
 			}
-		}
-
-		if (location.pathname.includes('/admin')) {
-			isAdminUrl = true;
 		}
 	});
 

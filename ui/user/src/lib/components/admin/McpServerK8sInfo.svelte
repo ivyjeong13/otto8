@@ -16,6 +16,7 @@
 	import { tooltip } from '$lib/actions/tooltip.svelte';
 	import { twMerge } from 'tailwind-merge';
 	import { profile } from '$lib/stores';
+	import { page } from '$app/state';
 
 	interface Props {
 		id?: string;
@@ -52,7 +53,7 @@
 	let restarting = $state(false);
 	let refreshingEvents = $state(false);
 	let refreshingLogs = $state(false);
-	let isAdminUrl = $state(false);
+	let isAdminUrl = $derived(page.url.pathname.includes('/admin'));
 
 	let logsUrl = $derived.by(() => {
 		if (entity === 'workspace') {
@@ -84,10 +85,6 @@
 	}
 
 	onMount(() => {
-		if (location.pathname.includes('/admin')) {
-			isAdminUrl = true;
-		}
-
 		listK8sInfo =
 			entity === 'workspace' && entityId
 				? catalogEntryId
@@ -373,7 +370,7 @@
 		{/snippet}
 
 		{#snippet actions(d)}
-			{#if profile.current?.role === Role.ADMIN && isAdminUrl}
+			{#if profile.current?.isAdmin?.() && isAdminUrl}
 				{@const mcpId = d.mcpInstanceId ? d.mcpInstanceId : mcpServerId || mcpServerInstanceId}
 				{@const id = mcpId?.split('-').at(-1)}
 				{@const url =

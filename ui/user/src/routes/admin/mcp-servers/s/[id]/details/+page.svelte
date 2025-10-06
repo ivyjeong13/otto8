@@ -55,10 +55,7 @@
 								mcpInstanceId: instance.id
 							};
 						})}
-						title="Details"
-						classes={{
-							title: 'text-lg font-semibold'
-						}}
+						title={mcpServer.manifest.name}
 					/>
 				{/if}
 			</div>
