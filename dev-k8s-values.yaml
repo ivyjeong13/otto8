@@ -1,0 +1,49 @@
+# Local development values for deploying Obot to k3d cluster via Helm
+# This simulates a production deployment locally
+
+# Use embedded DB for local testing (not for production!)
+dev:
+  useEmbeddedDb: true
+
+# Use locally built image (built by deploy script)
+image:
+  repository: obot
+  tag: "local"
+  pullPolicy: Never
+
+# Expose via NodePort for local access
+service:
+  type: NodePort
+  port: 80
+
+# MCP Configuration - use Kubernetes backend
+config:
+  # Enable Kubernetes backend for MCP servers
+  OBOT_SERVER_MCPRUNTIME_BACKEND: "kubernetes"
+  
+  # MCP namespace and image settings
+  OBOT_SERVER_MCPBASE_IMAGE: "ghcr.io/obot-platform/mcp-images/phat:main"
+  OBOT_SERVER_MCPNAMESPACE: "obot-mcp"
+  OBOT_SERVER_MCPCLUSTER_DOMAIN: "cluster.local"
+  
+  # Optional: Enable authentication for more realistic testing
+  OBOT_SERVER_ENABLE_AUTHENTICATION: false
+  
+  # Dev mode settings
+  OBOT_DEV_MODE: false  # Set to true for debug logging
+  
+  # Optional: Set owner email if auth is enabled
+  # OBOT_SERVER_AUTH_OWNER_EMAILS: "your-email@example.com"
+
+# Resource limits (adjust as needed for local machine)
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+# Single replica for local testing
+replicaCount: 1
+
