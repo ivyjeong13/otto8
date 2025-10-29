@@ -1,0 +1,108 @@
+# Local snapshot storage; deployed before the Obot Helm release.
+# Credentials are generated once by deploy-to-k3d.sh in ate-system.
+# RustFS runs as UID 10001: https://docs.rustfs.com/en/installation/container
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dev-rustfs-data
+  namespace: ate-system
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dev-rustfs
+  namespace: ate-system
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: dev-rustfs
+  template:
+    metadata:
+      labels:
+        app: dev-rustfs
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: rustfs
+          image: rustfs/rustfs:1.0.0
+          args: [/data]
+          env:
+            - name: RUSTFS_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: dev-substrate-storage
+                  key: AWS_ACCESS_KEY_ID
+            - name: RUSTFS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: dev-substrate-storage
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: RUSTFS_ADDRESS
+              value: ':9000'
+            - name: RUSTFS_CONSOLE_ADDRESS
+              value: ':9001'
+            - name: RUSTFS_CONSOLE_ENABLE
+              value: 'true'
+            - name: RUSTFS_OBS_LOG_DIRECTORY
+              value: /logs
+          ports:
+            - name: s3
+              containerPort: 9000
+            - name: console
+              containerPort: 9001
+          startupProbe:
+            tcpSocket:
+              port: s3
+            periodSeconds: 2
+            failureThreshold: 90
+          readinessProbe:
+            tcpSocket:
+              port: s3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: '2'
+              memory: 2Gi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: logs
+              mountPath: /logs
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: dev-rustfs-data
+        - name: logs
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dev-rustfs
+  namespace: ate-system
+spec:
+  type: ClusterIP
+  selector:
+    app: dev-rustfs
+  ports:
+    - name: s3
+      port: 9000
+      targetPort: s3
+    - name: console
+      port: 9001
+      targetPort: console

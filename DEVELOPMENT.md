@@ -223,6 +223,66 @@ kubectl port-forward -n obot service/obot-obot 8080:80
 
 Open <http://localhost:8080> and use the bootstrap token to sign in. Configure authentication and Obot users, then follow [environment administration](docs/docs/claude-environments/administration.md) to create an environment from its Claude environment key, assign profiles and vMCPs, and map Claude accounts to Obot users. Workers are created when an environment is configured; an empty worker namespace before that is expected. Anthropic provisioning uses an outbound connection from Obot, so it does not require a publicly reachable localhost ingress.
 
+### Local helper with RustFS snapshot storage
+
+The repository's local helper installs Claude Environments with a persistent,
+single-node RustFS instance instead of requiring an AWS S3 or R2 account:
+
+```bash
+./deploy-to-k3d.sh
+```
+
+It creates a dedicated `obot-substrate` cluster with the version and certificate
+feature gates above, verifies the APIs and each node's kubelet gates, and uses the
+explicit `k3d-obot-substrate` context for every deployment operation. Set
+`CLUSTER_NAME` to select another k3d cluster. An incompatible existing cluster
+fails the checks; the helper never deletes or recreates it. Use a fresh cluster
+name when migrating from an ordinary k3d setup. Only one Substrate installation
+is supported per cluster.
+
+The helper generates `ate-system/dev-substrate-storage` once and reuses it for
+RustFS and both Substrate storage clients. It deploys `dev-k8s-rustfs.yaml`, then
+runs `dev-k8s-rustfs-bucket.yaml` to create `obot-snapshots` and verify authenticated
+object write/read/delete before installing Obot with `dev-k8s-values.yaml`. The
+snapshot prefix is `s3://obot-snapshots/claude/`; the S3 endpoint is the internal
+RustFS Service with path-style addressing and region `us-east-1`. Keep the bucket
+and endpoint in those files aligned if changing them. Credentials stay outside
+Helm values and are deliberately unavailable for MCP secret binding.
+
+RustFS data uses a 20 GiB `local-path` PVC; Obot and Substrate PostgreSQL also have
+separate persistent storage. This storage survives pod replacement, but deleting
+the cluster or its PVCs loses local data. RustFS uses HTTP on a ClusterIP Service
+for local development. The helper's object check does not validate Substrate
+snapshot restoration: complete the suspend/resume acceptance checks below.
+
+After building/importing Obot and waiting for Helm resources and jobs, the helper
+runs a foreground port-forward to <http://localhost:8080>. Stop the forward with
+Ctrl+C; the deployed stack keeps running. Configure Claude environment keys,
+profiles, vMCPs, and account mappings in Obot as described above. Allocate enough
+Docker resources for the additional storage and databases plus each 2 CPU/4 GiB
+worker.
+
+The example `dev-k8s-bindable-secrets.yaml` remains optional. Edit its placeholders
+and apply it explicitly, or set `APPLY_BINDABLE_SECRETS=true` when running the
+helper. Reapplying it overwrites example Secrets, so it is not applied by default.
+
+For the RustFS console, run:
+
+```bash
+kubectl --context k3d-obot-substrate port-forward -n ate-system service/dev-rustfs 9001:9001
+# In another terminal, retrieve the access key and secret key for console login:
+kubectl --context k3d-obot-substrate get secret dev-substrate-storage -n ate-system \
+  -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 --decode
+printf '\n'
+kubectl --context k3d-obot-substrate get secret dev-substrate-storage -n ate-system \
+  -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 --decode
+printf '\n'
+```
+
+Open <http://localhost:9001>. See the [RustFS container documentation](https://docs.rustfs.com/en/installation/container)
+for its container user and persistence requirements. To use external S3/R2 instead,
+follow the manual Helm setup above; the helper provisions local RustFS.
+
 ### Troubleshooting and rebuilding
 
 - **Certificate volumes fail with `unimplemented`:** verify the kubelet gates as well as the API server gates. A normal k3d cluster without these settings is insufficient.
