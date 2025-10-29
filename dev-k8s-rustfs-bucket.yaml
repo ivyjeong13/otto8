@@ -1,0 +1,44 @@
+# Create the bucket and exercise authenticated object write/read/delete before Helm.
+# Keep the bucket/endpoint aligned with dev-k8s-values.yaml.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dev-rustfs-bucket
+  namespace: ate-system
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 240
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: bucket
+          image: amazon/aws-cli:2.27.49
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              aws configure set default.s3.addressing_style path
+              aws s3api head-bucket --bucket obot-snapshots || \
+                aws s3api create-bucket --bucket obot-snapshots
+              key="claude/.storage-check-$(date +%s)"
+              printf 'obot-substrate-storage-check' > /tmp/upload
+              aws s3api put-object --bucket obot-snapshots --key "$key" --body /tmp/upload
+              aws s3api get-object --bucket obot-snapshots --key "$key" /tmp/download
+              test "$(cat /tmp/download)" = 'obot-substrate-storage-check'
+              aws s3api delete-object --bucket obot-snapshots --key "$key"
+          envFrom:
+            - secretRef:
+                name: dev-substrate-storage
+          env:
+            - name: AWS_REGION
+              value: us-east-1
+            - name: AWS_ENDPOINT_URL
+              value: http://dev-rustfs.ate-system.svc.cluster.local:9000
+            - name: AWS_EC2_METADATA_DISABLED
+              value: 'true'
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
