@@ -1,3 +1,7 @@
-export KUBECONFIG=$(pwd)/tools/devmode-kubeconfig
+# Use your default kubeconfig for real Kubernetes cluster (Docker Desktop, kind, etc.)
+# Comment this out to use your ~/.kube/config instead
+# export KUBECONFIG=$(pwd)/tools/devmode-kubeconfig
+
 export OBOT_DEV_MODE=true
 export WORKSPACE_PROVIDER_IGNORE_WORKSPACE_NOT_FOUND=true
+export OBOT_SERVER_MCPRUNTIME_BACKEND=kubernetes
