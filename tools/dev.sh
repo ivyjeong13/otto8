@@ -23,7 +23,7 @@ print_with_color() {
   local uncolored_message=$3
   local formatted_message="\033[38;5;${color_code}m${color_message}\033[0m${uncolored_message}"
 
-  printf "$formatted_message\n"
+  printf '%s\n' "$formatted_message"
 }
 
 print_section_header() {
