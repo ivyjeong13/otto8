@@ -40,7 +40,8 @@ import type {
 	ScheduledAuditLogExportInput,
 	K8sSettings,
 	ServerK8sSettings,
-	MCPCompositeDeletionDependency
+	MCPCompositeDeletionDependency,
+	AppPreferences
 } from './types';
 import { MCPCompositeDeletionDependencyError } from './types';
 
@@ -1047,4 +1048,16 @@ export async function listK8sSettings(opts?: { fetch?: Fetcher }) {
 
 export async function updateK8sSettings(settings: K8sSettings, opts?: { fetch?: Fetcher }) {
 	return (await doPut('/k8s-settings', settings, opts)) as K8sSettings;
+}
+
+export async function listAppPreferences(opts?: { fetch?: Fetcher }) {
+	const response = (await doGet('/app-preferences', opts)) as AppPreferences;
+	return response;
+}
+
+export async function updateAppPreferences(
+	preferences: AppPreferences,
+	opts?: { fetch?: Fetcher }
+) {
+	return (await doPut('/app-preferences', preferences, opts)) as AppPreferences;
 }

@@ -621,6 +621,11 @@ func Router(ctx context.Context, services *services.Services) (http.Handler, err
 	mux.HandleFunc("GET /api/k8s-settings", k8sSettingsHandler.Get)
 	mux.HandleFunc("PUT /api/k8s-settings", k8sSettingsHandler.Update)
 
+	// App Preferences
+	appPrefsHandler := handlers.NewAppPreferencesHandler()
+	mux.HandleFunc("GET /api/app-preferences", appPrefsHandler.Get)
+	mux.HandleFunc("PUT /api/app-preferences", appPrefsHandler.Update)
+
 	// Debug
 	mux.HTTPHandle("GET /debug/pprof/", http.DefaultServeMux)
 	mux.HTTPHandle("GET /debug/triggers", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
