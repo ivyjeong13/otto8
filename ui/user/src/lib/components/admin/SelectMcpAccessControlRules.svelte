@@ -107,7 +107,7 @@
 		if (entry) {
 			sessionStorage.setItem(ADMIN_SESSION_STORAGE.ACCESS_CONTROL_RULE_CREATION, entry.id);
 		}
-		goto('/admin/access-control?new=true');
+		goto('/admin/mcp-registries?new=true');
 	}
 </script>
 

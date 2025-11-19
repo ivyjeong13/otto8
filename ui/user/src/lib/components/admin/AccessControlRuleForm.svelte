@@ -306,8 +306,6 @@
 					</button>
 				{/if}
 			</div>
-		{:else}
-			<h1 class="text-2xl font-semibold">Create Access Control Rule</h1>
 		{/if}
 
 		{#if !accessControlRule.id}
@@ -435,7 +433,7 @@
 							if (redirect) {
 								goto(redirect);
 							} else {
-								goto('/admin/access-control');
+								goto('/admin/mcp-registries');
 							}
 						}}
 					>
@@ -575,7 +573,7 @@
 		await (entity === 'workspace'
 			? ChatService.deleteWorkspaceAccessControlRule(id, accessControlRule.id)
 			: AdminService.deleteAccessControlRule(accessControlRule.id));
-		goto('/admin/access-control');
+		goto('/admin/mcp-registries');
 	}}
 	oncancel={() => (deletingRule = false)}
 />

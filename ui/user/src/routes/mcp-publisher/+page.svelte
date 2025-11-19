@@ -12,7 +12,6 @@
 	import { goto } from '$app/navigation';
 	import { afterNavigate } from '$app/navigation';
 	import { browser } from '$app/environment';
-	import BackLink from '$lib/components/BackLink.svelte';
 	import Search from '$lib/components/Search.svelte';
 	import { formatTimeAgo } from '$lib/time';
 	import { openUrl } from '$lib/utils';
@@ -105,9 +104,14 @@
 	}
 
 	const duration = PAGE_TRANSITION_DURATION;
+	let title = $derived(
+		showServerForm
+			? `Create ${getServerTypeLabelByType(selectedServerType)} Server`
+			: 'MCP Publisher'
+	);
 </script>
 
-<Layout showUserLinks>
+<Layout showUserLinks {title} showBackButton={showServerForm}>
 	<div class="flex flex-col gap-8 pt-4 pb-8" in:fade>
 		{#if showServerForm}
 			{@render configureEntryScreen()}
@@ -115,6 +119,10 @@
 			{@render mainContent()}
 		{/if}
 	</div>
+
+	{#snippet rightNavActions()}
+		{@render addServerButton()}
+	{/snippet}
 </Layout>
 
 {#snippet mainContent()}
@@ -123,15 +131,6 @@
 		in:fly={{ x: 100, delay: duration, duration }}
 		out:fly={{ x: -100, duration }}
 	>
-		<div class="flex flex-col items-center justify-start md:flex-row md:justify-between">
-			<h1 class="flex w-full items-center gap-2 text-2xl font-semibold">MCP Servers</h1>
-			{#if totalCount > 0}
-				<div class="mt-4 w-full flex-shrink-0 md:mt-0 md:w-fit">
-					{@render addServerButton()}
-				</div>
-			{/if}
-		</div>
-
 		<div class="flex flex-col gap-2">
 			<Search
 				class="dark:bg-surface1 dark:border-surface3 border border-transparent bg-white shadow-sm"
@@ -221,9 +220,7 @@
 {/snippet}
 
 {#snippet configureEntryScreen()}
-	{@const currentLabelType = getServerTypeLabelByType(selectedServerType)}
 	<div class="flex flex-col gap-6" in:fly={{ x: 100, delay: duration, duration }}>
-		<BackLink fromURL="mcp-publisher" currentLabel={`Create ${currentLabelType} Server`} />
 		<McpServerEntryForm
 			type={selectedServerType}
 			id={workspaceId}

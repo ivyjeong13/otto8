@@ -17,7 +17,6 @@
 	import { goto, replaceState } from '$app/navigation';
 	import { afterNavigate } from '$app/navigation';
 	import { browser } from '$app/environment';
-	import BackLink from '$lib/components/BackLink.svelte';
 	import SelectServerType from '$lib/components/mcp/SelectServerType.svelte';
 	import { profile } from '$lib/stores';
 	import { page } from '$app/state';
@@ -162,7 +161,13 @@
 	const duration = PAGE_TRANSITION_DURATION;
 </script>
 
-<Layout classes={{ navbar: 'bg-surface1' }}>
+<Layout
+	classes={{ navbar: 'bg-surface1' }}
+	title={showServerForm
+		? `Create ${getServerTypeLabelByType(selectedServerType)} Server`
+		: 'MCP Servers'}
+	showBackButton={showServerForm}
+>
 	<div class="flex min-h-full flex-col gap-8 pt-4" in:fade>
 		{#if showServerForm}
 			{@render configureEntryScreen()}
@@ -170,6 +175,21 @@
 			{@render mainContent()}
 		{/if}
 	</div>
+	{#snippet rightNavActions()}
+		{#if !isAdminReadonly}
+			<button class="button flex items-center gap-1 text-sm font-normal" onclick={sync}>
+				{#if syncing}
+					<LoaderCircle class="size-4 animate-spin" /> Syncing...
+				{:else}
+					<RefreshCcw class="size-4" />
+					Sync
+				{/if}
+			</button>
+		{/if}
+		{#if totalCount > 0 && !isAdminReadonly}
+			{@render addServerButton()}
+		{/if}
+	{/snippet}
 </Layout>
 
 {#snippet mainContent()}
@@ -178,28 +198,6 @@
 		in:fly={{ x: 100, delay: duration, duration }}
 		out:fly={{ x: -100, duration }}
 	>
-		<div
-			class="mb-4 flex flex-col items-center justify-start md:mb-8 md:flex-row md:justify-between"
-		>
-			<div class="flex items-center gap-2">
-				<h1 class="text-2xl font-semibold">MCP Servers</h1>
-				{#if !isAdminReadonly}
-					<button class="button-small flex items-center gap-1 text-xs font-normal" onclick={sync}>
-						{#if syncing}
-							<LoaderCircle class="size-4 animate-spin" /> Syncing...
-						{:else}
-							<RefreshCcw class="size-4" />
-							Sync
-						{/if}
-					</button>
-				{/if}
-			</div>
-			{#if totalCount > 0 && !isAdminReadonly}
-				<div class="mt-4 w-full flex-shrink-0 md:mt-0 md:w-fit">
-					{@render addServerButton()}
-				</div>
-			{/if}
-		</div>
 		<div class="bg-surface1 sticky top-16 left-0 z-20 w-full pb-1 dark:bg-black">
 			<div class="mb-2">
 				<Search
@@ -284,9 +282,7 @@
 {/snippet}
 
 {#snippet configureEntryScreen()}
-	{@const currentLabelType = getServerTypeLabelByType(selectedServerType)}
 	<div class="flex flex-col gap-6" in:fly={{ x: 100, delay: duration, duration }}>
-		<BackLink fromURL="mcp-servers" currentLabel={`Create ${currentLabelType} Server`} />
 		<McpServerEntryForm
 			type={selectedServerType}
 			id={defaultCatalogId}

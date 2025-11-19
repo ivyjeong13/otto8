@@ -77,7 +77,7 @@
 			'/mcp-servers',
 			'/profile',
 			'/mcp-publisher',
-			'/mcp-publisher/access-control',
+			'/mcp-publisher/mcp-registries',
 			'/mcp-publisher/audit-logs',
 			'/mcp-publisher/usage'
 		];

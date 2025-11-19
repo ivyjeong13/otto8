@@ -220,9 +220,9 @@
 							const url =
 								entity === 'workspace'
 									? isAdminUrl
-										? `/admin/mcp-servers/w/${id}/c/${entry?.id}/instance/${d.id}?from=/mcp-servers/${entry?.id}`
+										? `/admin/mcp-servers/w/${id}/c/${entry?.id}/instance/${d.id}`
 										: `/mcp-publisher/c/${entry?.id}/instance/${d.id}`
-									: `/admin/mcp-servers/c/${entry?.id}/instance/${d.id}?from=/mcp-servers/${entry?.id}`;
+									: `/admin/mcp-servers/c/${entry?.id}/instance/${d.id}`;
 							openUrl(url, isCtrlClick);
 						}
 					: undefined}

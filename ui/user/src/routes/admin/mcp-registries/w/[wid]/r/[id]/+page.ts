@@ -9,7 +9,7 @@ export const load: PageLoad = async ({ params, fetch }) => {
 	try {
 		accessControlRule = await ChatService.getWorkspaceAccessControlRule(wid, id, { fetch });
 	} catch (err) {
-		handleRouteError(err, `/admin/access-control/w/${wid}/r/${id}`, profile.current);
+		handleRouteError(err, `/admin/mcp-registries/w/${wid}/r/${id}`, profile.current);
 	}
 
 	return {

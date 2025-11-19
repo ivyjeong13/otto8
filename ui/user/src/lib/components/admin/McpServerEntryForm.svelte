@@ -632,10 +632,10 @@
 							: encodeURIComponent(`mcp-servers/${entry.id}`);
 					if (entity === 'workspace') {
 						url = !isAdminRoute
-							? `/mcp-publisher/access-control/${d.id}?from=${from}`
-							: `/admin/access-control/w/${id}/r/${d.id}?from=${from}`;
+							? `/mcp-publisher/mcp-registries/${d.id}`
+							: `/admin/mcp-registries/w/${id}/r/${d.id}`;
 					} else {
-						url = `/admin/access-control/${d.id}?from=${from}`;
+						url = `/admin/mcp-registries/${d.id}`;
 					}
 					openUrl(url, isCtrlClick);
 				}}
@@ -774,7 +774,7 @@
 					]}
 					onClickRow={(d, isCtrlClick) => {
 						setLastVisitedMcpServer();
-						const url = `/admin/filters/${d.id}?from=${encodeURIComponent(`mcp-servers/${entry?.id}`)}`;
+						const url = `/admin/filters/${d.id}`;
 						openUrl(url, isCtrlClick);
 					}}
 				>

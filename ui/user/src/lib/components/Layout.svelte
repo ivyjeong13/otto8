@@ -11,6 +11,7 @@
 		Captions,
 		ChartBarDecreasing,
 		ChevronDown,
+		ChevronLeft,
 		ChevronUp,
 		CircuitBoard,
 		Cpu,
@@ -19,10 +20,12 @@
 		LockKeyhole,
 		MessageCircle,
 		MessageCircleMore,
+		RadioTower,
 		Server,
 		Settings,
 		SidebarClose,
 		SidebarOpen,
+		SquareLibrary,
 		UserCog,
 		Users
 	} from 'lucide-svelte';
@@ -60,6 +63,10 @@
 		whiteBackground?: boolean;
 		main?: { component: Component; props?: Record<string, unknown> };
 		navLinks?: NavLink[];
+		rightNavActions?: Snippet;
+		title?: string;
+		showBackButton?: boolean;
+		onBackButtonClick?: () => void;
 	}
 
 	const {
@@ -70,7 +77,11 @@
 		onRenderSubContent,
 		hideSidebar,
 		whiteBackground,
-		main
+		main,
+		rightNavActions,
+		title,
+		showBackButton,
+		onBackButtonClick
 	}: Props = $props();
 	let nav = $state<HTMLDivElement>();
 	let collapsed = $state<Record<string, boolean>>({});
@@ -83,8 +94,8 @@
 			? [
 					{
 						id: 'mcp-server-management',
-						icon: Server,
-						label: 'MCP Server Management',
+						icon: RadioTower,
+						label: 'MCP Hosting',
 						collapsible: true,
 						items: [
 							{
@@ -92,6 +103,14 @@
 								icon: Server,
 								href: '/admin/mcp-servers',
 								label: 'MCP Servers',
+								disabled: isBootStrapUser,
+								collapsible: false
+							},
+							{
+								id: 'mcp-registries',
+								icon: SquareLibrary,
+								href: '/admin/mcp-registries',
+								label: 'MCP Registries',
 								disabled: isBootStrapUser,
 								collapsible: false
 							},
@@ -117,14 +136,6 @@
 								icon: Funnel,
 								label: 'Filters',
 								disabled: isBootStrapUser
-							},
-							{
-								id: 'access-control',
-								href: '/admin/access-control',
-								icon: GlobeLock,
-								label: 'Access Control',
-								disabled: isBootStrapUser,
-								collapsible: false
 							},
 							version.current.engine === 'kubernetes'
 								? {
@@ -229,7 +240,7 @@
 						? [
 								{
 									id: 'access-control',
-									href: '/mcp-publisher/access-control',
+									href: '/mcp-publisher/mcp-registries',
 									icon: GlobeLock,
 									label: 'Access Control',
 									disabled: false,
@@ -412,6 +423,18 @@
 						<BetaLogo />
 					{/if}
 				{/snippet}
+				{#snippet centerContent()}
+					{#if layout.sidebarOpen && !hideSidebar}
+						<div class="mx-6 flex w-full items-center gap-2" class:ml-4={showBackButton}>
+							{@render layoutHeaderContent()}
+						</div>
+					{/if}
+				{/snippet}
+				{#snippet rightContent()}
+					{#if rightNavActions && layout.sidebarOpen && !hideSidebar}
+						{@render rightNavActions()}
+					{/if}
+				{/snippet}
 			</Navbar>
 
 			<div
@@ -428,6 +451,16 @@
 				>
 					{#if isAdminRoute && !excludeConfigureBanner.includes(pathname)}
 						<ConfigureBanner />
+					{/if}
+					{#if !layout.sidebarOpen || hideSidebar}
+						<div class="flex w-full items-center justify-between gap-2">
+							{@render layoutHeaderContent()}
+							<div class="flex flex-shrink-0 items-center gap-2">
+								{#if rightNavActions}
+									{@render rightNavActions()}
+								{/if}
+							</div>
+						</div>
 					{/if}
 					{@render children()}
 				</div>
@@ -451,6 +484,26 @@
 {#if isAdminRoute}
 	<SetupSplashDialog />
 {/if}
+
+{#snippet layoutHeaderContent()}
+	{#if showBackButton}
+		<button
+			class="icon-button flex-shrink-0"
+			onclick={() => {
+				if (onBackButtonClick) {
+					onBackButtonClick();
+				} else {
+					history.back();
+				}
+			}}
+		>
+			<ChevronLeft class="size-6" />
+		</button>
+	{/if}
+	{#if title}
+		<h1 class="w-full text-xl font-semibold">{title}</h1>
+	{/if}
+{/snippet}
 
 <style lang="postcss">
 	.sidebar-link {

@@ -12,7 +12,7 @@ export const load: PageLoad = async ({ params, fetch }) => {
 		workspaceId = await ChatService.fetchWorkspaceIDForProfile(profile.current?.id, { fetch });
 		accessControlRule = await ChatService.getWorkspaceAccessControlRule(workspaceId, id, { fetch });
 	} catch (err) {
-		handleRouteError(err, `/mcp-publisher/access-control/${id}`, profile.current);
+		handleRouteError(err, `/mcp-publisher/mcp-registries/${id}`, profile.current);
 	}
 
 	return {
