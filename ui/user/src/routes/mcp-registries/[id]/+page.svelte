@@ -32,7 +32,7 @@
 		<AccessControlRuleForm
 			{accessControlRule}
 			onUpdate={() => {
-				goto('/mcp-publisher/mcp-registries');
+				goto('/mcp-registries');
 			}}
 			entity="workspace"
 			id={workspaceId}

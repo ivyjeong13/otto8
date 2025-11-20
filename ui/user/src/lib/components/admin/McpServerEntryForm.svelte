@@ -626,13 +626,9 @@
 					const isAdminRoute = window.location.pathname.includes('/admin/');
 
 					let url = '';
-					const from =
-						entity === 'workspace' && !isAdminRoute
-							? encodeURIComponent(`mcp-publisher/${entry.id}`)
-							: encodeURIComponent(`mcp-servers/${entry.id}`);
 					if (entity === 'workspace') {
 						url = !isAdminRoute
-							? `/mcp-publisher/mcp-registries/${d.id}`
+							? `/mcp-registries/${d.id}`
 							: `/admin/mcp-registries/w/${id}/r/${d.id}`;
 					} else {
 						url = `/admin/mcp-registries/${d.id}`;
@@ -838,7 +834,7 @@
 					? ChatService.deleteWorkspaceMCPCatalogEntry
 					: AdminService.deleteMCPCatalogEntry;
 			await deleteCatalogEntryFn(id, entry.id);
-			goto(entity === 'workspace' ? '/mcp-publisher/mcp-servers' : '/admin/mcp-servers');
+			goto(entity === 'workspace' ? '/mcp-servers' : '/admin/mcp-servers');
 		}
 	}}
 	oncancel={() => (deleteServer = false)}

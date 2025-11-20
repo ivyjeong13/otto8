@@ -11,20 +11,19 @@
 	} from '$lib/context/admin/mcpServerAndEntries.svelte';
 	import { AdminService, type MCPCatalogServer } from '$lib/services';
 	import type { MCPCatalog, MCPCatalogEntry, OrgUser } from '$lib/services/admin/types';
-	import { AlertTriangle, Info, LoaderCircle, Plus, RefreshCcw, X } from 'lucide-svelte';
+	import { AlertTriangle, Plus, Server, X } from 'lucide-svelte';
 	import { onDestroy, onMount } from 'svelte';
-	import { fade, fly, slide } from 'svelte/transition';
-	import { goto, replaceState } from '$app/navigation';
+	import { fade, fly } from 'svelte/transition';
+	import { goto } from '$app/navigation';
 	import { afterNavigate } from '$app/navigation';
 	import { browser } from '$app/environment';
-	import SelectServerType from '$lib/components/mcp/SelectServerType.svelte';
+	import SelectServerType, {
+		type SelectServerOption
+	} from '$lib/components/mcp/SelectServerType.svelte';
 	import { profile } from '$lib/stores';
 	import { page } from '$app/state';
-	import { twMerge } from 'tailwind-merge';
-	import RegistriesView from './RegistriesView.svelte';
-	import DeploymentsView from './DeploymentsView.svelte';
+	import DeploymentsView from '$lib/components/mcp/DeploymentsView.svelte';
 	import Search from '$lib/components/Search.svelte';
-	import SourceUrlsView from './SourceUrlsView.svelte';
 	import {
 		clearUrlParams,
 		getTableUrlParamsFilters,
@@ -89,7 +88,7 @@
 	let editingSource = $state<{ index: number; value: string }>();
 	let sourceDialog = $state<HTMLDialogElement>();
 	let selectServerTypeDialog = $state<ReturnType<typeof SelectServerType>>();
-	let selectedServerType = $state<'single' | 'multi' | 'remote' | 'composite'>();
+	let selectedServerType = $state<SelectServerOption>();
 	let selectedEntryServer = $state<MCPCatalogEntry | MCPCatalogServer>();
 	let query = $state('');
 
@@ -100,11 +99,9 @@
 	let syncInterval = $state<ReturnType<typeof setInterval>>();
 
 	let isAdminReadonly = $derived(profile.current.isAdminReadonly?.());
-	let totalCount = $derived(
-		mcpServerAndEntries.entries.length + mcpServerAndEntries.servers.length
-	);
+	let totalCount = $derived(mcpServerAndEntries.servers.length);
 
-	function selectServerType(type: 'single' | 'multi' | 'remote' | 'composite', updateUrl = true) {
+	function selectServerType(type: SelectServerOption, updateUrl = true) {
 		selectedServerType = type;
 		selectServerTypeDialog?.close();
 		showServerForm = true;
@@ -145,13 +142,6 @@
 		}
 	}
 
-	async function switchView(newView: View) {
-		clearUrlParams();
-		view = newView;
-		page.url.searchParams.set('view', newView);
-		replaceState(page.url, {});
-	}
-
 	onDestroy(() => {
 		if (syncInterval) {
 			clearInterval(syncInterval);
@@ -177,16 +167,6 @@
 	</div>
 	{#snippet rightNavActions()}
 		{#if !isAdminReadonly}
-			<button class="button flex items-center gap-1 text-sm font-normal" onclick={sync}>
-				{#if syncing}
-					<LoaderCircle class="size-4 animate-spin" /> Syncing...
-				{:else}
-					<RefreshCcw class="size-4" />
-					Sync
-				{/if}
-			</button>
-		{/if}
-		{#if totalCount > 0 && !isAdminReadonly}
 			{@render addServerButton()}
 		{/if}
 	{/snippet}
@@ -207,130 +187,64 @@
 				/>
 			</div>
 		</div>
-		<div class="dark:bg-surface2 rounded-t-md bg-white shadow-sm">
-			<div class="flex">
-				<button
-					class={twMerge('page-tab', view === 'registry' && 'page-tab-active')}
-					onclick={() => switchView('registry')}
-				>
-					Registry Entries
-				</button>
-				<button
-					class={twMerge('page-tab', view === 'deployments' && 'page-tab-active')}
-					onclick={() => switchView('deployments')}
-				>
-					Deployments & Connections
-				</button>
-				<button
-					class={twMerge('page-tab', view === 'urls' && 'page-tab-active')}
-					onclick={() => switchView('urls')}
-				>
-					Registry Sources
-				</button>
-			</div>
+		<DeploymentsView
+			catalogId={defaultCatalogId}
+			readonly={isAdminReadonly}
+			{usersMap}
+			{query}
+			{urlFilters}
+			onFilter={handleFilter}
+			onClearAllFilters={handleClearAllFilters}
+			onSort={setSortUrlParams}
+			{initSort}
+		>
+			{#snippet noDataContent()}
+				<div class="mt-12 flex w-md flex-col items-center gap-4 self-center text-center">
+					<Server class="size-24 text-gray-200 dark:text-gray-900" />
+					<h4 class="text-lg font-semibold text-gray-400 dark:text-gray-600">No MCP servers</h4>
+					<p class="text-sm font-light text-gray-400 dark:text-gray-600">
+						Looks like there aren't any servers created yet. <br />
+						Click the button below to get started.
+					</p>
 
-			{#if defaultCatalog?.isSyncing}
-				<div class="p-4" transition:slide={{ axis: 'y' }}>
-					<div class="notification-info p-3 text-sm font-light">
-						<div class="flex items-center gap-3">
-							<Info class="size-6" />
-							<div>The catalog is currently syncing with your configured Git repositories.</div>
-						</div>
-					</div>
+					{@render addServerButton()}
 				</div>
-			{/if}
-
-			{#if view === 'registry'}
-				<RegistriesView
-					bind:catalog={defaultCatalog}
-					readonly={isAdminReadonly}
-					{usersMap}
-					{query}
-					{urlFilters}
-					onFilter={handleFilter}
-					onClearAllFilters={handleClearAllFilters}
-					onSort={setSortUrlParams}
-					{initSort}
-				>
-					{#snippet emptyContentButton()}
-						{@render addServerButton()}
-					{/snippet}
-				</RegistriesView>
-			{:else if view === 'urls'}
-				<SourceUrlsView
-					catalog={defaultCatalog}
-					readonly={isAdminReadonly}
-					{query}
-					{syncing}
-					onSync={sync}
-				/>
-			{:else if view === 'deployments'}
-				<DeploymentsView
-					catalogId={defaultCatalogId}
-					readonly={isAdminReadonly}
-					{usersMap}
-					{query}
-					{urlFilters}
-					onFilter={handleFilter}
-					onClearAllFilters={handleClearAllFilters}
-					onSort={setSortUrlParams}
-					{initSort}
-				/>
-			{/if}
-		</div>
+			{/snippet}
+		</DeploymentsView>
 	</div>
 {/snippet}
 
 {#snippet configureEntryScreen()}
 	<div class="flex flex-col gap-6" in:fly={{ x: 100, delay: duration, duration }}>
-		<McpServerEntryForm
-			type={selectedServerType}
-			id={defaultCatalogId}
-			onCancel={() => {
-				selectedEntryServer = undefined;
-				showServerForm = false;
-			}}
-			onSubmit={async (id, type) => {
-				if (type === 'single' || type === 'remote' || type === 'composite') {
-					goto(`/admin/mcp-servers/c/${id}`);
-				} else {
-					goto(`/admin/mcp-servers/s/${id}`);
-				}
-			}}
-		/>
+		{#if selectedServerType !== 'search'}
+			<McpServerEntryForm
+				type={selectedServerType}
+				id={defaultCatalogId}
+				onCancel={() => {
+					selectedEntryServer = undefined;
+					showServerForm = false;
+				}}
+				onSubmit={async (id, type) => {
+					if (type === 'single' || type === 'remote' || type === 'composite') {
+						goto(`/admin/mcp-servers/c/${id}`);
+					} else {
+						goto(`/admin/mcp-servers/s/${id}`);
+					}
+				}}
+			/>
+		{/if}
 	</div>
 {/snippet}
 
 {#snippet addServerButton()}
-	<DotDotDot class="button-primary w-full text-sm md:w-fit" placement="bottom">
-		{#snippet icon()}
-			<span class="flex items-center justify-center gap-1">
-				<Plus class="size-4" /> Add MCP Server
-			</span>
-		{/snippet}
-		<div class="default-dialog flex min-w-max flex-col p-2">
-			<button
-				class="menu-button"
-				onclick={() => {
-					selectServerTypeDialog?.open();
-				}}
-			>
-				Add server
-			</button>
-			<button
-				class="menu-button"
-				onclick={() => {
-					editingSource = {
-						index: -1,
-						value: ''
-					};
-					sourceDialog?.showModal();
-				}}
-			>
-				Add server(s) from Git
-			</button>
-		</div>
-	</DotDotDot>
+	<button
+		class="button-primary flex w-full items-center gap-1 text-sm md:w-fit"
+		onclick={() => {
+			selectServerTypeDialog?.open();
+		}}
+	>
+		<Plus class="size-4" /> Add MCP Server
+	</button>
 {/snippet}
 
 <dialog
@@ -411,7 +325,11 @@
 	{/if}
 </dialog>
 
-<SelectServerType bind:this={selectServerTypeDialog} onSelectServerType={selectServerType} />
+<SelectServerType
+	bind:this={selectServerTypeDialog}
+	onSelectServerType={selectServerType}
+	type="server"
+/>
 
 <svelte:head>
 	<title>Obot | MCP Servers</title>

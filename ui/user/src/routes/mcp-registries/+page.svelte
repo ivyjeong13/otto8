@@ -38,7 +38,7 @@
 
 	async function navigateToCreated(rule: AccessControlRule) {
 		showCreateRule = false;
-		goto(`/mcp-publisher/mcp-registries/${rule.id}`, { replaceState: false });
+		goto(`/mcp-registries/${rule.id}`, { replaceState: false });
 	}
 
 	const duration = PAGE_TRANSITION_DURATION;
@@ -97,7 +97,7 @@
 						data={accessControlRules}
 						fields={['displayName', 'servers']}
 						onClickRow={(d, isCtrlClick) => {
-							const url = `/mcp-publisher/mcp-registries/${d.id}`;
+							const url = `/mcp-registries/${d.id}`;
 							openUrl(url, isCtrlClick);
 						}}
 						headers={[
@@ -145,7 +145,7 @@
 	<button
 		class="button-primary flex items-center gap-1 text-sm"
 		onclick={() => {
-			goto(`/mcp-publisher/mcp-registries?new=true`);
+			goto(`/mcp-registries?new=true`);
 		}}
 	>
 		<Plus class="size-4" /> New Registry

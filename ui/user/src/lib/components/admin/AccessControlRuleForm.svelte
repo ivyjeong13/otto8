@@ -157,7 +157,7 @@
 					];
 					redirect =
 						entity === 'workspace'
-							? `/mcp-publisher/mcp-servers/c/${entry.id}`
+							? `/mcp-servers/c/${entry.id}`
 							: `/admin/mcp-servers/c/${entry.id}`;
 				} else {
 					const server = mcpServersMap.get(initialAdditionId);
@@ -168,7 +168,7 @@
 						];
 						redirect =
 							entity === 'workspace'
-								? `/mcp-publisher/mcp-servers/s/${server.id}`
+								? `/mcp-servers/s/${server.id}`
 								: `/admin/mcp-servers/s/${server.id}`;
 					}
 				}

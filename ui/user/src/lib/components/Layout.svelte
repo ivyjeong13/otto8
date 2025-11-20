@@ -95,7 +95,7 @@
 					{
 						id: 'mcp-server-management',
 						icon: RadioTower,
-						label: 'MCP Hosting',
+						label: 'MCP Management',
 						collapsible: true,
 						items: [
 							{
@@ -229,40 +229,49 @@
 				]
 			: (overrideNavLinks ?? [
 					{
-						id: 'mcp-publisher',
-						href: '/mcp-publisher',
-						icon: Server,
-						label: 'MCP Servers',
+						id: 'mcp-server-management',
+						icon: RadioTower,
+						label: 'MCP Management',
+						collapsible: true,
 						disabled: false,
-						collapsible: false
-					},
-					...(isAtLeastPowerUserPlus
-						? [
-								{
-									id: 'access-control',
-									href: '/mcp-publisher/mcp-registries',
-									icon: GlobeLock,
-									label: 'Access Control',
-									disabled: false,
-									collapsible: false
-								}
-							]
-						: []),
-					{
-						id: 'audit-logs',
-						href: '/mcp-publisher/audit-logs',
-						icon: Captions,
-						label: 'Audit Logs',
-						disabled: false,
-						collapsible: false
-					},
-					{
-						id: 'usage',
-						href: '/mcp-publisher/usage',
-						icon: ChartBarDecreasing,
-						label: 'Usage',
-						disabled: false,
-						collapsible: false
+						items: [
+							{
+								id: 'mcp-servers',
+								href: '/mcp-servers',
+								icon: Server,
+								label: 'MCP Servers',
+								disabled: false,
+								collapsible: false
+							},
+							...(isAtLeastPowerUserPlus
+								? [
+										{
+											id: 'mcp-registries',
+											href: '/mcp-registries',
+											icon: GlobeLock,
+											label: 'MCP Registries',
+											disabled: false,
+											collapsible: false
+										}
+									]
+								: []),
+							{
+								id: 'audit-logs',
+								href: '/audit-logs',
+								icon: Captions,
+								label: 'Audit Logs',
+								disabled: false,
+								collapsible: false
+							},
+							{
+								id: 'usage',
+								href: '/usage',
+								icon: ChartBarDecreasing,
+								label: 'Usage',
+								disabled: false,
+								collapsible: false
+							}
+						]
 					}
 				])
 	);

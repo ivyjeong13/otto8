@@ -4,20 +4,24 @@
 	import DiffDialog from '$lib/components/admin/DiffDialog.svelte';
 	import Confirm from '$lib/components/Confirm.svelte';
 	import DotDotDot from '$lib/components/DotDotDot.svelte';
+	import ConnectToServer from '$lib/components/mcp/ConnectToServer.svelte';
 	import McpConfirmDelete from '$lib/components/mcp/McpConfirmDelete.svelte';
 	import McpMultiDeleteBlockedDialog from '$lib/components/mcp/McpMultiDeleteBlockedDialog.svelte';
 	import Table, { type InitSort, type InitSortFn } from '$lib/components/table/Table.svelte';
 	import { ADMIN_SESSION_STORAGE } from '$lib/constants';
 	import { getAdminMcpServerAndEntries } from '$lib/context/admin/mcpServerAndEntries.svelte';
+	import { getPoweruserWorkspace } from '$lib/context/poweruserWorkspace.svelte';
 	import {
 		AdminService,
 		ChatService,
 		type MCPCatalogEntry,
 		type MCPCatalogServer,
 		type OrgUser,
-		MCPCompositeDeletionDependencyError
+		MCPCompositeDeletionDependencyError,
+		type MCPServerInstance
 	} from '$lib/services';
 	import { getServerTypeLabel } from '$lib/services/chat/mcp';
+	import { profile } from '$lib/stores';
 	import { formatTimeAgo } from '$lib/time';
 	import { setSearchParamsToLocalStorage } from '$lib/url';
 	import { getUserDisplayName, openUrl } from '$lib/utils';
@@ -29,15 +33,18 @@
 		Ellipsis,
 		GitCompare,
 		LoaderCircle,
+		MessageCircle,
 		Power,
+		SatelliteDish,
 		Server,
 		Trash2
 	} from 'lucide-svelte';
-	import { onMount } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
 
 	interface Props {
 		usersMap?: Map<string, OrgUser>;
-		catalogId: string;
+		entity?: 'workspace' | 'catalog';
+		catalogId?: string;
 		readonly?: boolean;
 		query?: string;
 		urlFilters?: Record<string, (string | number)[]>;
@@ -45,9 +52,11 @@
 		onClearAllFilters?: () => void;
 		onSort?: InitSortFn;
 		initSort?: InitSort;
+		noDataContent?: Snippet;
 	}
 
 	let {
+		entity = 'catalog',
 		usersMap = new Map(),
 		catalogId,
 		readonly,
@@ -56,7 +65,8 @@
 		onFilter,
 		onClearAllFilters,
 		onSort,
-		initSort
+		initSort,
+		noDataContent
 	}: Props = $props();
 	let loading = $state(false);
 
@@ -76,15 +86,29 @@
 	let restarting = $state(false);
 
 	let deleteConflictError = $state<MCPCompositeDeletionDependencyError | undefined>();
+	let connectToServerDialog = $state<ReturnType<typeof ConnectToServer>>();
+	let selectedServer = $state<
+		{ server: MCPCatalogServer; instance?: MCPServerInstance } | undefined
+	>();
 
-	let mcpServerAndEntries = getAdminMcpServerAndEntries();
+	let mcpServerAndEntries =
+		entity === 'workspace' ? getPoweruserWorkspace() : getAdminMcpServerAndEntries();
 	let deployedCatalogEntryServers = $state<MCPCatalogServer[]>([]);
 	let deployedWorkspaceCatalogEntryServers = $state<MCPCatalogServer[]>([]);
-	let serversData = $derived([
-		...deployedCatalogEntryServers.filter((server) => !server.deleted),
-		...deployedWorkspaceCatalogEntryServers.filter((server) => !server.deleted),
-		...mcpServerAndEntries.servers.filter((server) => !server.deleted)
-	]);
+	let serversData = $derived(
+		entity === 'workspace'
+			? mcpServerAndEntries.servers.filter((server) => !server.deleted)
+			: [
+					...deployedCatalogEntryServers.filter((server) => !server.deleted),
+					...deployedWorkspaceCatalogEntryServers.filter((server) => !server.deleted),
+					...mcpServerAndEntries.servers.filter((server) => !server.deleted)
+				]
+	);
+
+	let instances = $state<MCPServerInstance[]>([]);
+	let instancesMap = $derived(
+		new Map(instances.map((instance) => [instance.mcpServerID, instance]))
+	);
 
 	let tableRef = $state<ReturnType<typeof Table>>();
 
@@ -159,10 +183,14 @@
 
 	async function reload() {
 		loading = true;
-		deployedCatalogEntryServers =
-			await AdminService.listAllCatalogDeployedSingleRemoteServers(catalogId);
-		deployedWorkspaceCatalogEntryServers =
-			await AdminService.listAllWorkspaceDeployedSingleRemoteServers();
+
+		if (entity === 'catalog' && profile.current.hasAdminAccess?.() && catalogId) {
+			deployedCatalogEntryServers =
+				await AdminService.listAllCatalogDeployedSingleRemoteServers(catalogId);
+			deployedWorkspaceCatalogEntryServers =
+				await AdminService.listAllWorkspaceDeployedSingleRemoteServers();
+		}
+		instances = await ChatService.listMcpServerInstances();
 		loading = false;
 	}
 
@@ -247,7 +275,7 @@
 			try {
 				if (server.powerUserWorkspaceID) {
 					await ChatService.deleteWorkspaceMCPCatalogServer(server.powerUserWorkspaceID, server.id);
-				} else {
+				} else if (profile.current.hasAdminAccess?.() && catalogId) {
 					await AdminService.deleteMCPCatalogServer(catalogId, server.id);
 				}
 				// Remove server from list
@@ -299,6 +327,29 @@
 			? `/admin/audit-logs?mcp_server_display_name=${d.manifest.name}`
 			: `/admin/audit-logs?mcp_id=${d.id}`;
 	}
+
+	function getServerUrl(d: MCPCatalogServer) {
+		const belongsToWorkspace = d.powerUserWorkspaceID ? true : false;
+		const isMulti = !d.catalogEntryID;
+
+		let url = '';
+		if (entity === 'catalog' && profile.current.hasAdminAccess?.()) {
+			if (isMulti) {
+				url = belongsToWorkspace
+					? `/admin/mcp-servers/w/${d.powerUserWorkspaceID}/s/${d.id}/details`
+					: `/admin/mcp-servers/s/${d.id}/details`;
+			} else {
+				url = belongsToWorkspace
+					? `/admin/mcp-servers/w/${d.powerUserWorkspaceID}/c/${d.catalogEntryID}/instance/${d.id}`
+					: `/admin/mcp-servers/c/${d.catalogEntryID}/instance/${d.id}`;
+			}
+		} else {
+			url = isMulti
+				? `/mcp-servers/s/${d.id}/details`
+				: `/mcp-servers/c/${d.catalogEntryID}/instance/${d.id}`;
+		}
+		return url;
+	}
 </script>
 
 <div class="flex flex-col gap-2">
@@ -307,21 +358,16 @@
 			<LoaderCircle class="size-6 animate-spin" />
 		</div>
 	{:else if serversData.length === 0}
-		<div class="my-12 flex w-md flex-col items-center gap-4 self-center text-center">
-			<Server class="dark:text-surface3 size-24 text-gray-200" />
-			<h4 class="text-lg font-semibold text-gray-400 dark:text-gray-600">
-				No current deployments.
-			</h4>
-			<p class="text-sm font-light text-gray-400 dark:text-gray-600">
-				Once a server has been deployed, its <br />
-				information will be quickly accessible here.
-			</p>
-		</div>
+		{#if noDataContent}
+			{@render noDataContent?.()}
+		{/if}
 	{:else}
 		<Table
 			bind:this={tableRef}
 			data={tableData}
-			fields={['displayName', 'type', 'deploymentStatus', 'userName', 'registry', 'created']}
+			fields={entity === 'workspace'
+				? ['displayName', 'type', 'deploymentStatus', 'created']
+				: ['displayName', 'type', 'deploymentStatus', 'userName', 'registry', 'created']}
 			filterable={['displayName', 'type', 'deploymentStatus', 'userName', 'registry']}
 			{filters}
 			headers={[
@@ -330,21 +376,9 @@
 				{ title: 'Status', property: 'deploymentStatus' }
 			]}
 			onClickRow={(d, isCtrlClick) => {
-				const isMulti = !d.catalogEntryID;
 				setLastVisitedMcpServer(d);
 
-				const belongsToWorkspace = d.powerUserWorkspaceID ? true : false;
-
-				let url = '';
-				if (isMulti) {
-					url = belongsToWorkspace
-						? `/admin/mcp-servers/w/${d.powerUserWorkspaceID}/s/${d.id}/details`
-						: `/admin/mcp-servers/s/${d.id}/details`;
-				} else {
-					url = belongsToWorkspace
-						? `/admin/mcp-servers/w/${d.powerUserWorkspaceID}/c/${d.catalogEntryID}/instance/${d.id}`
-						: `/admin/mcp-servers/c/${d.catalogEntryID}/instance/${d.id}`;
-				}
+				const url = getServerUrl(d);
 
 				setSearchParamsToLocalStorage(page.url.pathname, page.url.search);
 				openUrl(url, isCtrlClick);
@@ -405,6 +439,29 @@
 
 					{#snippet children({ toggle })}
 						<div class="default-dialog flex min-w-max flex-col gap-1 p-2">
+							<button
+								class="menu-button-primary"
+								onclick={async (e) => {
+									e.stopPropagation();
+									selectedServer = { server: d, instance: instancesMap.get(d.id) };
+									connectToServerDialog?.open();
+									toggle(false);
+								}}
+								disabled={!!d.userID && d.userID !== profile.current.id}
+							>
+								<SatelliteDish class="size-4" /> Connect
+							</button>
+							<button
+								class="menu-button"
+								onclick={async (e) => {
+									e.stopPropagation();
+									connectToServerDialog?.handleSetupChat(d, instancesMap.get(d.id));
+									toggle(false);
+								}}
+								disabled={!!d.userID && d.userID !== profile.current.id}
+							>
+								<MessageCircle class="size-4" /> Chat
+							</button>
 							{#if d.needsUpdate}
 								{#if !readonly}
 									<button
@@ -660,4 +717,10 @@
 	onClose={() => {
 		deleteConflictError = undefined;
 	}}
+/>
+
+<ConnectToServer
+	bind:this={connectToServerDialog}
+	server={selectedServer?.server}
+	instance={selectedServer?.instance}
 />

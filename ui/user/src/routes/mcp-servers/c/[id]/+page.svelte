@@ -37,10 +37,10 @@
 				id={workspaceId}
 				entity="workspace"
 				onCancel={() => {
-					goto('/mcp-publisher');
+					goto('/mcp-servers');
 				}}
 				onSubmit={async () => {
-					goto('/mcp-publisher');
+					goto('/mcp-servers');
 				}}
 			/>
 		{/if}
