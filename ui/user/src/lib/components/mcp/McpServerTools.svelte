@@ -16,6 +16,7 @@
 	import { browser } from '$app/environment';
 	import McpOauth from './McpOauth.svelte';
 	import type { Snippet } from 'svelte';
+	import { twMerge } from 'tailwind-merge';
 
 	interface Props {
 		entry: MCPCatalogEntry | MCPCatalogServer | ProjectMCP;
@@ -23,9 +24,13 @@
 		onProjectToolsUpdate?: (selected: string[]) => void;
 		project?: Project;
 		noToolsContent?: Snippet;
+		classes?: {
+			root?: string;
+		};
 	}
 
-	let { entry, onAuthenticate, onProjectToolsUpdate, project, noToolsContent }: Props = $props();
+	let { entry, onAuthenticate, onProjectToolsUpdate, project, noToolsContent, classes }: Props =
+		$props();
 	let search = $state('');
 	let tools = $state<MCPServerTool[]>([]);
 	let previewTools = $derived(getToolPreview(entry));
@@ -141,7 +146,7 @@
 	}
 </script>
 
-<div class="flex w-full flex-col gap-4">
+<div class={twMerge('flex w-full flex-col gap-4', classes?.root)}>
 	<div class="flex w-full flex-col items-center gap-2 md:flex-row">
 		{#if showPreviewTools}
 			<div class="notification-info w-full p-3 text-sm font-light">
@@ -313,6 +318,8 @@
 		</div>
 	</div>
 </div>
+
+<div class="flex grow"></div>
 
 {#if project && !loading && !error}
 	<div

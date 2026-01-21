@@ -42,10 +42,10 @@
 	}
 </script>
 
-<div class="bg-surface1 dark:bg-background flex h-fit w-full justify-center">
-	<div class="h-fit w-full px-4 py-4 md:max-w-[1200px] md:px-8">
+<div class="bg-surface1 dark:bg-background flex w-full justify-center">
+	<div class="w-full">
 		{#if !layout.sidebarOpen || responsive.isMobile}
-			<div class="flex w-full items-center justify-between gap-2 pb-4">
+			<div class="flex w-full items-center justify-between gap-2 px-4 pt-4">
 				<div class="flex flex-shrink-0 items-center gap-2">
 					<button class="icon-button" onclick={() => closeSidebarConfig(layout)}>
 						<ChevronLeft class="size-6" />
@@ -58,7 +58,7 @@
 			</div>
 		{/if}
 
-		<div class="mb-4 flex items-center gap-2">
+		<div class="mb-4 flex items-center gap-2 px-4 pt-4">
 			{#if mcpServer.icon}
 				<img
 					src={mcpServer.icon}
