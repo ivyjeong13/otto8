@@ -43,7 +43,7 @@
 </script>
 
 <div class="bg-surface1 dark:bg-background flex w-full justify-center">
-	<div class="w-full">
+	<div class="w-full md:max-w-[1200px]">
 		{#if !layout.sidebarOpen || responsive.isMobile}
 			<div class="flex w-full items-center justify-between gap-2 px-4 pt-4">
 				<div class="flex flex-shrink-0 items-center gap-2">
