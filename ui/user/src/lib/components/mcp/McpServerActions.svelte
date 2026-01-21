@@ -202,7 +202,7 @@
 			refresh();
 		}}
 		{skipConnectDialog}
-		hideCreateNew={isProjectMcp}
+		hideActions={isProjectMcp}
 	/>
 
 	<EditExistingDeployment bind:this={editExistingDialog} onUpdateConfigure={refresh} />
