@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { ChatService } from '$lib/services/nanobot/chat/index.svelte';
 	import type { ChatMessageItemToolCall } from '$lib/services/nanobot/types';
 	import {
 		Circle,
