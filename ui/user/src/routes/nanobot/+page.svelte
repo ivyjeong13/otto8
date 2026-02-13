@@ -9,6 +9,7 @@
 	import { goto } from '$lib/url';
 	import { get } from 'svelte/store';
 	import { nanobotChat } from '$lib/stores/nanobotChat.svelte';
+	import { loadNanobotThreads } from './loadNanobotThreads';
 	import { NanobotService } from '$lib/services';
 	import { errors } from '$lib/stores';
 	import { LoaderCircle } from 'lucide-svelte';
@@ -20,7 +21,6 @@
 	let isNewAgent = $derived(data.isNewAgent);
 	let chat = $state<ChatService | null>(null);
 	let loading = $state(true);
-	let sidebarRef: { refreshThreads: () => Promise<void> } | undefined = $state();
 
 	const layout = nanobotLayout.getLayout();
 
@@ -38,6 +38,8 @@
 		} else {
 			loading = false;
 		}
+
+		await loadNanobotThreads(chatApi, projects[0].id);
 	});
 
 	const chatApi = $derived(new ChatAPI(agent.connectURL));
@@ -45,15 +47,19 @@
 	function handleThreadCreated(thread: Chat) {
 		const projectId = projects[0].id;
 		if (chat) {
-			nanobotChat.set({ projectId, threadId: thread.id, chat });
+			nanobotChat.update((data) => {
+				if (data) {
+					data.chat = chat!;
+					data.threadId = thread.id;
+				}
+				return data;
+			});
 		}
 		goto(`/nanobot/p/${projectId}?tid=${thread.id}`, {
 			replaceState: true,
 			noScroll: true,
 			keepFocus: true
 		});
-
-		sidebarRef?.refreshThreads();
 	}
 
 	$effect(() => {
@@ -85,7 +91,7 @@
 		container: 'px-0 py-0 md:px-0',
 		childrenContainer: 'max-w-full h-[calc(100dvh-4rem)]',
 		collapsedSidebarHeaderContent: 'pb-0',
-		sidebar: 'pt-0',
+		sidebar: 'pt-0 px-0',
 		sidebarRoot: 'bg-base-200'
 	}}
 	whiteBackground
@@ -93,7 +99,7 @@
 	hideProfileButton
 >
 	{#snippet overrideLeftSidebarContent()}
-		<ProjectSidebar {chatApi} projectId={projects[0].id} bind:this={sidebarRef} />
+		<ProjectSidebar {chatApi} projectId={projects[0].id} />
 	{/snippet}
 
 	<div class="flex w-full grow">
@@ -109,7 +115,6 @@
 	{#snippet rightSidebar()}
 		{#if chat}
 			<ThreadQuickAccess
-				{chat}
 				open={layout.quickBarAccessOpen}
 				onToggle={() => (layout.quickBarAccessOpen = !layout.quickBarAccessOpen)}
 			/>

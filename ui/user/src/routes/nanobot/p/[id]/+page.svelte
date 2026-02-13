@@ -4,12 +4,11 @@
 	import { ChatAPI, ChatService } from '$lib/services/nanobot/chat/index.svelte';
 	import * as nanobotLayout from '$lib/context/nanobotLayout.svelte';
 	import { page } from '$app/state';
-	import { goto } from '$lib/url';
 	import { get } from 'svelte/store';
-	import { untrack } from 'svelte';
-	import type { Chat } from '$lib/services/nanobot/types';
+	import { onMount, untrack } from 'svelte';
 	import ProjectStartThread from '$lib/components/nanobot/ProjectStartThread.svelte';
 	import { nanobotChat } from '$lib/stores/nanobotChat.svelte';
+	import { loadNanobotThreads } from '../../loadNanobotThreads';
 	import FileEditor from '$lib/components/nanobot/FileEditor.svelte';
 	import ThreadQuickAccess from '$lib/components/nanobot/ThreadQuickAccess.svelte';
 
@@ -22,24 +21,17 @@
 	let chat = $state<ChatService | null>(null);
 	let threadId = $derived(page.url.searchParams.get('tid'));
 	let prevThreadId: string | null | undefined = undefined; // undefined = not yet initialized
-	let sidebarRef: { refreshThreads: () => Promise<void> } | undefined = $state();
 	let initialPlannerMode = $derived(page.url.searchParams.get('planner') === 'true');
 	let initialQuickBarAccessOpen = $state(false);
 	let selectedFile = $state('');
 	let threadContentWidth = $state(0);
+	let needsRefreshThreads = $state(true);
 
 	const layout = nanobotLayout.getLayout();
 
-	function handleThreadCreated(thread: Chat) {
-		prevThreadId = thread.id;
-
-		// Update URL with the new thread ID without navigation
-		const url = new URL(page.url);
-		url.searchParams.set('tid', thread.id);
-		goto(url, { replaceState: true, noScroll: true, keepFocus: true });
-
-		sidebarRef?.refreshThreads();
-	}
+	onMount(() => {
+		loadNanobotThreads(chatApi, projectId);
+	});
 
 	$effect(() => {
 		if (initialQuickBarAccessOpen) return;
@@ -65,6 +57,27 @@
 	});
 
 	$effect(() => {
+		if (chat && chat.messages.length >= 2 && needsRefreshThreads) {
+			const threadId = chat.chatId;
+			const inThreads = $nanobotChat?.threads.find((t) => t.id === threadId);
+			if (!inThreads) {
+				nanobotChat.update((data) => {
+					if (data) {
+						data.threads.push({
+							id: threadId,
+							title: 'New Thread',
+							created: new Date().toISOString()
+						});
+					}
+					return data;
+				});
+			}
+
+			needsRefreshThreads = false;
+		}
+	});
+
+	$effect(() => {
 		const currentThreadId = threadId;
 		const currentProjectId = projectId;
 
@@ -77,12 +90,12 @@
 		if (
 			storedChat &&
 			storedChat.projectId === currentProjectId &&
-			storedChat.threadId === currentThreadId
+			storedChat.threadId === currentThreadId &&
+			storedChat.chat
 		) {
-			nanobotChat.set(null);
 			untrack(() => {
 				prevThreadId = currentThreadId;
-				chat = storedChat.chat;
+				chat = storedChat.chat!;
 			});
 			return () => {};
 		}
@@ -93,8 +106,7 @@
 		});
 
 		const newChat = new ChatService({
-			api: chatApi,
-			onThreadCreated: handleThreadCreated
+			api: chatApi
 		});
 
 		newChat.selectedAgentId = initialPlannerMode ? 'planner' : 'explorer';
@@ -132,7 +144,7 @@
 	hideProfileButton
 >
 	{#snippet overrideLeftSidebarContent()}
-		<ProjectSidebar {chatApi} {projectId} bind:this={sidebarRef} />
+		<ProjectSidebar {chatApi} {projectId} />
 	{/snippet}
 
 	<div
@@ -173,7 +185,6 @@
 			{/if}
 
 			<ThreadQuickAccess
-				{chat}
 				{selectedFile}
 				onFileOpen={(filename) => {
 					layout.quickBarAccessOpen = false;

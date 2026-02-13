@@ -20,16 +20,16 @@
 	import Profile from '../navbar/Profile.svelte';
 	import { tooltip } from '$lib/actions/tooltip.svelte';
 	import { fly } from 'svelte/transition';
+	import { nanobotChat } from '$lib/stores/nanobotChat.svelte';
 
 	interface Props {
-		chat: ChatService;
 		onFileOpen?: (filename: string) => void;
 		selectedFile?: string;
 		onToggle?: () => void;
 		open?: boolean;
 	}
 
-	let { chat, onFileOpen, selectedFile, onToggle, open }: Props = $props();
+	let { onFileOpen, selectedFile, onToggle, open }: Props = $props();
 
 	/** Todo item shape from todo:///list resource or todo_write tool (application/json) */
 	interface TodoItem {
@@ -95,7 +95,7 @@
 
 	/** Todo list derived from latest todo_write / todoWrite tool call in messages (works even when server doesn't push resource updates) */
 	let todoItemsFromMessages = $derived.by((): TodoItem[] => {
-		const messages = chat.messages;
+		const messages = $nanobotChat?.chat?.messages ?? [];
 		if (!messages?.length) return [];
 		let latest: TodoItem[] = [];
 		for (const msg of messages) {
@@ -117,7 +117,9 @@
 
 	let todoItems = $derived(todoItemsFromMessages);
 	let resourceFiles = $derived(
-		chat.resources ? chat.resources.filter((r) => r.uri.startsWith('file:///')) : []
+		$nanobotChat?.chat?.resources
+			? $nanobotChat.chat.resources.filter((r) => r.uri.startsWith('file:///'))
+			: []
 	);
 
 	type FileTreeNode =
