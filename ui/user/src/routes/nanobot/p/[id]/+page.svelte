@@ -56,21 +56,22 @@
 		}
 	});
 
+	async function loadThreads() {
+		const threads = await chatApi.getThreads();
+		nanobotChat.update((data) => {
+			if (data) {
+				data.threads = threads ?? [];
+			}
+			return data;
+		});
+	}
+
 	$effect(() => {
 		if (chat && chat.messages.length >= 2 && needsRefreshThreads) {
 			const threadId = chat.chatId;
 			const inThreads = $nanobotChat?.threads.find((t) => t.id === threadId);
 			if (!inThreads) {
-				nanobotChat.update((data) => {
-					if (data) {
-						data.threads.push({
-							id: threadId,
-							title: 'New Thread',
-							created: new Date().toISOString()
-						});
-					}
-					return data;
-				});
+				loadThreads();
 			}
 
 			needsRefreshThreads = false;
@@ -144,7 +145,7 @@
 	hideProfileButton
 >
 	{#snippet overrideLeftSidebarContent()}
-		<ProjectSidebar {chatApi} {projectId} />
+		<ProjectSidebar {chatApi} />
 	{/snippet}
 
 	<div

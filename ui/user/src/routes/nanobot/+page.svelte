@@ -99,7 +99,7 @@
 	hideProfileButton
 >
 	{#snippet overrideLeftSidebarContent()}
-		<ProjectSidebar {chatApi} projectId={projects[0].id} />
+		<ProjectSidebar {chatApi} />
 	{/snippet}
 
 	<div class="flex w-full grow">

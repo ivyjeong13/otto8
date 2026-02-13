@@ -6,7 +6,6 @@
 
 	interface Props {
 		chatApi: ChatAPI;
-		projectId: string;
 	}
 
 	let { chatApi }: Props = $props();
@@ -16,7 +15,12 @@
 			await chatApi.renameThread(threadId, newTitle);
 			const threadIndex = $nanobotChat?.threads.findIndex((t) => t.id === threadId) ?? -1;
 			if (threadIndex !== -1 && $nanobotChat) {
-				$nanobotChat.threads[threadIndex].title = newTitle;
+				nanobotChat.update((data) => {
+					if (data && threadIndex !== -1) {
+						data.threads[threadIndex].title = newTitle;
+					}
+					return data;
+				});
 			}
 		} catch (error) {
 			console.error('Failed to rename thread:', error);
@@ -27,7 +31,15 @@
 		try {
 			await chatApi.deleteThread(threadId);
 			if ($nanobotChat) {
-				$nanobotChat.threads = $nanobotChat.threads.filter((t) => t.id !== threadId);
+				nanobotChat.update((data) => {
+					if (data) {
+						data.threads = data.threads.filter((t) => t.id !== threadId);
+						if (data.threadId === threadId) {
+							data.threadId = undefined;
+						}
+					}
+					return data;
+				});
 			}
 
 			if ($nanobotChat?.threadId === threadId) {
