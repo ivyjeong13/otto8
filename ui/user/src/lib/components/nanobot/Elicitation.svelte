@@ -12,6 +12,7 @@
 	} from '$lib/services/nanobot/types';
 	import { Copy, ChevronLeft, ChevronRight, SkipForward, Pencil } from 'lucide-svelte';
 	import { SvelteSet, SvelteMap } from 'svelte/reactivity';
+	import { fly } from 'svelte/transition';
 
 	const stepColors = [
 		{ bg: 'bg-primary', text: 'text-primary-content', ring: 'ring-primary/30' },
@@ -253,7 +254,7 @@
 	{@const isSingle = questions.length === 1}
 
 	<div class="flex w-full items-start gap-3 px-1">
-		<div class="border-base-300 rounded-box w-full border p-4">
+		<div class="border-base-300 rounded-box bg-base-100 w-full border p-4 shadow-sm">
 			{#if !isSingle && !reviewMode}
 				<!-- Step indicators for multi-question -->
 				<div class="mb-4 flex flex-wrap items-center gap-1.5">

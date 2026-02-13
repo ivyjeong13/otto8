@@ -3,18 +3,21 @@
 	import { ChatAPI } from '$lib/services/nanobot/chat/index.svelte';
 	import { nanobotChat } from '$lib/stores/nanobotChat.svelte';
 	import { goto } from '$lib/url';
+	import { get } from 'svelte/store';
 
 	interface Props {
 		chatApi: ChatAPI;
+		selectedThreadId?: string;
 	}
 
-	let { chatApi }: Props = $props();
+	let { chatApi, selectedThreadId }: Props = $props();
 
 	async function handleRenameThread(threadId: string, newTitle: string) {
 		try {
 			await chatApi.renameThread(threadId, newTitle);
-			const threadIndex = $nanobotChat?.threads.findIndex((t) => t.id === threadId) ?? -1;
-			if (threadIndex !== -1 && $nanobotChat) {
+			const sharedChat = get(nanobotChat);
+			const threadIndex = sharedChat?.threads.findIndex((t) => t.id === threadId) ?? -1;
+			if (threadIndex !== -1 && sharedChat) {
 				nanobotChat.update((data) => {
 					if (data && threadIndex !== -1) {
 						data.threads[threadIndex].title = newTitle;
@@ -28,15 +31,21 @@
 	}
 
 	async function handleDeleteThread(threadId: string) {
-		const isCurrentViewedThread = $nanobotChat?.threadId === threadId;
+		const sharedChat = get(nanobotChat);
+		const isCurrentViewedThread = selectedThreadId === threadId;
 		try {
 			await chatApi.deleteThread(threadId);
-			if ($nanobotChat) {
+			if (sharedChat) {
 				nanobotChat.update((data) => {
 					if (data) {
 						data.threads = data.threads.filter((t) => t.id !== threadId);
 						if (data.threadId === threadId) {
 							data.threadId = undefined;
+
+							if (data.chat) {
+								data.chat.close();
+								data.chat = undefined;
+							}
 						}
 					}
 					return data;
@@ -61,6 +70,7 @@
 				onRename={handleRenameThread}
 				onDelete={handleDeleteThread}
 				isLoading={$nanobotChat?.isThreadsLoading ?? false}
+				{selectedThreadId}
 			/>
 		</div>
 	</div>

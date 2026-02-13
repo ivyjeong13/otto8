@@ -13,13 +13,20 @@
 		onDelete: (threadId: string) => void;
 		isLoading?: boolean;
 		onThreadClick?: () => void;
+		selectedThreadId?: string;
 	}
 
-	let { threads, onRename, onDelete, isLoading = false, onThreadClick }: Props = $props();
+	let {
+		threads,
+		onRename,
+		onDelete,
+		isLoading = false,
+		onThreadClick,
+		selectedThreadId
+	}: Props = $props();
 
 	let editingThreadId = $state<string | null>(null);
 	let editTitle = $state('');
-	let selectedThreadId = $derived(page.url.searchParams.get('tid'));
 
 	function navigateToThread(threadId: string) {
 		const storedChat = get(nanobotChat);
@@ -79,6 +86,12 @@
 			class="btn btn-square btn-ghost btn-sm tooltip tooltip-left"
 			data-tip="Start New Conversation"
 			onclick={() => {
+				nanobotChat.update((data) => {
+					if (data) {
+						data.threadId = undefined;
+					}
+					return data;
+				});
 				goto(`/nanobot`);
 			}}
 		>

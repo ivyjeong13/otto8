@@ -6,7 +6,7 @@ import { get } from 'svelte/store';
  * Ensures nanobot threads are loaded for the given project and chat API.
  * Idempotent: if store already has threads and is not loading, does nothing.
  */
-export async function loadNanobotThreads(chatApi: ChatAPI, projectId: string): Promise<void> {
+export async function loadNanobotThreads(chatApi: ChatAPI, projectId: string, threadId?: string): Promise<void> {
 	const storedChat = get(nanobotChat);
 	if (storedChat && !storedChat.isThreadsLoading) {
 		return;
@@ -16,6 +16,7 @@ export async function loadNanobotThreads(chatApi: ChatAPI, projectId: string): P
 		nanobotChat.set({
 			isThreadsLoading: true,
 			projectId,
+			threadId,
 			threads: [],
 			resources: []
 		});

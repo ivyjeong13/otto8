@@ -19,7 +19,7 @@
 	const chatApi = $derived(new ChatAPI(agent.connectURL));
 
 	let chat = $state<ChatService | null>(null);
-	let threadId = $derived(page.url.searchParams.get('tid'));
+	let threadId = $derived(page.url.searchParams.get('tid') ?? undefined);
 	let prevThreadId: string | null | undefined = undefined; // undefined = not yet initialized
 	let initialPlannerMode = $derived(page.url.searchParams.get('planner') === 'true');
 	let initialQuickBarAccessOpen = $state(false);
@@ -30,7 +30,7 @@
 	const layout = nanobotLayout.getLayout();
 
 	onMount(() => {
-		loadNanobotThreads(chatApi, projectId);
+		loadNanobotThreads(chatApi, projectId, threadId ?? undefined);
 	});
 
 	$effect(() => {
@@ -118,6 +118,13 @@
 
 		untrack(() => {
 			chat = newChat;
+			nanobotChat.update((data) => {
+				if (data) {
+					data.chat = newChat;
+					data.threadId = currentThreadId ?? undefined;
+				}
+				return data;
+			});
 		});
 
 		return () => {
@@ -145,7 +152,7 @@
 	hideProfileButton
 >
 	{#snippet overrideLeftSidebarContent()}
-		<ProjectSidebar {chatApi} />
+		<ProjectSidebar {chatApi} selectedThreadId={threadId} />
 	{/snippet}
 
 	<div
