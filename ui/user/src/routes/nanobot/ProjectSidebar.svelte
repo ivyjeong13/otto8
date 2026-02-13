@@ -28,6 +28,7 @@
 	}
 
 	async function handleDeleteThread(threadId: string) {
+		const isCurrentViewedThread = $nanobotChat?.threadId === threadId;
 		try {
 			await chatApi.deleteThread(threadId);
 			if ($nanobotChat) {
@@ -42,9 +43,8 @@
 				});
 			}
 
-			if ($nanobotChat?.threadId === threadId) {
-				$nanobotChat.threadId = undefined;
-				goto(`/nanobot`);
+			if (isCurrentViewedThread) {
+				goto(`/nanobot`, { replaceState: true });
 			}
 		} catch (error) {
 			console.error('Failed to delete thread:', error);
