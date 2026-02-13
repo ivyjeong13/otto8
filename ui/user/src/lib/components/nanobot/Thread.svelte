@@ -335,8 +335,7 @@
 		class={twMerge(
 			'absolute top-auto right-0 bottom-0 left-0 flex flex-col transition-all duration-500 ease-in-out',
 			pinInputToBottom
-				? 'bg-base-100/80 ' +
-					(questionElicitation ? 'h-full' : 'backdrop-blur-sm')
+				? 'bg-base-100/80 ' + (questionElicitation ? 'h-full' : 'backdrop-blur-xs')
 				: 'top-1/2 -translate-y-1/2'
 		)}
 	>
@@ -344,9 +343,9 @@
 			<!-- Overlay: always in DOM when pinned so opacity/blur can transition -->
 			<div
 				class={twMerge(
-					'absolute inset-0 z-0 bg-base-200/35 transition-[opacity,backdrop-filter] duration-500 ease-out',
+					'bg-base-100/30 absolute inset-0 z-0 transition-[opacity,backdrop-filter] duration-500 ease-out',
 					questionElicitation
-						? 'opacity-100 backdrop-blur-sm'
+						? 'opacity-100 backdrop-blur-[1px]'
 						: 'pointer-events-none opacity-0 backdrop-blur-none'
 				)}
 				aria-hidden="true"
@@ -358,7 +357,7 @@
 		<!-- Scroll to bottom button -->
 		{#if showScrollButton && hasMessages}
 			<button
-				class="relative z-10 btn btn-circle border-base-300 bg-base-100 btn-md mx-auto shadow-lg active:translate-y-0.5"
+				class="btn btn-circle border-base-300 bg-base-100 btn-md relative z-10 mx-auto shadow-lg active:translate-y-0.5"
 				onclick={scrollToBottom}
 				aria-label="Scroll to bottom"
 			>
