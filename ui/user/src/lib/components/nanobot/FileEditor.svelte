@@ -44,6 +44,14 @@
 	const MAX_DVW = 50;
 	const MAX_DVW_FILL = 90;
 
+	function getMaxWidthPxByDvw(): number {
+		return Math.floor(getViewportWidth() * (MAX_DVW / 100));
+	}
+
+	function getAvailableSpacePx(): number {
+		return getViewportWidth() - getThreadRefWidth() - getQuickBarWidth() - getSidebarWidth();
+	}
+
 	function getViewportWidth(): number {
 		return typeof window !== 'undefined' && window.visualViewport
 			? window.visualViewport.width
@@ -65,11 +73,7 @@
 
 		function onMouseMove(e: MouseEvent) {
 			const deltaX = startX - e.clientX;
-			const refWidth = getEffectiveRefWidth();
-			const maxPx = Math.min(
-				Math.floor(refWidth * (MAX_DVW / 100)),
-				getMaxFileEditorWidthPx(refWidth)
-			);
+			const maxPx = getMaxWidthPxByDvw();
 			widthPx = Math.max(MIN_WIDTH_PX, Math.min(maxPx, startPx + deltaX));
 		}
 
@@ -85,11 +89,7 @@
 
 	function handleResizeKeydown(e: KeyboardEvent) {
 		const step = 40;
-		const refWidth = getEffectiveRefWidth();
-		const maxPx = Math.min(
-			Math.floor(refWidth * (MAX_DVW / 100)),
-			getMaxFileEditorWidthPx(refWidth)
-		);
+		const maxPx = getMaxWidthPxByDvw();
 		if (e.key === 'ArrowLeft') {
 			e.preventDefault();
 			widthPx = Math.min(maxPx, widthPx + step);
@@ -111,22 +111,23 @@
 		return quickBarAccessOpen ? 384 : 72;
 	}
 
+	function getSidebarWidth(): number {
+		return layout.sidebarOpen ? 300 : 72;
+	}
+
 	// refWidth is the width of our container (flex row: thread + file editor + quick bar), already excluding left sidebar
 	function getMaxFileEditorWidthPx(refWidth: number): number {
-		return refWidth - getThreadRefWidth() - getQuickBarWidth();
+		return refWidth - getThreadRefWidth() - getQuickBarWidth() - getSidebarWidth();
 	}
 
 	function calculateRemainingPx(refWidth: number): number {
-		return refWidth - getThreadRefWidth() - getQuickBarWidth();
+		return refWidth - getThreadRefWidth() - getQuickBarWidth() - getSidebarWidth();
 	}
 
-	function calculateInitialWidthPx(refWidth: number): number {
-		if (refWidth <= 0) return MIN_WIDTH_PX;
-		const remaining = calculateRemainingPx(refWidth);
-		const maxByFill = Math.floor(refWidth * (MAX_DVW_FILL / 100));
-		const maxByThread = getMaxFileEditorWidthPx(refWidth);
-		const maxPx = Math.min(maxByFill, maxByThread);
-		return Math.max(MIN_WIDTH_PX, Math.min(maxPx, remaining));
+	function calculateInitialWidthPx(_refWidth: number): number {
+		const available = getAvailableSpacePx();
+		const maxPx = getMaxWidthPxByDvw();
+		return Math.max(MIN_WIDTH_PX, Math.min(maxPx, available));
 	}
 
 	$effect(() => {
@@ -237,24 +238,17 @@
 		if (!visible) {
 			return { width: 0, minWidth: 0, maxWidth: 0 };
 		}
-		const refWidth = getEffectiveRefWidth();
-		const maxByFill = Math.floor(refWidth * (MAX_DVW_FILL / 100));
-		const maxByThread = getMaxFileEditorWidthPx(refWidth);
 		return {
 			width: widthPx,
 			minWidth: MIN_WIDTH_PX,
-			maxWidth: Math.min(maxByFill, maxByThread)
+			maxWidth: getMaxWidthPxByDvw()
 		};
 	}
 
 	const panelDimensionsPx = $derived(getPanelDimensionsPx());
 
 	const ariaSliderValue = $derived.by(() => {
-		const refWidth = getEffectiveRefWidth();
-		const maxPx = Math.min(
-			Math.floor(refWidth * (MAX_DVW / 100)),
-			getMaxFileEditorWidthPx(refWidth)
-		);
+		const maxPx = getMaxWidthPxByDvw();
 		const range = maxPx - MIN_WIDTH_PX;
 		if (range <= 0) return 0;
 		const pct = ((widthPx - MIN_WIDTH_PX) / range) * 100;
