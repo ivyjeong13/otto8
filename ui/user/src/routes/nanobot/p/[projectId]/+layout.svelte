@@ -5,7 +5,6 @@
 	import * as nanobotLayout from '$lib/context/nanobotLayout.svelte';
 	import { page } from '$app/state';
 	import { get } from 'svelte/store';
-	import { onMount } from 'svelte';
 	import { nanobotChat } from '$lib/stores/nanobotChat.svelte';
 	import FileEditor from '$lib/components/nanobot/FileEditor.svelte';
 	import QuickAccess from '$lib/components/nanobot/QuickAccess.svelte';
@@ -15,7 +14,6 @@
 	import { PROJECT_LAYOUT_CONTEXT } from '$lib/services/nanobot/types';
 
 	let { data, children } = $props();
-	let agent = $derived(data.agent);
 	let projectId = $derived(data.projectId);
 	let parentWorkflowId = $derived(
 		(page.data as { workflowName?: string } | undefined)?.workflowName ??
