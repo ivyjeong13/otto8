@@ -436,6 +436,7 @@ export class ChatService {
 		this.uploadedFiles = $state([]);
 		this.uploadingFiles = $state([]);
 		if (opts?.chatId !== undefined && opts?.chatId !== '') {
+			console.log('check A');
 			this.setChatId(opts.chatId);
 		} else if (!opts?.skipInitialResources) {
 			this.listResources({ useDefaultSession: true }).then((r) => {
@@ -446,14 +447,18 @@ export class ChatService {
 
 	close = () => {
 		this.closer();
-		this.setChatId('');
+		if (this.chatId) {
+			this.setChatId('');
+		}
 	};
 
 	setChatId = async (chatId?: string, opts?: { preserveLoading?: boolean }) => {
 		if (chatId === this.chatId) {
+			console.log('Chat ID already set');
 			return;
 		}
 
+		this.chatId = chatId ?? '';
 		this.messages = [];
 		this.prompts = [];
 		this.resources = [];
@@ -466,19 +471,25 @@ export class ChatService {
 		this.uploadingFiles = [];
 
 		if (chatId) {
-			this.chatId = chatId;
+			this.subscribed = true;
+			this.subscribe(chatId);
+		} else {
 			this.subscribed = false;
 		}
 
-		if (chatId) {
-			this.listPrompts({ useDefaultSession: true }).then((prompts) => {
-				if (prompts && prompts.prompts) {
-					this.prompts = prompts.prompts;
-				}
-			});
+		this.listResources().then((r) => {
+			if (r && r.resources) {
+				this.resources = r.resources;
+			}
+		});
 
-			await this.reloadAgent({ useDefaultSession: true });
-		}
+		this.listPrompts().then((prompts) => {
+			if (prompts && prompts.prompts) {
+				this.prompts = prompts.prompts;
+			}
+		});
+
+		await this.reloadAgent();
 	};
 
 	private reloadAgent = async (opts?: { useDefaultSession?: boolean }) => {
@@ -523,8 +534,8 @@ export class ChatService {
 		)) as Prompts;
 	};
 
-	refreshResources = async () => {
-		this.listResources({ useDefaultSession: true })
+	refreshResources = async (opts?: { useDefaultSession?: boolean }) => {
+		this.listResources(opts)
 			.then((response) => {
 				if (response && response.resources) {
 					this.resources = response.resources;
@@ -613,44 +624,9 @@ export class ChatService {
 
 	newChat = async () => {
 		const thread = await this.api.createThread();
+		console.log('Check C');
 		await this.setChatId(thread.id, { preserveLoading: true });
 		this.onThreadCreated?.(thread);
-	};
-
-	restoreChat = async (chatId: string) => {
-		if (chatId === this.chatId) {
-			return;
-		}
-
-		this.messages = [];
-		this.prompts = [];
-		this.resources = [];
-		this.elicitations = [];
-		this.history = undefined;
-		this.isLoading = false;
-		this.isRestoring = true;
-		this.uploadedFiles = [];
-		this.uploadingFiles = [];
-		this.chatId = chatId;
-
-		// Subscribe immediately to load chat history (thread exists on server)
-		this.subscribed = true;
-		this.subscribe(chatId);
-
-		// Load resources, prompts, and agents using default session
-		this.listResources({ useDefaultSession: true }).then((r) => {
-			if (r && r.resources) {
-				this.resources = r.resources;
-			}
-		});
-
-		this.listPrompts({ useDefaultSession: true }).then((prompts) => {
-			if (prompts && prompts.prompts) {
-				this.prompts = prompts.prompts;
-			}
-		});
-
-		await this.reloadAgent({ useDefaultSession: true });
 	};
 
 	sendMessage = async (message: string, attachments?: Attachment[]) => {
@@ -770,6 +746,7 @@ export class ChatService {
 	): Promise<Attachment> => {
 		// Create thread if it doesn't exist
 		if (!this.chatId) {
+			console.log('Check D');
 			const thread = await this.api.createThread();
 			await this.setChatId(thread.id);
 		}

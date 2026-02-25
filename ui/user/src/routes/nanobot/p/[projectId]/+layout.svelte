@@ -181,6 +181,7 @@
 		const threadMatches = storedChat?.threadId === currentThreadId;
 		// Reuse stored chat when thread matches, or when we have no tid (e.g. on /workflows) so resources stay visible
 		if (sameProject && (threadMatches || currentThreadId === undefined)) {
+			console.log('reusing stored thread', currentThreadId, storedChat?.threadId);
 			untrack(() => {
 				prevThreadId = currentThreadId;
 				chat = storedChat!.chat!;
@@ -195,14 +196,12 @@
 
 		const newChat = new ChatService({
 			api: chatApi,
-			skipInitialResources: !!currentThreadId
+			skipInitialResources: !!currentThreadId,
+			chatId: currentThreadId
 		});
 
-		if (currentThreadId) {
-			newChat.restoreChat(currentThreadId);
-		}
-
 		untrack(() => {
+			console.log('creating new chat', currentThreadId);
 			chat = newChat;
 			nanobotChat.update((data) => {
 				if (data) {
@@ -220,6 +219,12 @@
 				}
 			});
 		};
+	});
+
+	$effect(() => {
+		if (chat?.resources?.length) {
+			console.log({ check: chat.resources });
+		}
 	});
 
 	afterNavigate(() => {
