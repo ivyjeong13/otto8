@@ -3,21 +3,21 @@
 	import { getContext } from 'svelte';
 	import type { ProjectLayoutContext, ResourceContents, Chat } from '$lib/services/nanobot/types';
 	import { PROJECT_LAYOUT_CONTEXT } from '$lib/services/nanobot/types';
-	import { ChatAPI } from '$lib/services/nanobot/chat/index.svelte';
 	import MarkdownEditor from '$lib/components/nanobot/MarkdownEditor.svelte';
 	import { PencilLine, Play, Workflow, Eye, Trash2 } from 'lucide-svelte';
 	import { formatTimeAgo } from '$lib/time';
 	import { ChatService } from '$lib/services/nanobot/chat/index.svelte';
 	import Confirm from '$lib/components/Confirm.svelte';
 	import { goto } from '$lib/url';
+	import { get } from 'svelte/store';
 
 	let { data } = $props();
 	let workflowName = $derived(data.workflowName);
 	let projectId = $derived(data.projectId);
 	let agent = $derived(data.agent);
 	let workflow = $derived(
-		$nanobotChat?.resources?.length
-			? $nanobotChat.resources.find((r) => r.name === workflowName)
+		$nanobotChat?.workflows?.length
+			? $nanobotChat.workflows.find((r) => r.name === workflowName)
 			: undefined
 	);
 	let resource = $state<ResourceContents>();
@@ -52,8 +52,6 @@
 			.slice(0, 3)
 	);
 
-	const chatApi = $derived(new ChatAPI(agent.connectURL));
-
 	$effect(() => {
 		const container = workflowsContainer;
 		if (!container) return;
@@ -80,16 +78,17 @@
 					console.error(error);
 				});
 
-			chatApi.getThreads().then((threadData) => {
-				threads = threadData.filter((t) => t.workflowURIs && t.workflowURIs.includes(workflow.uri));
-			});
+			threads =
+				$nanobotChat?.threads?.filter(
+					(t) => t.workflowURIs && t.workflowURIs.includes(workflow.uri)
+				) ?? [];
 		}
 	});
 
 	function handleSetupWorkflowThread(message: string, showFile: boolean = false) {
 		loading = true;
 		const newChat = new ChatService({
-			api: chatApi,
+			baseUrl: agent.connectURL,
 			onThreadCreated: (thread) => {
 				nanobotChat.update((data) => {
 					if (data) {
@@ -277,10 +276,10 @@
 	show={deletingWorkflow}
 	onsuccess={async () => {
 		if (!workflow) return;
-		await chatApi.deleteWorkflow(workflow.uri);
+		await get(nanobotChat)?.api.deleteWorkflow(workflow.uri);
 		nanobotChat.update((data) => {
 			if (data) {
-				data.resources = data.resources.filter((r) => r.uri !== workflow.uri);
+				data.workflows = data.workflows.filter((r) => r.uri !== workflow.uri);
 			}
 			return data;
 		});

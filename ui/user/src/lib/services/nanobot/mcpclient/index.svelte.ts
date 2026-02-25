@@ -18,11 +18,6 @@ interface JSONRPCResponse {
 	};
 }
 
-interface StoredSession {
-	sessionId: string;
-	initializeResult?: InitializationResult;
-}
-
 // This is a simple MCP client that works for specifically how nanobot will reply. It makes
 // certain assumptions about session support and non-SSE responses to POSTs.
 export class SimpleClient {
@@ -32,7 +27,6 @@ export class SimpleClient {
 	#sessionId?: string;
 	#initializeResult?: InitializationResult;
 	#initializationPromise?: Promise<void>;
-	readonly #externalSession: boolean;
 	#sseConnection?: EventSource;
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	#sseSubscriptions = new Map<string, Set<(resource: ResourceContents) => void>>();
@@ -58,18 +52,8 @@ export class SimpleClient {
 			}
 		}
 
-		// If sessionId provided in options, use it and mark as external
 		if (opts?.sessionId) {
 			this.#sessionId = opts.sessionId === 'new' ? undefined : opts.sessionId;
-			this.#externalSession = true;
-		} else {
-			// Load session data from localStorage
-			const stored = this.#getStoredSession();
-			if (stored) {
-				this.#sessionId = stored.sessionId;
-				this.#initializeResult = stored.initializeResult;
-			}
-			this.#externalSession = false;
 		}
 	}
 
@@ -88,33 +72,6 @@ export class SimpleClient {
 		} finally {
 			this.#clearSession();
 		}
-	}
-
-	#getStoredSession(): StoredSession | undefined {
-		if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
-			return undefined;
-		}
-		const stored = localStorage.getItem(`mcp-session-${this.#url}`);
-		if (!stored) {
-			return undefined;
-		}
-		try {
-			return JSON.parse(stored) as StoredSession;
-		} catch (e) {
-			console.error('[SimpleClient] Failed to parse stored session:', e);
-			return undefined;
-		}
-	}
-
-	#storeSession(sessionId: string, initializeResult?: InitializationResult) {
-		if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
-			return;
-		}
-		const session: StoredSession = {
-			sessionId,
-			initializeResult
-		};
-		localStorage.setItem(`mcp-session-${this.#url}`, JSON.stringify(session));
 	}
 
 	#clearSession() {
@@ -192,9 +149,6 @@ export class SimpleClient {
 				// Store session ID and initialize result
 				this.#sessionId = sessionId;
 				this.#initializeResult = initData.result as InitializationResult;
-				if (!this.#externalSession) {
-					this.#storeSession(sessionId, this.#initializeResult);
-				}
 
 				// Step 2: Send initialized notification
 				const initializedRequest: JSONRPCRequest = {
@@ -322,10 +276,6 @@ export class SimpleClient {
 
 		// Handle 404 - session expired or invalid
 		if (resp.status === 404) {
-			// If this is an external session, don't try to recreate it
-			if (this.#externalSession) {
-				throw new Error('Session not found (404). External sessions cannot be recreated.');
-			}
 			this.#clearSession();
 			// Retry once with new session
 			return this.exchange(method, params, { abort: opts?.abort });

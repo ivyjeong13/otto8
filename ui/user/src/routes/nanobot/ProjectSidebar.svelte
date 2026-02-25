@@ -2,7 +2,6 @@
 	import Logo from '$lib/components/Logo.svelte';
 	import Threads from '$lib/components/nanobot/Threads.svelte';
 	import { getLayout } from '$lib/context/nanobotLayout.svelte';
-	import { ChatAPI } from '$lib/services/nanobot/chat/index.svelte';
 	import { nanobotChat } from '$lib/stores/nanobotChat.svelte';
 	import { goto } from '$lib/url';
 	import {
@@ -20,17 +19,16 @@
 	import { resolve } from '$app/paths';
 
 	interface Props {
-		chatApi: ChatAPI;
 		selectedThreadId?: string;
 		projectId: string;
 	}
 
-	let { chatApi, selectedThreadId, projectId }: Props = $props();
+	let { selectedThreadId, projectId }: Props = $props();
 
 	const layout = getLayout();
 	async function handleRenameThread(threadId: string, newTitle: string) {
 		try {
-			await chatApi.renameThread(threadId, newTitle);
+			await get(nanobotChat)?.api.renameThread(threadId, newTitle);
 			const sharedChat = get(nanobotChat);
 			const threadIndex = sharedChat?.threads.findIndex((t) => t.id === threadId) ?? -1;
 			if (threadIndex !== -1 && sharedChat) {
@@ -50,7 +48,7 @@
 		const sharedChat = get(nanobotChat);
 		const isCurrentViewedThread = selectedThreadId === threadId;
 		try {
-			await chatApi.deleteThread(threadId);
+			await get(nanobotChat)?.api.deleteThread(threadId);
 			if (sharedChat) {
 				nanobotChat.update((data) => {
 					if (data) {
@@ -131,7 +129,7 @@
 						onRename={handleRenameThread}
 						onDelete={handleDeleteThread}
 						onCreateThread={handleCreateThread}
-						isLoading={$nanobotChat?.isThreadsLoading ?? false}
+						isLoading={$nanobotChat?.status.threads === 'loading'}
 						{selectedThreadId}
 					/>
 				</div>

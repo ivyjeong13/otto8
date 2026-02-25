@@ -135,6 +135,10 @@ export class ChatAPI {
 		return client.deleteSession();
 	}
 
+	async deleteDefaultSession(): Promise<void> {
+		return this.mcpClient.deleteSession();
+	}
+
 	async renameThread(threadId: string, title: string): Promise<Chat> {
 		return await this.callMCPTool<Chat>('update_chat', {
 			payload: {
@@ -154,6 +158,22 @@ export class ChatAPI {
 				chats: Chat[];
 			}>('list_chats')
 		).chats;
+	}
+
+	async getWorkflows(): Promise<Resource[]> {
+		return (
+			await this.callMCPTool<{
+				resources: Resource[];
+			}>('list_workflows')
+		).resources;
+	}
+
+	async getFiles(): Promise<Resource[]> {
+		return (
+			await this.callMCPTool<{
+				resources: Resource[];
+			}>('list_files')
+		).resources;
 	}
 
 	async createThread(): Promise<Chat> {
@@ -389,9 +409,6 @@ export function appendMessage(messages: ChatMessage[], newMessage: ChatMessage):
 	return messages;
 }
 
-// Default instance
-export const defaultChatApi = new ChatAPI();
-
 export class ChatService {
 	messages: ChatMessage[];
 	prompts: Prompt[];
@@ -414,13 +431,16 @@ export class ChatService {
 	private subscribed = false;
 	private onThreadCreated?: (thread: Chat) => void;
 
-	constructor(opts?: {
-		api?: ChatAPI;
+	constructor(opts: {
+		baseUrl: string;
 		chatId?: string;
 		onThreadCreated?: (thread: Chat) => void;
 		skipInitialResources?: boolean;
 	}) {
-		this.api = opts?.api || defaultChatApi;
+		console.log('initialize');
+		this.api = new ChatAPI(opts.baseUrl, {
+			sessionId: opts.chatId
+		});
 		this.onThreadCreated = opts?.onThreadCreated;
 		this.messages = $state<ChatMessage[]>([]);
 		this.history = $state<ChatMessage[]>();
@@ -436,7 +456,6 @@ export class ChatService {
 		this.uploadedFiles = $state([]);
 		this.uploadingFiles = $state([]);
 		if (opts?.chatId !== undefined && opts?.chatId !== '') {
-			console.log('check A');
 			this.setChatId(opts.chatId);
 		} else if (!opts?.skipInitialResources) {
 			this.listResources({ useDefaultSession: true }).then((r) => {
@@ -449,12 +468,14 @@ export class ChatService {
 		this.closer();
 		if (this.chatId) {
 			this.setChatId('');
+		} else {
+			console.log('delete default session');
+			this.api.deleteDefaultSession();
 		}
 	};
 
 	setChatId = async (chatId?: string, opts?: { preserveLoading?: boolean }) => {
 		if (chatId === this.chatId) {
-			console.log('Chat ID already set');
 			return;
 		}
 
@@ -624,7 +645,6 @@ export class ChatService {
 
 	newChat = async () => {
 		const thread = await this.api.createThread();
-		console.log('Check C');
 		await this.setChatId(thread.id, { preserveLoading: true });
 		this.onThreadCreated?.(thread);
 	};
@@ -746,7 +766,6 @@ export class ChatService {
 	): Promise<Attachment> => {
 		// Create thread if it doesn't exist
 		if (!this.chatId) {
-			console.log('Check D');
 			const thread = await this.api.createThread();
 			await this.setChatId(thread.id);
 		}

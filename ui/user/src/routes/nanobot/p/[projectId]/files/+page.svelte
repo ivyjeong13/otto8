@@ -11,10 +11,11 @@
 		ChevronUp
 	} from 'lucide-svelte';
 	import { twMerge } from 'tailwind-merge';
-	import { getContext } from 'svelte';
+	import { getContext, onMount } from 'svelte';
 	import type { ProjectLayoutContext } from '$lib/services/nanobot/types';
 	import { PROJECT_LAYOUT_CONTEXT } from '$lib/services/nanobot/types';
 	import FileItem from '$lib/components/nanobot/FileItem.svelte';
+	import { loadFiles } from '../../../initializeNanobot';
 
 	interface FileTimeResult {
 		date?: Date;
@@ -50,14 +51,7 @@
 		return { date, formatted };
 	}
 
-	let resourceFiles = $derived(
-		$nanobotChat?.resources
-			? $nanobotChat.resources.filter(
-					(r) => r.uri.startsWith('file:///') && !r.uri.includes('workflows/')
-				)
-			: []
-	);
-
+	let resourceFiles = $derived($nanobotChat?.files ?? []);
 	let filesContainer = $state<HTMLElement | undefined>(undefined);
 	let query = $state('');
 	let view = $state<'list' | 'tree'>('list');
@@ -68,6 +62,10 @@
 	});
 
 	const projectLayout = getContext<ProjectLayoutContext>(PROJECT_LAYOUT_CONTEXT);
+
+	onMount(() => {
+		loadFiles();
+	});
 
 	type FileTreeNode =
 		| { type: 'folder'; name: string; children: FileTreeNode[] }
@@ -301,7 +299,12 @@
 		</button>
 	</div>
 	<div class="flex items-center justify-between gap-4">
-		<h2 class="text-2xl font-semibold">Files</h2>
+		<div class="flex items-center gap-2">
+			<h2 class="text-2xl font-semibold">Files</h2>
+			{#if $nanobotChat?.status.files === 'loading'}
+				<span class="loading loading-spinner loading-sm text-base-content/40"></span>
+			{/if}
+		</div>
 		<label class="label text-sm">
 			<input
 				type="checkbox"

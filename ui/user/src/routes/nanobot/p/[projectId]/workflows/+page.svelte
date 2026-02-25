@@ -1,28 +1,28 @@
 <script lang="ts">
-	import { ChatAPI, ChatService } from '$lib/services/nanobot/chat/index.svelte';
+	import { ChatService } from '$lib/services/nanobot/chat/index.svelte';
 	import { nanobotChat } from '$lib/stores/nanobotChat.svelte';
 	import { goto } from '$lib/url';
 	import { Play, Search } from 'lucide-svelte';
-	import { getContext } from 'svelte';
+	import { getContext, onMount } from 'svelte';
 	import type { ProjectLayoutContext } from '$lib/services/nanobot/types';
 	import { PROJECT_LAYOUT_CONTEXT } from '$lib/services/nanobot/types';
+	import { loadWorkflows } from '../../../initializeNanobot';
 
 	let { data } = $props();
 	let agent = $derived(data.agent);
 	let projectId = $derived(data.projectId);
-	const chatApi = $derived(new ChatAPI(agent.connectURL));
 
 	let workflowQuery = $state('');
 
-	let workflows = $derived(
-		$nanobotChat?.resources
-			? $nanobotChat.resources.filter((r) => r.uri.startsWith('workflow:///'))
-			: []
-	);
+	let workflows = $derived($nanobotChat?.workflows ?? []);
 
 	let filteredWorkflows = $derived(
 		workflows.filter((w) => w.name.toLowerCase().includes(workflowQuery.toLowerCase()))
 	);
+
+	onMount(() => {
+		loadWorkflows();
+	});
 
 	let workflowsContainer = $state<HTMLElement | undefined>(undefined);
 
@@ -30,7 +30,7 @@
 
 	function handleSelectWorkflow(workflowName: string) {
 		const newChat = new ChatService({
-			api: chatApi,
+			baseUrl: agent.connectURL,
 			onThreadCreated: (thread) => {
 				nanobotChat.update((data) => {
 					if (data) {
@@ -78,7 +78,12 @@
 	</label>
 
 	<div>
-		<h2 class="text-2xl font-semibold">Workflows</h2>
+		<div class="flex items-center gap-2">
+			<h2 class="text-2xl font-semibold">Workflows</h2>
+			{#if $nanobotChat?.status.workflows === 'loading'}
+				<span class="loading loading-spinner loading-sm text-base-content/40"></span>
+			{/if}
+		</div>
 
 		<p class="text-base-content/50 text-sm font-light">
 			Workflows are AI-powered tools that can be used to automate tasks and processes.

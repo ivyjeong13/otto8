@@ -2,46 +2,20 @@
 	import Layout from '$lib/components/Layout.svelte';
 	import * as nanobotLayout from '$lib/context/nanobotLayout.svelte';
 	import ProjectSidebar from './ProjectSidebar.svelte';
-	import { ChatAPI, ChatService } from '$lib/services/nanobot/chat/index.svelte';
-	import { onMount, untrack } from 'svelte';
+	import { ChatService } from '$lib/services/nanobot/chat/index.svelte';
+	import { untrack } from 'svelte';
 	import ProjectStartThread from '$lib/components/nanobot/ProjectStartThread.svelte';
 	import type { Chat } from '$lib/services/nanobot/types';
 	import { goto } from '$lib/url';
 	import { get } from 'svelte/store';
 	import { nanobotChat } from '$lib/stores/nanobotChat.svelte';
-	import { loadNanobotThreads } from './loadNanobotThreads';
-	import { NanobotService } from '$lib/services';
-	import { errors } from '$lib/stores';
-	import { LoaderCircle } from 'lucide-svelte';
 	import ThreadQuickAccess from '$lib/components/nanobot/QuickAccess.svelte';
 
 	let { data } = $props();
 	let projects = $derived(data.projects);
 	let agent = $derived(data.agent);
-	let isNewAgent = $derived(data.isNewAgent);
 	let chat = $state<ChatService | null>(null);
-	let loading = $state(true);
 	let threadContentWidth = $state(0);
-
-	onMount(async () => {
-		loading = true;
-		if (isNewAgent) {
-			try {
-				await NanobotService.launchProjectV2Agent(projects[0].id, agent.id);
-			} catch (error) {
-				console.error(error);
-				errors.append(error);
-			} finally {
-				loading = false;
-			}
-		} else {
-			loading = false;
-		}
-
-		await loadNanobotThreads(chatApi, projects[0].id);
-	});
-
-	const chatApi = $derived(new ChatAPI(agent.connectURL));
 
 	function handleThreadCreated(thread: Chat) {
 		const projectId = projects[0].id;
@@ -62,43 +36,33 @@
 	}
 
 	$effect(() => {
-		const newChat = new ChatService({
-			api: chatApi,
-			onThreadCreated: handleThreadCreated
-		});
-
-		newChat.selectedAgentId = 'explorer';
+		// Track store so effect re-runs when loadNanobotThreads populates it in onMount
+		const stored = get(nanobotChat);
 
 		untrack(() => {
-			chat = newChat;
-			// Sync chat into store so sidebar (Workflows, FileExplorer) can read resources
-			const projectId = projects[0].id;
-			nanobotChat.update((data) => {
-				if (data) {
-					data.chat = newChat;
-					data.threadId = undefined;
-				}
-				return data;
+			const newChat = new ChatService({
+				baseUrl: agent.connectURL,
+				onThreadCreated: handleThreadCreated
 			});
-			// Store may still be null before loadNanobotThreads runs in onMount
-			if (get(nanobotChat) === null) {
-				nanobotChat.set({
-					projectId,
-					threadId: undefined,
-					chat: newChat,
-					threads: [],
-					isThreadsLoading: true,
-					resources: []
+
+			chat = newChat;
+			// Sync chat into store only after loadNanobotThreads has run (store created in onMount)
+			if (stored) {
+				nanobotChat.update((data) => {
+					if (data) {
+						data.chat = newChat;
+						data.threadId = undefined;
+					}
+					return data;
 				});
 			}
 		});
 
 		return () => {
 			const storedChat = get(nanobotChat);
-			if (storedChat?.chat === newChat) {
-				return;
+			if (storedChat?.chat) {
+				storedChat.chat.close();
 			}
-			newChat.close();
 		};
 	});
 </script>
@@ -118,14 +82,14 @@
 	hideProfileButton
 >
 	{#snippet leftSidebar()}
-		<ProjectSidebar {chatApi} projectId={projects[0].id} />
+		<ProjectSidebar projectId={projects[0].id} />
 	{/snippet}
 
 	<div
 		class="flex w-full min-w-0 grow"
 		style={threadContentWidth > 0 ? `min-width: ${threadContentWidth}px` : ''}
 	>
-		{#if chat && !loading}
+		{#if chat}
 			{#key chat.chatId}
 				<ProjectStartThread
 					agentId={agent.id}
@@ -134,8 +98,6 @@
 					onThreadContentWidth={(w) => (threadContentWidth = w)}
 				/>
 			{/key}
-		{:else}
-			<LoaderCircle class="size-6 animate-spin" />
 		{/if}
 	</div>
 

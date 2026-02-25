@@ -1,13 +1,12 @@
 <script lang="ts">
 	import Layout from '$lib/components/Layout.svelte';
 	import ProjectSidebar from '../../ProjectSidebar.svelte';
-	import { ChatAPI, ChatService } from '$lib/services/nanobot/chat/index.svelte';
+	import { ChatService } from '$lib/services/nanobot/chat/index.svelte';
 	import * as nanobotLayout from '$lib/context/nanobotLayout.svelte';
 	import { page } from '$app/state';
 	import { get } from 'svelte/store';
-	import { onMount, untrack } from 'svelte';
+	import { onMount } from 'svelte';
 	import { nanobotChat } from '$lib/stores/nanobotChat.svelte';
-	import { loadNanobotThreads } from '../../loadNanobotThreads';
 	import FileEditor from '$lib/components/nanobot/FileEditor.svelte';
 	import QuickAccess from '$lib/components/nanobot/QuickAccess.svelte';
 	import { afterNavigate } from '$app/navigation';
@@ -25,15 +24,9 @@
 	);
 	let workflowId = $derived(page.url.searchParams.get('wid') ?? undefined);
 
-	const chatApi = $derived(new ChatAPI(agent.connectURL));
-
-	let chat = $state<ChatService | null>(null);
 	let threadId = $derived(page.url.searchParams.get('tid') ?? undefined);
-	let prevThreadId: string | null | undefined = undefined;
-	let initialQuickBarAccessOpen = $state(false);
 	let selectedFile = $state('');
 	let threadContentWidth = $state(0);
-	let needsRefreshThreads = $state(true);
 	let layoutName = $state('');
 	let showBackButton = $state(false);
 
@@ -44,8 +37,8 @@
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const existing = new Set<string>();
 		if (!threadId) return items;
-		if (chat?.messages?.length) {
-			for (const message of chat.messages) {
+		if ($nanobotChat?.chat?.messages?.length) {
+			for (const message of $nanobotChat.chat.messages) {
 				if (message.role !== 'assistant') continue;
 				for (const item of message.items || []) {
 					if (
@@ -92,10 +85,9 @@
 	});
 
 	$effect(() => {
-		projectLayoutContext.chat = chat;
 		projectLayoutContext.threadWriteToolItems = threadWriteToolItems;
 		if (parentWorkflowId || workflowId) {
-			const workflow = get(nanobotChat)?.resources?.find((r) =>
+			const workflow = get(nanobotChat)?.workflows?.find((r) =>
 				parentWorkflowId
 					? r.uri === `workflow:///${parentWorkflowId}`
 					: r.uri === `workflow:///${workflowId}`
@@ -109,123 +101,7 @@
 		}
 	});
 
-	$effect(() => {
-		const res = chat?.resources ?? [];
-		nanobotChat.update((data) => {
-			if (data) data.resources = res;
-			return data;
-		});
-	});
 	setContext(PROJECT_LAYOUT_CONTEXT, projectLayoutContext);
-
-	onMount(() => {
-		loadNanobotThreads(chatApi, projectId, threadId ?? undefined);
-	});
-
-	$effect(() => {
-		if (initialQuickBarAccessOpen || !threadId) return;
-		if (chat && chat.messages.length > 0) {
-			let foundTool = false;
-			for (const message of chat.messages) {
-				if (message.role !== 'assistant') continue;
-				for (const item of message.items || []) {
-					if (item.type === 'tool' && (item.name === 'todoWrite' || item.name === 'write')) {
-						initialQuickBarAccessOpen = true;
-
-						if (!layout.quickBarAccessOpen) {
-							layout.quickBarAccessOpen = true;
-						}
-
-						foundTool = true;
-						break;
-					}
-				}
-				if (foundTool) break;
-			}
-		}
-	});
-
-	async function loadThreads() {
-		const threads = await chatApi.getThreads();
-		nanobotChat.update((data) => {
-			if (data) {
-				data.threads = threads ?? [];
-			}
-			return data;
-		});
-	}
-
-	$effect(() => {
-		if (chat && chat.messages.length >= 2 && needsRefreshThreads) {
-			const tid = chat.chatId;
-			const inThreads = $nanobotChat?.threads.find((t) => t.id === tid);
-			if (!inThreads) {
-				loadThreads();
-			}
-
-			needsRefreshThreads = false;
-		}
-	});
-
-	$effect(() => {
-		const currentThreadId = threadId;
-		const currentProjectId = projectId;
-
-		const shouldSkip = untrack(
-			() => prevThreadId !== undefined && currentThreadId === prevThreadId
-		);
-		if (shouldSkip) return;
-
-		const storedChat = get(nanobotChat);
-		const sameProject = storedChat?.projectId === currentProjectId && storedChat?.chat;
-		const threadMatches = storedChat?.threadId === currentThreadId;
-		// Reuse stored chat when thread matches, or when we have no tid (e.g. on /workflows) so resources stay visible
-		if (sameProject && (threadMatches || currentThreadId === undefined)) {
-			console.log('reusing stored thread', currentThreadId, storedChat?.threadId);
-			untrack(() => {
-				prevThreadId = currentThreadId;
-				chat = storedChat!.chat!;
-			});
-			return () => {};
-		}
-
-		untrack(() => {
-			prevThreadId = currentThreadId;
-			chat?.close();
-		});
-
-		const newChat = new ChatService({
-			api: chatApi,
-			skipInitialResources: !!currentThreadId,
-			chatId: currentThreadId
-		});
-
-		untrack(() => {
-			console.log('creating new chat', currentThreadId);
-			chat = newChat;
-			nanobotChat.update((data) => {
-				if (data) {
-					data.chat = newChat;
-					data.threadId = currentThreadId ?? undefined;
-				}
-				return data;
-			});
-		});
-
-		return () => {
-			untrack(() => {
-				if (chat !== newChat) {
-					newChat.close();
-				}
-			});
-		};
-	});
-
-	$effect(() => {
-		if (chat?.resources?.length) {
-			console.log({ check: chat.resources });
-		}
-	});
 
 	afterNavigate(() => {
 		if (workflowId) {
@@ -235,7 +111,6 @@
 		}
 
 		if (!threadId) {
-			initialQuickBarAccessOpen = false;
 			layout.quickBarAccessOpen = false;
 		}
 	});
@@ -258,7 +133,7 @@
 	alwaysShowHeaderTitle
 >
 	{#snippet leftSidebar()}
-		<ProjectSidebar {chatApi} selectedThreadId={threadId} {projectId} />
+		<ProjectSidebar selectedThreadId={threadId} {projectId} />
 	{/snippet}
 
 	<div
@@ -269,11 +144,11 @@
 	</div>
 
 	{#snippet rightSidebar()}
-		{#if chat}
+		{#if $nanobotChat?.chat}
 			{#if selectedFile}
 				<FileEditor
 					filename={selectedFile}
-					{chat}
+					chat={$nanobotChat.chat}
 					open={!!selectedFile}
 					onClose={() => {
 						selectedFile = '';
