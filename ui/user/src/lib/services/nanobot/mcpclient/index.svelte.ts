@@ -28,6 +28,7 @@ export class SimpleClient {
 	#initializeResult?: InitializationResult;
 	#initializationPromise?: Promise<void>;
 	#sseConnection?: EventSource;
+	#onInitialized?: (sessionId: string) => void;
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	#sseSubscriptions = new Map<string, Set<(resource: ResourceContents) => void>>();
 
@@ -39,12 +40,14 @@ export class SimpleClient {
 		workspaceShared?: boolean;
 		sessionId?: string;
 		headers?: Record<string, string>;
+		onInitialized?: (sessionId: string) => void;
 	}) {
 		const baseUrl = opts?.baseUrl || '';
 		const path = opts?.path || '';
 		this.#url = `${baseUrl}${path}`;
 		this.#fetcher = opts?.fetcher || fetch;
 		this.#headers = opts?.headers || {};
+		this.#onInitialized = opts?.onInitialized;
 		if (opts?.workspaceId) {
 			this.#url += `${this.#url.includes('?') ? '&' : '?'}workspace=${opts.workspaceId}`;
 			if (opts.workspaceShared) {
@@ -146,9 +149,9 @@ export class SimpleClient {
 					throw new Error(`Initialize error: ${initData.error}`);
 				}
 
-				// Store session ID and initialize result
 				this.#sessionId = sessionId;
 				this.#initializeResult = initData.result as InitializationResult;
+				this.#onInitialized?.(sessionId);
 
 				// Step 2: Send initialized notification
 				const initializedRequest: JSONRPCRequest = {

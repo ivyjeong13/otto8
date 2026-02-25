@@ -16,28 +16,21 @@
 	let agent = $derived(data.agent);
 	let isNewAgent = $derived(data.isNewAgent);
 
-	let cleanup: (() => void) | undefined;
-	onMount(() => {
-		(async () => {
-			loading = true;
-			if (isNewAgent && projects?.length && agent) {
-				try {
-					await NanobotService.launchProjectV2Agent(projects[0].id, agent.id);
-				} catch (error) {
-					console.error(error);
-					errors.append(error);
-				} finally {
-					loading = false;
-				}
-			} else {
-				loading = false;
+	onMount(async () => {
+		loading = true;
+		if (isNewAgent && projects?.length && agent) {
+			try {
+				await NanobotService.launchProjectV2Agent(projects[0].id, agent.id);
+			} catch (error) {
+				console.error(error);
+				errors.append(error);
 			}
+		}
 
-			if (agent && projects?.length) {
-				cleanup = await initializeNanobot(agent.connectURL, projects[0].id);
-			}
-		})();
-		return () => cleanup?.();
+		if (agent && projects?.length) {
+			await initializeNanobot(agent.connectURL, projects[0].id);
+		}
+		loading = false;
 	});
 </script>
 

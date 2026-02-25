@@ -37,6 +37,7 @@ export class ChatAPI {
 			fetcher?: typeof fetch;
 			sessionId?: string;
 			headers?: Record<string, string>;
+			onInitialized?: (sessionId: string) => void;
 		}
 	) {
 		this.baseUrl = baseUrl;
@@ -45,7 +46,8 @@ export class ChatAPI {
 			baseUrl: baseUrl,
 			fetcher: opts?.fetcher,
 			sessionId: opts?.sessionId,
-			headers: this.headers
+			headers: this.headers,
+			onInitialized: opts?.onInitialized
 		});
 	}
 

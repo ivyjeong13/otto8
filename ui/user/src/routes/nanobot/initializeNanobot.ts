@@ -6,22 +6,17 @@ export async function initializeNanobot(
 	initializeConnectUrl: string,
 	projectId: string,
 	threadId?: string
-): Promise<() => void> {
+): Promise<void> {
 	const storedChat = get(nanobotChat);
-
-	const closer = () => {
-		if (storedChat?.api) {
-			storedChat.api.deleteDefaultSession();
-		}
-	};
-
-	if (storedChat && storedChat.status.threads === 'loaded') {
-		return closer;
-	}
 
 	if (!storedChat) {
 		console.log('loading initial layout');
-		const api = new ChatAPI(initializeConnectUrl);
+		const api = new ChatAPI(initializeConnectUrl, {
+			sessionId: getStoredRootSessionId(initializeConnectUrl),
+			onInitialized: (sessionId) => {
+				localStorage.setItem(`mcp-session-base-url:${initializeConnectUrl}`, sessionId);
+			}
+		});
 		nanobotChat.set({
 			api,
 			status: {
@@ -40,8 +35,17 @@ export async function initializeNanobot(
 	loadThreads();
 	loadWorkflows();
 	loadFiles();
+}
 
-	return closer;
+function getStoredRootSessionId(baseUrl: string): string | undefined {
+	if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+		return undefined;
+	}
+	const stored = localStorage.getItem(`mcp-session-base-url:${baseUrl}`);
+	if (!stored) {
+		return undefined;
+	}
+	return stored;
 }
 
 export function loadThreads() {
