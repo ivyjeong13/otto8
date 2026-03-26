@@ -10,6 +10,8 @@
 	import { goto } from '$lib/url';
 	import { randomUUID } from '$lib/utils';
 	import type { Attachment, UploadedFile } from '$lib/services/nanobot/types';
+	import ImpersonateBanner from './ImpersonateBanner.svelte';
+	import { profile } from '$lib/stores';
 
 	let { data } = $props();
 	let projects = $derived(data.projects);
@@ -70,6 +72,8 @@
 			eventSource.close();
 		};
 	});
+
+	const impersonating = $derived(data.agent.userID !== profile.current.id);
 </script>
 
 <Layout
@@ -86,91 +90,96 @@
 	disableResize
 	hideProfileButton
 >
+	{#snippet banner()}
+		<ImpersonateBanner {agent} />
+	{/snippet}
 	{#snippet leftSidebar()}
 		<ProjectSidebar projectId={projects[0].id} />
 	{/snippet}
 
-	<div
-		class="flex w-full min-w-0 grow"
-		style={threadContentWidth > 0 ? `min-width: ${threadContentWidth}px` : ''}
-	>
-		<ProjectStartThread
-			agentId={agent.id}
-			{projectId}
-			browserBaseUrl={agent.connectURL}
-			{browserAvailable}
-			bind:browserViewerOpen
-			chat={{
-				sendMessage: async (message: string, attachments?: Attachment[]) => {
-					initialMessage = message;
-					const toUpload = [...pendingFiles];
-					pendingFiles = [];
-					toUpload.forEach((p) => {
-						if (p.uri?.startsWith('blob:')) URL.revokeObjectURL(p.uri);
-					});
-
-					$nanobotChat?.api.createSession().then(async (session) => {
-						const uploadedAttachments: Attachment[] = await Promise.all(
-							toUpload.map((p) => session.uploadFile(p.file))
-						);
-						const allAttachments = [...uploadedAttachments, ...(attachments ?? [])];
-						session.sendMessage(message, allAttachments.length > 0 ? allAttachments : undefined);
-						const current = get(nanobotChat);
-						nanobotChat.set({
-							projectId,
-							chat: session,
-							sessionId: session.chatId,
-							api: $nanobotChat?.api,
-							sessions: current?.sessions ?? [],
-							isThreadsLoading: current?.isThreadsLoading ?? false,
-							resources: current?.resources ?? []
+	<div class="flex flex-col">
+		<div
+			class="flex w-full min-w-0 grow"
+			style={threadContentWidth > 0 ? `min-width: ${threadContentWidth}px` : ''}
+		>
+			<ProjectStartThread
+				agentId={agent.id}
+				{projectId}
+				browserBaseUrl={agent.connectURL}
+				{browserAvailable}
+				bind:browserViewerOpen
+				chat={{
+					sendMessage: async (message: string, attachments?: Attachment[]) => {
+						initialMessage = message;
+						const toUpload = [...pendingFiles];
+						pendingFiles = [];
+						toUpload.forEach((p) => {
+							if (p.uri?.startsWith('blob:')) URL.revokeObjectURL(p.uri);
 						});
 
-						goto(`/agent/p/${projectId}?tid=${session.chatId}`, {
-							replaceState: true,
-							noScroll: true,
-							keepFocus: true
+						$nanobotChat?.api.createSession().then(async (session) => {
+							const uploadedAttachments: Attachment[] = await Promise.all(
+								toUpload.map((p) => session.uploadFile(p.file))
+							);
+							const allAttachments = [...uploadedAttachments, ...(attachments ?? [])];
+							session.sendMessage(message, allAttachments.length > 0 ? allAttachments : undefined);
+							const current = get(nanobotChat);
+							nanobotChat.set({
+								projectId,
+								chat: session,
+								sessionId: session.chatId,
+								api: $nanobotChat?.api,
+								sessions: current?.sessions ?? [],
+								isThreadsLoading: current?.isThreadsLoading ?? false,
+								resources: current?.resources ?? []
+							});
+
+							goto(`/agent/p/${projectId}?tid=${session.chatId}`, {
+								replaceState: true,
+								noScroll: true,
+								keepFocus: true
+							});
 						});
-					});
-				},
-				messages: initialMessage
-					? [
-							{
-								id: randomUUID(),
-								role: 'user',
-								created: new Date().toISOString(),
-								items: [
-									{
-										id: randomUUID(),
-										type: 'text',
-										text: initialMessage
-									}
-								]
-							}
-						]
-					: [],
-				prompts: [],
-				resources: [],
-				agent: undefined,
-				agents: [],
-				selectedAgentId: '',
-				elicitations: [],
-				isLoading: false,
-				isRestoring: false,
-				chatId: '',
-				uploadFile: handleFileUpload,
-				uploadedFiles: pendingFiles,
-				uploadingFiles: [],
-				cancelUpload: cancelPendingUpload,
-				sessionClient: undefined,
-				closer: () => {},
-				history: [],
-				onChatDone: [],
-				currentRequestId: undefined,
-				subscribed: false
-			} as unknown as ChatSession}
-			onThreadContentWidth={(w) => (threadContentWidth = w)}
-		/>
+					},
+					messages: initialMessage
+						? [
+								{
+									id: randomUUID(),
+									role: 'user',
+									created: new Date().toISOString(),
+									items: [
+										{
+											id: randomUUID(),
+											type: 'text',
+											text: initialMessage
+										}
+									]
+								}
+							]
+						: [],
+					prompts: [],
+					resources: [],
+					agent: undefined,
+					agents: [],
+					selectedAgentId: '',
+					elicitations: [],
+					isLoading: false,
+					isRestoring: false,
+					chatId: '',
+					uploadFile: handleFileUpload,
+					uploadedFiles: pendingFiles,
+					uploadingFiles: [],
+					cancelUpload: cancelPendingUpload,
+					sessionClient: undefined,
+					closer: () => {},
+					history: [],
+					onChatDone: [],
+					currentRequestId: undefined,
+					subscribed: false
+				} as unknown as ChatSession}
+				onThreadContentWidth={(w) => (threadContentWidth = w)}
+			/>
+		</div>
 	</div>
 
 	{#snippet rightSidebar()}
@@ -180,6 +189,7 @@
 			{browserAvailable}
 			{browserViewerOpen}
 			onToggleBrowserViewer={() => (browserViewerOpen = !browserViewerOpen)}
+			{impersonating}
 		/>
 	{/snippet}
 </Layout>

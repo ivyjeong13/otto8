@@ -45,7 +45,8 @@
 		PencilRuler,
 		Vault,
 		LockOpen,
-		CircleQuestionMark
+		CircleQuestionMark,
+		Bot
 	} from 'lucide-svelte';
 	import { tooltip } from '$lib/actions/tooltip.svelte';
 	import { twMerge } from 'tailwind-merge';
@@ -60,6 +61,7 @@
 	import { resolve } from '$app/paths';
 	import { isAgentEnabled } from '$lib/utils';
 	import { ADMIN_AGENT_DISABLED_MESSAGE, USER_AGENT_DISABLED_MESSAGE } from '$lib/constants';
+	import Bots from '$lib/icons/Bots.svelte';
 
 	type NavLink = {
 		id: string;
@@ -95,6 +97,7 @@
 		onBackButtonClick?: () => void;
 		leftSidebar?: Snippet;
 		rightSidebar?: Snippet;
+		banner?: Snippet;
 		layoutContext?: LayoutContext;
 		disableResize?: boolean;
 		hideProfileButton?: boolean;
@@ -114,6 +117,7 @@
 		onBackButtonClick,
 		leftSidebar,
 		rightSidebar,
+		banner,
 		layoutContext,
 		disableResize,
 		hideProfileButton,
@@ -217,7 +221,7 @@
 					},
 					{
 						id: 'agent-management',
-						icon: BotMessageSquare,
+						icon: Bot,
 						label: 'Obot Agent Management',
 						disabled: isBootStrapUser,
 						collapsible: true,
@@ -230,7 +234,6 @@
 								disabled: isBootStrapUser,
 								collapsible: false
 							},
-
 							{
 								id: 'model-providers',
 								href: '/admin/model-providers',
@@ -262,6 +265,14 @@
 							},
 							...(version.current.nanobotIntegration
 								? [
+										{
+											id: 'admin-agents',
+											href: '/admin/agents',
+											icon: Bots,
+											label: 'Agents',
+											collapsible: false,
+											disabled: isBootStrapUser || !agentLinkEnabled,
+										},
 										{
 											id: 'launch-agent-chat',
 											href: '/agent',
@@ -374,19 +385,7 @@
 								label: 'API Keys',
 								disabled: !version.current.authEnabled,
 								collapsible: false
-							},
-							...(profile.current.canImpersonate?.()
-								? [
-										{
-											id: 'user-impersonation',
-											href: '/admin/user-impersonation',
-											icon: UserCog,
-											label: 'Impersonation',
-											collapsible: false,
-											disabled: !version.current.authEnabled
-										}
-									]
-								: [])
+							}
 						]
 					},
 					{
@@ -514,7 +513,7 @@
 		{:else if layout.sidebarOpen && !hideSidebar}
 			<div
 				class={twMerge(
-					'bg-background flex max-h-dvh w-full min-w-dvw flex-shrink-0 flex-col md:w-1/6 md:max-w-xl md:min-w-[305px]',
+					'bg-background flex max-h-dvh w-full min-w-dvw flex-shrink-0 flex-col md:w-1/6 md:max-w-xl md:min-w-[310px]',
 					classes?.sidebarRoot
 				)}
 				transition:slide={{ axis: 'x' }}
@@ -658,6 +657,9 @@
 			as="main"
 			{...main?.props}
 		>
+			{#if banner}
+				{@render banner()}
+			{/if}
 			<Navbar
 				class={twMerge('dark:bg-background sticky top-0 left-0 z-50 w-full', classes?.navbar)}
 				{hideProfileButton}

@@ -12,6 +12,9 @@
 	import { afterNavigate } from '$app/navigation';
 	import { onDestroy } from 'svelte';
 	import { PROJECT_LAYOUT_CONTEXT, type ProjectLayoutContext } from '$lib/services/nanobot/types';
+	import ImpersonateBanner from '../../ImpersonateBanner.svelte';
+	import { profile } from '$lib/stores';
+	import { twMerge } from 'tailwind-merge';
 
 	let { data, children } = $props();
 	let projectId = $derived(data.projects[0].id);
@@ -290,6 +293,8 @@
 			layout.quickBarAccessOpen = false;
 		}
 	});
+
+	const impersonating = $derived(data.agent.userID !== profile.current.id);
 </script>
 
 <Layout
@@ -308,12 +313,15 @@
 	hideProfileButton
 	alwaysShowHeaderTitle
 >
+	{#snippet banner()}
+		<ImpersonateBanner agent={data.agent} />
+	{/snippet}
 	{#snippet leftSidebar()}
 		<ProjectSidebar selectedSessionId={sessionId} {projectId} />
 	{/snippet}
 
 	<div
-		class="flex w-full min-w-0 grow"
+		class={twMerge('flex w-full min-w-0 grow', impersonating && !sessionId && 'pt-8')}
 		style={threadContentWidth > 0 ? `min-width: ${threadContentWidth}px` : ''}
 	>
 		{@render children?.()}
@@ -342,6 +350,7 @@
 			{selectedFile}
 			{agentId}
 			{projectId}
+			{impersonating}
 		/>
 	{/snippet}
 </Layout>

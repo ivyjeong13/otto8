@@ -31,6 +31,7 @@
 		selectedFile?: string;
 		agentId?: string;
 		projectId?: string;
+		impersonating?: boolean;
 	}
 
 	let {
@@ -43,7 +44,8 @@
 		workflowName,
 		selectedFile,
 		agentId,
-		projectId
+		projectId,
+		impersonating
 	}: Props = $props();
 
 	/** Todo item shape from todo:///list resource or todo_write tool (application/json) */
@@ -230,7 +232,7 @@
 		)}
 	>
 		<div class={twMerge(open ? 'self-end' : 'w-14 self-center')}>
-			<Profile {agentId} {projectId} />
+			<Profile {agentId} {projectId} {impersonating} />
 		</div>
 
 		{#if onToggleBrowserViewer && browserAvailable}
