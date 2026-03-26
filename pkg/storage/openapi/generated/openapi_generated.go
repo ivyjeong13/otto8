@@ -6647,6 +6647,31 @@ func schema_obot_platform_obot_apiclient_types_NanobotAgent(ref common.Reference
 							Format: "",
 						},
 					},
+					"needsUpdate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Copied from the backing MCPServer (name ms1 + agent id) when it exists.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"needsK8sUpdate": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"needsURL": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"deploymentStatus": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
 				Required: []string{"Metadata", "NanobotAgentManifest"},
 			},

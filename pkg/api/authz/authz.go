@@ -192,6 +192,7 @@ var (
 			"GET /api/skills",
 			"GET /api/skills/{id}",
 			"GET /api/skills/{id}/download",
+			"GET /api/nanobot-agents",
 		},
 		anyGroup: {
 			// Allow access to the oauth2 endpoints
