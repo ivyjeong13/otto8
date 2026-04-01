@@ -132,8 +132,14 @@
 	async function handlePaste(e: ClipboardEvent) {
 		if (!onFileUpload || disabled || isUploading) return;
 
-		const toUpload = clipboardFiles(e).filter(isAcceptedUpload);
-		const invalidUploads = clipboardFiles(e).filter((f) => !isAcceptedUpload(f));
+		const plain = (e.clipboardData?.getData('text/plain') ?? '').trim();
+		if (plain.length > 0) {
+			return;
+		}
+
+		const files = clipboardFiles(e);
+		const toUpload = files.filter(isAcceptedUpload);
+		const invalidUploads = files.filter((f) => !isAcceptedUpload(f));
 		if (invalidUploads.length > 0) {
 			uploadErrors =
 				invalidUploads.length === 1
