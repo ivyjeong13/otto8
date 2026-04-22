@@ -3,6 +3,7 @@
 	import { PAGE_TRANSITION_DURATION } from '$lib/constants';
 	import {
 		AdminService,
+		ChatService,
 		type MCPFilter,
 		type MCPFilterManifest,
 		type MCPFilterResource,
@@ -10,6 +11,7 @@
 		type Runtime,
 		type RuntimeFormData
 	} from '$lib/services';
+	import { EventStreamService } from '$lib/services/admin/eventstream.svelte';
 	import {
 		convertServerRuntimeFormDataToManifest,
 		validateRuntimeForm
@@ -17,6 +19,7 @@
 	import { mcpServersAndEntries } from '$lib/stores';
 	import { goto } from '$lib/url';
 	import Confirm from '../Confirm.svelte';
+	import PageLoading from '../PageLoading.svelte';
 	import Select from '../Select.svelte';
 	import ContainerizedRuntimeForm from '../mcp/ContainerizedRuntimeForm.svelte';
 	import CustomConfigurationForm from '../mcp/CustomConfigurationForm.svelte';
@@ -83,6 +86,12 @@
 	let showSecret = $state<boolean>(false);
 	let removingSecret = $state(false);
 	let showValidation = $state(false);
+
+	let launchMCPId = $state<string>();
+	let launchError = $state<string>();
+	let launchProgress = $state<number>(0);
+	let launchLogsEventStream = $state<EventStreamService<string>>();
+	let launchLogs = $state<string[]>([]);
 
 	let mcpServersMap = $derived(new Map(mcpServersAndEntries.current.servers.map((i) => [i.id, i])));
 	let mcpEntriesMap = $derived(new Map(mcpServersAndEntries.current.entries.map((i) => [i.id, i])));
@@ -341,6 +350,71 @@
 
 	function handleUpdateRequired(field: string) {
 		delete showRuntimeRequired[field];
+	}
+
+	function listLaunchLogs(filterId: string) {
+		launchLogsEventStream = new EventStreamService<string>();
+		launchLogsEventStream.connect(`/api/mcp-webhook-validations/${filterId}/logs`, {
+			onMessage: (data) => {
+				launchLogs = [...launchLogs, data];
+			}
+		});
+	}
+
+	async function handleCancelLaunch() {
+		if (!launchMCPId) return;
+		if (launchLogsEventStream) {
+			launchLogsEventStream.disconnect();
+		}
+		await ChatService.deleteSingleOrRemoteMcpServer(launchMCPId);
+
+		launchError = undefined;
+	}
+
+	async function validateLaunch(
+		filterId: string,
+		mcpServerManifest: ReturnType<typeof convertServerRuntimeFormDataToManifest> | undefined
+	) {
+		if (!mcpServerManifest) return;
+		if (mcpServerManifest) {
+			let configValues: Record<string, string> = {};
+			// Add environment variables
+			if (mcpServerManifest.manifest.env) {
+				const envValues = Object.fromEntries(
+					mcpServerManifest.manifest.env
+						.filter((env) => env.key && env.value) // Only include env vars with both key and value
+						.map((env) => [env.key, env.value])
+				);
+				configValues = { ...configValues, ...envValues };
+			}
+
+			// Add headers from remote config (only for remote runtime)
+			if (
+				mcpServerManifest.manifest.runtime === 'remote' &&
+				mcpServerManifest.manifest.remoteConfig?.headers
+			) {
+				const headerValues = Object.fromEntries(
+					mcpServerManifest.manifest.remoteConfig.headers
+						.filter((header) => header.key && header.value) // Only include headers with both key and value
+						.map((header) => [header.key, header.value])
+				);
+				configValues = { ...configValues, ...headerValues };
+			}
+
+			// Configure the server with the collected values if any exist
+			if (Object.keys(configValues).length > 0) {
+				await AdminService.configureMCPFilter(filterId, configValues);
+			}
+		}
+
+		const launchResponse = await AdminService.launchMCPFilter(filterId);
+		if (!launchResponse.success) {
+			launchError = launchResponse.message;
+			launchMCPId = `sms1${filterId}`;
+			listLaunchLogs(filterId);
+			return false;
+		}
+		return true;
 	}
 </script>
 
@@ -722,6 +796,28 @@
 						}
 
 						saving = true;
+						if (launchLogsEventStream) {
+							// reset launch logs
+							launchLogsEventStream.disconnect();
+							launchLogsEventStream = undefined;
+							launchLogs = [];
+						}
+
+						launchError = undefined;
+						launchProgress = 0;
+
+						let timeout1 = setTimeout(() => {
+							launchProgress = 10;
+						}, 100);
+
+						let timeout2 = setTimeout(() => {
+							launchProgress = 30;
+						}, 3000);
+
+						let timeout3 = setTimeout(() => {
+							launchProgress = 80;
+						}, 10000);
+
 						try {
 							const mcpServerManifest = runtimeFormData
 								? convertServerRuntimeFormDataToManifest(runtimeFormData)
@@ -748,44 +844,22 @@
 							let result: MCPFilter;
 							if (initialFilter) {
 								result = await AdminService.updateMCPFilter(initialFilter.id, manifest);
-								onUpdate?.(result);
+								const launchSuccess = await validateLaunch(result.id, mcpServerManifest);
+								if (launchSuccess) {
+									onUpdate?.(result);
+								}
 							} else {
 								result = await AdminService.createMCPFilter(manifest);
-								onCreate?.(result);
-							}
-
-							if (mcpServerManifest) {
-								let configValues: Record<string, string> = {};
-								// Add environment variables
-								if (mcpServerManifest.manifest.env) {
-									const envValues = Object.fromEntries(
-										mcpServerManifest.manifest.env
-											.filter((env) => env.key && env.value) // Only include env vars with both key and value
-											.map((env) => [env.key, env.value])
-									);
-									configValues = { ...configValues, ...envValues };
-								}
-
-								// Add headers from remote config (only for remote runtime)
-								if (
-									mcpServerManifest.manifest.runtime === 'remote' &&
-									mcpServerManifest.manifest.remoteConfig?.headers
-								) {
-									const headerValues = Object.fromEntries(
-										mcpServerManifest.manifest.remoteConfig.headers
-											.filter((header) => header.key && header.value) // Only include headers with both key and value
-											.map((header) => [header.key, header.value])
-									);
-									configValues = { ...configValues, ...headerValues };
-								}
-
-								// Configure the server with the collected values if any exist
-								if (Object.keys(configValues).length > 0) {
-									await AdminService.configureMCPFilter(result.id, configValues);
+								const launchSuccess = await validateLaunch(result.id, mcpServerManifest);
+								if (launchSuccess) {
+									onCreate?.(result);
 								}
 							}
 						} finally {
 							saving = false;
+							clearTimeout(timeout1);
+							clearTimeout(timeout2);
+							clearTimeout(timeout3);
 						}
 					}}
 				>
@@ -840,3 +914,40 @@
 	}}
 	oncancel={() => (deletingFilter = false)}
 />
+
+<PageLoading
+	isProgressBar
+	show={!!saving}
+	text="Configuring and initializing filter..."
+	progress={launchProgress}
+	error={launchError}
+	errorClasses={{
+		root: 'md:w-[95vw]'
+	}}
+	onClose={handleCancelLaunch}
+>
+	{#snippet errorPreContent()}
+		<h4 class="text-xl font-semibold">MCP Filter Launch Failed</h4>
+	{/snippet}
+	{#snippet errorPostContent()}
+		{#if launchLogs.length > 0}
+			<div
+				class="default-scrollbar-thin bg-surface1 max-h-[50vh] w-full overflow-y-auto rounded-lg p-4 shadow-inner"
+			>
+				{#each launchLogs as log, i (i)}
+					<div class="font-mono text-sm">
+						<span class="text-on-surface1">{log}</span>
+					</div>
+				{/each}
+			</div>
+		{:else}
+			<p class="text-md self-start">An issue occurred while launching the MCP filter.</p>
+		{/if}
+
+		<div class="flex w-full flex-col items-center gap-2 md:flex-row">
+			<button class="button w-full md:w-1/2 md:flex-1" onclick={handleCancelLaunch}>
+				Go Back
+			</button>
+		</div>
+	{/snippet}
+</PageLoading>
