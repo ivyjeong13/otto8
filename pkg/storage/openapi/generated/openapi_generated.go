@@ -2212,6 +2212,20 @@ func schema_obot_platform_obot_apiclient_types_CommonProviderMetadata(ref common
 							Format:      "",
 						},
 					},
+					"requiredEntitlements": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -2264,6 +2278,20 @@ func schema_obot_platform_obot_apiclient_types_CommonProviderStatus(ref common.R
 						},
 					},
 					"missingConfigurationParameters": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"missingEntitlements": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
 							Items: &spec.SchemaOrArray{
@@ -16109,6 +16137,12 @@ func schema_obot_platform_obot_apiclient_types_ToolReference(ref common.Referenc
 							Format: "",
 						},
 					},
+					"configured": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 					"error": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
@@ -26339,6 +26373,7 @@ func schema_storage_apis_obotobotai_v1_ToolReferenceSpec(ref common.ReferenceCal
 						},
 					},
 				},
+				Required: []string{"forceRefresh"},
 			},
 		},
 		Dependencies: []string{
@@ -26373,6 +26408,12 @@ func schema_storage_apis_obotobotai_v1_ToolReferenceStatus(ref common.ReferenceC
 					"tool": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1.ToolShortDescription"),
+						},
+					},
+					"configured": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
 						},
 					},
 					"error": {

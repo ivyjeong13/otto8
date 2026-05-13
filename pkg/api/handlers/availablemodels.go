@@ -13,6 +13,7 @@ import (
 	"github.com/obot-platform/obot/apiclient/types"
 	"github.com/obot-platform/obot/pkg/api"
 	"github.com/obot-platform/obot/pkg/gateway/server/dispatcher"
+	"github.com/obot-platform/obot/pkg/license"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	"github.com/obot-platform/obot/pkg/system"
 	"k8s.io/apimachinery/pkg/fields"
@@ -20,12 +21,14 @@ import (
 )
 
 type AvailableModelsHandler struct {
-	dispatcher *dispatcher.Dispatcher
+	dispatcher      *dispatcher.Dispatcher
+	licenseProvider *license.KeygenProvider
 }
 
-func NewAvailableModelsHandler(dispatcher *dispatcher.Dispatcher) *AvailableModelsHandler {
+func NewAvailableModelsHandler(dispatcher *dispatcher.Dispatcher, licenseProvider *license.KeygenProvider) *AvailableModelsHandler {
 	return &AvailableModelsHandler{
-		dispatcher: dispatcher,
+		dispatcher:      dispatcher,
+		licenseProvider: licenseProvider,
 	}
 }
 
@@ -40,26 +43,9 @@ func (a *AvailableModelsHandler) List(req api.Context) error {
 		return err
 	}
 
-	credCtxs := make([]string, 0, len(modelProviderReferences.Items))
-	for _, ref := range modelProviderReferences.Items {
-		credCtxs = append(credCtxs, string(ref.UID))
-	}
-
-	creds, err := req.GPTClient.ListCredentials(req.Context(), gptscript.ListCredentialsOptions{
-		CredentialContexts: credCtxs,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to list model provider credentials: %w", err)
-	}
-
-	credMap := make(map[string]map[string]string, len(creds))
-	for _, cred := range creds {
-		credMap[cred.Context+cred.ToolName] = cred.Env
-	}
-
 	var oModels openai.ModelsList
 	for _, modelProvider := range modelProviderReferences.Items {
-		convertedModelProvider, err := providers.ConvertModelProviderToolRef(modelProvider, credMap[string(modelProvider.UID)+modelProvider.Name])
+		convertedModelProvider, err := providers.ConvertModelProviderToolRef(modelProvider, nil, a.licenseProvider)
 		if err != nil {
 			log.Warnf("failed to convert model provider %q: %v", modelProvider.Name, err)
 			continue
@@ -110,31 +96,29 @@ func (a *AvailableModelsHandler) ListForModelProvider(req api.Context) error {
 		return types.NewErrBadRequest("%s is not a model provider", modelProviderReference.Name)
 	}
 
-	modelProvider, err := providers.ConvertModelProviderToolRef(modelProviderReference, nil)
+	modelProvider, err := providers.ConvertModelProviderToolRef(modelProviderReference, nil, a.licenseProvider)
 	if err != nil {
 		return err
-	}
-
-	credCtxs := []string{string(modelProviderReference.UID), system.GenericModelProviderCredentialContext}
-	if projectID != "" {
-		credCtxs = []string{fmt.Sprintf("%s-%s", projectID, modelProviderReference.Name)}
 	}
 
 	var credEnvVars map[string]string
-	if modelProviderReference.Status.Tool != nil {
-		if len(modelProvider.RequiredConfigurationParameters) > 0 {
-			cred, err := req.GPTClient.RevealCredential(req.Context(), credCtxs, modelProviderReference.Name)
-			if err != nil && !errors.As(err, &gptscript.ErrNotFound{}) {
-				return fmt.Errorf("failed to reveal credential for model provider %q: %w", modelProviderReference.Name, err)
-			} else if err == nil {
-				credEnvVars = cred.Env
-			}
+	if assistantID != "" && modelProviderReference.Status.Tool != nil && len(modelProvider.RequiredConfigurationParameters) > 0 {
+		credCtxs := []string{string(modelProviderReference.UID), system.GenericModelProviderCredentialContext}
+		if projectID != "" {
+			credCtxs = []string{fmt.Sprintf("%s-%s", projectID, modelProviderReference.Name)}
 		}
-	}
 
-	modelProvider, err = providers.ConvertModelProviderToolRef(modelProviderReference, credEnvVars)
-	if err != nil {
-		return err
+		cred, err := req.GPTClient.RevealCredential(req.Context(), credCtxs, modelProviderReference.Name)
+		if err != nil && !errors.As(err, &gptscript.ErrNotFound{}) {
+			return fmt.Errorf("failed to reveal credential for model provider %q: %w", modelProviderReference.Name, err)
+		} else if err == nil {
+			credEnvVars = cred.Env
+		}
+
+		modelProvider, err = providers.ConvertModelProviderToolRef(modelProviderReference, credEnvVars, a.licenseProvider)
+		if err != nil {
+			return err
+		}
 	}
 	if !modelProvider.Configured {
 		return types.NewErrBadRequest("model provider %s is not configured, missing configuration parameters: %s", modelProviderReference.Name, strings.Join(modelProvider.MissingConfigurationParameters, ", "))

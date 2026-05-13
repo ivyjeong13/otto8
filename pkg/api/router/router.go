@@ -19,20 +19,23 @@ import (
 func Router(ctx context.Context, services *services.Services) (http.Handler, error) {
 	mux := services.APIServer
 
-	version, err := handlers.NewVersionHandler(ctx,
-		services.GatewayClient,
-		services.EmailServerName,
-		services.PostgresDSN,
-		services.MCPRuntimeBackend,
-		services.MCPNetworkPolicyEnabled,
-		services.MCPDefaultDenyAllEgress,
-		services.SupportDocker,
-		services.AuthEnabled,
-		services.DisableUpdateCheck,
-		services.DisableLegacyChat,
-		services.AutonomousToolUseEnabled,
-		services.NanobotIntegration,
-		services.MessagePoliciesEnabled)
+	version, err := handlers.NewVersionHandler(ctx, handlers.VersionHandlerOptions{
+		GatewayClient:            services.GatewayClient,
+		StorageClient:            services.StorageClient,
+		LicenseProvider:          services.LicenseProvider,
+		EmailDomain:              services.EmailServerName,
+		PostgresDSN:              services.PostgresDSN,
+		Engine:                   services.MCPRuntimeBackend,
+		MCPNetworkPolicyEnabled:  services.MCPNetworkPolicyEnabled,
+		MCPDefaultDenyAllEgress:  services.MCPDefaultDenyAllEgress,
+		SupportDocker:            services.SupportDocker,
+		AuthEnabled:              services.AuthEnabled,
+		DisableUpdateCheck:       services.DisableUpdateCheck,
+		DisableLegacyChat:        services.DisableLegacyChat,
+		AutonomousToolUseEnabled: services.AutonomousToolUseEnabled,
+		NanobotIntegration:       services.NanobotIntegration,
+		MessagePoliciesEnabled:   services.MessagePoliciesEnabled,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -57,14 +60,14 @@ func Router(ctx context.Context, services *services.Services) (http.Handler, err
 	skills := handlers.NewSkillHandler(services.SkillAccessRuleHelper)
 	powerUserWorkspaces := handlers.NewPowerUserWorkspaceHandler(services.ServerURL, services.AccessControlRuleHelper)
 	mcpWebhookValidations := handlers.NewMCPWebhookValidationHandler(services.MCPLoader)
-	availableModels := handlers.NewAvailableModelsHandler(services.ProviderDispatcher)
-	modelProviders := handlers.NewModelProviderHandler(services.ProviderDispatcher, services.Invoker)
+	availableModels := handlers.NewAvailableModelsHandler(services.ProviderDispatcher, services.LicenseProvider)
+	modelProviders := handlers.NewModelProviderHandler(services.ProviderDispatcher, services.Invoker, services.LicenseProvider)
 	modelAccessPolicies := handlers.NewModelAccessPolicyHandler()
 	messagePolicies := handlers.NewMessagePolicyHandler()
 	policyViolations := handlers.NewMessagePolicyViolationHandler()
 	deviceScans := handlers.NewDeviceScansHandler()
-	authProviders := handlers.NewAuthProviderHandler(services.ProviderDispatcher, services.PostgresDSN)
-	fileScannerProviders := handlers.NewFileScannerProviderHandler(services.ProviderDispatcher, services.Invoker)
+	authProviders := handlers.NewAuthProviderHandler(services.ProviderDispatcher, services.PostgresDSN, services.LicenseProvider)
+	fileScannerProviders := handlers.NewFileScannerProviderHandler(services.ProviderDispatcher, services.Invoker, services.LicenseProvider)
 	prompt := handlers.NewPromptHandler()
 	confirm := handlers.NewConfirmHandler()
 	defaultModelAliases := handlers.NewDefaultModelAliasHandler()
@@ -89,9 +92,15 @@ func Router(ctx context.Context, services *services.Services) (http.Handler, err
 	oauthClients := handlers.NewOAuthClientsHandler(services.OAuthServerConfig, services.ServerURL)
 	publishedArtifacts := handlers.NewPublishedArtifactHandler(services.ArtifactBlobStore, services.ArtifactBlobBucket)
 	imagePullSecretsHandler := handlers.NewImagePullSecretHandler(services.MCPRuntimeBackend, services.MCPImagePullSecrets, services.MCPServerNamespace, services.ServiceNamespace, services.ServiceAccountName, services.LocalK8sClient, services.ServiceAccountIssuerURL, services.ServiceAccountIssuerError)
+	licenseHandler := handlers.NewLicenseHandler(services.LicenseProvider)
 
 	// Version
 	mux.HandleFunc("GET /api/version", version.GetVersion)
+
+	// License
+	mux.HandleFunc("GET /api/license", licenseHandler.Get)
+	mux.HandleFunc("PUT /api/license", licenseHandler.Update)
+	mux.HandleFunc("DELETE /api/license", licenseHandler.Delete)
 
 	// Agents
 	mux.HandleFunc("POST /api/agents", agents.Create)

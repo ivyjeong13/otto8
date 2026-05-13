@@ -10,6 +10,7 @@ import (
 	"github.com/obot-platform/nah/pkg/name"
 	"github.com/obot-platform/obot/apiclient/types"
 	"github.com/obot-platform/obot/pkg/api"
+	"github.com/obot-platform/obot/pkg/license"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	"github.com/obot-platform/obot/pkg/tools"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,6 +37,7 @@ func convertToolReference(toolRef v1.ToolReference) types.ToolReference {
 		BundleToolName: toolRef.Spec.BundleToolName,
 		Error:          toolRef.Status.Error,
 		Resolved:       toolRef.Generation == toolRef.Status.ObservedGeneration,
+		Configured:     toolRef.Status.Configured,
 	}
 	if toolRef.Spec.Active == nil {
 		tf.Active = true
@@ -46,8 +48,18 @@ func convertToolReference(toolRef v1.ToolReference) types.ToolReference {
 		tf.Params = toolRef.Status.Tool.Params
 		tf.Name = toolRef.Status.Tool.Name
 		tf.Description = toolRef.Status.Tool.Description
-		tf.Metadata.Metadata = toolRef.Status.Tool.Metadata
 		tf.Credentials = toolRef.Status.Tool.Credentials
+		tf.Metadata.Metadata = toolRef.Status.Tool.Metadata
+
+		providerMeta, err := license.MetaForProvider(toolRef)
+		if err == nil {
+			for _, entitlement := range providerMeta.RequiredEntitlements {
+				entitlement = strings.TrimSpace(entitlement)
+				if entitlement == "" {
+					continue
+				}
+			}
+		}
 	}
 
 	return tf

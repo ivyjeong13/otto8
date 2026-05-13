@@ -58,6 +58,7 @@ func (c *Controller) setupRoutes() {
 		c.services.ProviderDispatcher,
 		c.services.ToolRegistryURLs,
 		c.services.SupportDocker,
+		c.services.LicenseProvider,
 	)
 	workspace := workspace.New(c.services.GPTClient, c.services.WorkspaceProviderType)
 	knowledgeset := knowledgeset.New(c.services.Invoker, c.services.GPTClient)
@@ -160,6 +161,7 @@ func (c *Controller) setupRoutes() {
 	// ToolReferences
 	root.Type(&v1.ToolReference{}).HandlerFunc(cleanup.Cleanup)
 	root.Type(&v1.ToolReference{}).HandlerFunc(toolRef.Populate)
+	root.Type(&v1.ToolReference{}).HandlerFunc(toolRef.SetConfiguredStatus)
 	root.Type(&v1.ToolReference{}).HandlerFunc(toolRef.BackPopulateModels)
 	root.Type(&v1.ToolReference{}).FinalizeFunc(v1.ToolReferenceFinalizer, toolRef.CleanupModelProvider)
 
