@@ -1005,7 +1005,7 @@
 
 {#snippet troubleshootingView()}
 	{#if server}
-		<div class="flex flex-col bg-background dark:bg-surface2 rounded-md pt-4">
+		<div class="flex flex-col bg-base-100 dark:bg-base-300 rounded-md pt-4">
 			<h1 class="text-lg font-semibold px-4 pb-2">Debug Oauth Flow</h1>
 			<DebugOauthFlow mcpServer={server} />
 		</div>
