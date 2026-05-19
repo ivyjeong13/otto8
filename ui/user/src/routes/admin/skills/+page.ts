@@ -8,16 +8,23 @@ export const load: PageLoad = async ({ fetch, parent }) => {
 	const { profile } = await parent();
 	let skillRepositories: SkillRepository[] = [];
 	let skills: Skill[] = [];
+	let showLicenseError = false;
 
 	try {
 		skillRepositories = await AdminService.listSkillRepositories({ fetch });
 		skills = await AdminService.listAllSkills({ fetch });
 	} catch (err) {
-		handleRouteError(err, '/admin/skills', profile);
+		if (err instanceof Error && err.message.includes('402')) {
+			skills = [];
+			showLicenseError = true;
+		} else {
+			handleRouteError(err, '/admin/skills', profile);
+		}
 	}
 
 	return {
 		skillRepositories,
-		skills
+		skills,
+		showLicenseError
 	};
 };

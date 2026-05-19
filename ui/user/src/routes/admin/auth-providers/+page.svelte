@@ -1,8 +1,9 @@
 <script lang="ts">
-	import Confirm from '$lib/components/Confirm.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import ResponsiveDialog from '$lib/components/ResponsiveDialog.svelte';
+	import AuthDeconfigureConfirm from '$lib/components/admin/AuthDeconfigureConfirm.svelte';
+	import LicenseProviderDialog from '$lib/components/admin/LicenseProviderDialog.svelte';
 	import ProviderCard from '$lib/components/admin/ProviderCard.svelte';
 	import ProviderConfigure from '$lib/components/admin/ProviderConfigure.svelte';
 	import {
@@ -13,14 +14,14 @@
 	import type { AuthProvider } from '$lib/services/admin/types.js';
 	import { AdminService, Role } from '$lib/services/index.js';
 	import { adminConfigStore } from '$lib/stores/adminConfig.svelte.js';
-	import { darkMode, errors, profile } from '$lib/stores/index.js';
+	import { errors, profile } from '$lib/stores/index.js';
 	import { TriangleAlert, Info } from 'lucide-svelte';
 	import { untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import { twMerge } from 'tailwind-merge';
 
 	let { data } = $props();
 	let authProviders = $state(untrack(() => data.authProviders));
+	let licenseRequiredProvider = $state<AuthProvider>();
 
 	function sortAuthProviders(authProviders: AuthProvider[]) {
 		return [...authProviders].sort((a, b) => {
@@ -61,12 +62,15 @@
 	let loading = $state(false);
 	let configureError = $state<string>();
 
+	let deconfigureAuthProviderDialog = $state<ReturnType<typeof AuthDeconfigureConfirm>>();
 	let confirmDeconfigureAuthProvider = $state<AuthProvider>();
 
 	const duration = PAGE_TRANSITION_DURATION;
 
 	const prepareOwnerSetup = async () => {
-		const configuredAuthProvider = authProviders.find((provider) => provider.configured);
+		const configuredAuthProvider = authProviders.find(
+			(provider) => provider.configured && (provider.missingEntitlements || []).length === 0
+		);
 		if (!configuredAuthProvider) return;
 
 		const users = await AdminService.listUsers();
@@ -173,6 +177,19 @@
 			}
 		}
 	}
+
+	async function handleDeconfigureAuthProvider() {
+		if (!confirmDeconfigureAuthProvider) {
+			console.error('No auth provider to deconfigure');
+			return;
+		}
+		loading = true;
+		await AdminService.deconfigureAuthProvider(confirmDeconfigureAuthProvider.id);
+		authProviders = await AdminService.listAuthProviders();
+		adminConfigStore.updateAuthProviders(authProviders);
+		confirmDeconfigureAuthProvider = undefined;
+		loading = false;
+	}
 </script>
 
 <Layout title="Auth Providers">
@@ -191,13 +208,18 @@
 				</div>
 			{/if}
 		</div>
-		<div class="grid grid-cols-1 gap-4 px-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 			{#each sortedAuthProviders as authProvider (authProvider.id)}
 				<ProviderCard
 					disableConfigure={atLeastOneConfigured && !authProvider.configured}
 					provider={authProvider}
 					recommended={RecommendedModelProviders.includes(authProvider.id)}
 					onConfigure={async () => {
+						if (authProvider.missingEntitlements && authProvider.missingEntitlements.length > 0) {
+							licenseRequiredProvider = authProvider;
+							return;
+						}
+
 						configuringAuthProvider = authProvider;
 						try {
 							configuringAuthProviderValues = await AdminService.revealAuthProvider(
@@ -218,6 +240,7 @@
 					}}
 					onDeconfigure={async () => {
 						confirmDeconfigureAuthProvider = authProvider;
+						deconfigureAuthProviderDialog?.open();
 					}}
 					readonly={profile.current.isAdminReadonly?.()}
 				/>
@@ -257,49 +280,16 @@
 	{/snippet}
 </ProviderConfigure>
 
-<Confirm
-	show={!!confirmDeconfigureAuthProvider}
-	{loading}
-	onsuccess={async () => {
-		if (confirmDeconfigureAuthProvider) {
-			loading = true;
-			await AdminService.deconfigureAuthProvider(confirmDeconfigureAuthProvider.id);
-			authProviders = await AdminService.listAuthProviders();
-			adminConfigStore.updateAuthProviders(authProviders);
-			confirmDeconfigureAuthProvider = undefined;
-			loading = false;
-		}
+<AuthDeconfigureConfirm
+	bind:this={deconfigureAuthProviderDialog}
+	provider={confirmDeconfigureAuthProvider}
+	onConfirm={handleDeconfigureAuthProvider}
+	onCancel={() => {
+		deconfigureAuthProviderDialog?.close();
+		confirmDeconfigureAuthProvider = undefined;
 	}}
-	oncancel={() => (confirmDeconfigureAuthProvider = undefined)}
-	title="Confirm Deconfiguration"
->
-	{#snippet msgContent()}
-		<div class="flex items-center gap-2">
-			<img
-				src={darkMode.isDark && confirmDeconfigureAuthProvider?.iconDark
-					? confirmDeconfigureAuthProvider.iconDark
-					: confirmDeconfigureAuthProvider?.icon}
-				alt={confirmDeconfigureAuthProvider?.name}
-				class={twMerge(
-					'size-6 rounded-sm p-0.5',
-					!confirmDeconfigureAuthProvider?.iconDark && 'bg-base-200 dark:bg-base-300'
-				)}
-			/>
-			<h3 class="text-lg font-semibold">Deconfigure {confirmDeconfigureAuthProvider?.name}</h3>
-		</div>
-	{/snippet}
-	{#snippet note()}
-		<div class="flex flex-col gap-2 text-left">
-			<p class="text-sm font-light">
-				Deconfiguring this auth provider will sign out all users who are using it and reset it to
-				its unconfigured state. You will need to set up the auth provider once again to use it.
-			</p>
-			<p class="text-sm font-light">
-				Are you sure you want to deconfigure <b>Google</b>?
-			</p>
-		</div>
-	{/snippet}
-</Confirm>
+	{loading}
+/>
 
 <ResponsiveDialog bind:this={setupSignInDialog} class="w-md">
 	{#snippet titleContent()}
@@ -347,6 +337,8 @@
 		</div>
 	</div>
 </ResponsiveDialog>
+
+<LicenseProviderDialog bind:provider={licenseRequiredProvider} />
 
 <svelte:head>
 	<title>Obot | Auth Providers</title>

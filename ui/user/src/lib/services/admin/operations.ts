@@ -94,7 +94,9 @@ import type {
 	OAuthDebuggerAuthorizationURLRequest,
 	OAuthDebuggerRegisterClientResponse,
 	OAuthDebuggerTokenRequest,
-	OAuthToken
+	OAuthToken,
+	License,
+	LicenseManifest
 } from './types';
 import { MCPCompositeDeletionDependencyError } from './types';
 
@@ -2038,4 +2040,15 @@ export async function exchangeMCPServerOAuthDebuggerToken(
 	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
 ): Promise<OAuthToken> {
 	return (await doPost(`/mcp-servers/${serverID}/oauth-debugger/token`, body, opts)) as OAuthToken;
+}
+
+export async function getLicense(opts?: { fetch?: Fetcher }): Promise<License> {
+	return (await doGet('/license', opts)) as License;
+}
+
+export async function updateLicense(
+	manifest: LicenseManifest,
+	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
+): Promise<License> {
+	return (await doPut('/license', manifest, opts)) as License;
 }

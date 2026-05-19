@@ -164,6 +164,8 @@ export interface Version {
 	authEnabled?: boolean;
 	enterprise?: boolean;
 	licenseEntitlements?: string[];
+	licenseEntitlementViolations?: LicenseEntitlementViolation[];
+	missingLicenseEntitlements?: string[];
 	upgradeAvailable?: boolean;
 	engine?: 'docker' | 'kubernetes' | 'local';
 	mcpNetworkPolicyEnabled?: boolean;
@@ -999,4 +1001,12 @@ export type ModelAlias = (typeof ModelAlias)[keyof typeof ModelAlias];
 export interface DefaultModelAlias {
 	alias: ModelAlias;
 	model: string;
+}
+
+export interface LicenseEntitlementViolation {
+	type: string;
+	namespace: string;
+	name: string;
+	requiredEntitlements: string[];
+	missingEntitlements: string[];
 }

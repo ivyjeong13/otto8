@@ -1515,3 +1515,15 @@ export interface DeviceScanStats {
 	skills: DeviceSkillStat[] | null;
 	scanTimestamps: string[] | null;
 }
+
+export interface License {
+	licenseKey: string;
+	source: string;
+	locked: boolean;
+	enterprise: boolean;
+	entitlements: string[] | null;
+}
+
+export interface LicenseManifest {
+	licenseKey: string;
+}
