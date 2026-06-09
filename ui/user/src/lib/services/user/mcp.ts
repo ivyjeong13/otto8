@@ -245,7 +245,7 @@ function getRegistryName(userID: string, usersMap?: Map<string, OrgUser>): strin
 			: 'Unknown Registry';
 }
 
-type EntrySource = { type: 'user' | 'git' | 'global'; url?: string; name: string };
+type EntrySource = { sourceType: 'user' | 'git' | 'system'; source: string };
 export function getSource(
 	entity: MCPCatalogEntry | MCPCatalogServer | AccessControlRule,
 	usersMap?: Map<string, OrgUser>
@@ -253,22 +253,21 @@ export function getSource(
 	if (entity.powerUserWorkspaceID) {
 		const userID = entity.powerUserWorkspaceID.split('-')?.pop() || '';
 		return {
-			type: 'user',
-			name: getRegistryName(userID, usersMap)
+			sourceType: 'user',
+			source: getRegistryName(userID, usersMap)
 		};
 	}
 
 	if ('isCatalogEntry' in entity && entity.sourceURL) {
 		return {
-			type: 'git',
-			url: entity.sourceURL,
-			name: 'Git Source'
+			sourceType: 'git',
+			source: entity.sourceURL
 		};
 	}
 
 	return {
-		type: 'global',
-		name: 'Global Registry'
+		sourceType: 'system',
+		source: 'system'
 	};
 }
 
@@ -312,7 +311,7 @@ function convertEntriesToTableData(
 		.filter((entry) => !entry.deleted)
 		.map((entry) => {
 			const registry = getUserRegistry(entry, usersMap);
-			const source = getSource(entry, usersMap);
+			const { source, sourceType } = getSource(entry, usersMap);
 			const configuredServers = userConfiguredServersByEntry.get(entry.id) ?? [];
 			const missingSecretBinding = hasMissingSecretBinding(entry, configuredServers);
 			const connected = configuredServers.some((s) => !serverHasMissingSecretBinding(entry, s));
@@ -330,17 +329,12 @@ function convertEntriesToTableData(
 						)
 					: (entry.userCount ?? 0),
 				editable: !entry.sourceURL,
-				type:
-					entry.manifest.runtime === 'remote'
-						? 'remote'
-						: entry.manifest.runtime === 'composite'
-							? 'composite'
-							: 'hosted',
+				type: getServerTypeLabel(entry),
 				created: entry.created,
 				registry,
 				source,
+				sourceType,
 				needsUpdate: entry.needsUpdate,
-				hasServers: configuredServers.length > 0,
 				connected,
 				missingKubernetesSecret: missingSecretBinding,
 				status: missingSecretBinding
@@ -397,7 +391,7 @@ function convertServersToTableData(
 		)
 		.map((server) => {
 			const registry = getUserRegistry(server, usersMap);
-			const source = getSource(server, usersMap);
+			const { source, sourceType } = getSource(server, usersMap);
 			const instance = instancesMap?.get(server.id);
 			const connected = !!instance;
 			return {
@@ -405,13 +399,13 @@ function convertServersToTableData(
 				name: getMCPDisplayName(server),
 				icon: server.manifest.icon,
 				source,
+				sourceType,
 				type: 'multi',
 				data: server,
 				users: server.mcpServerInstanceUserCount ?? 0,
 				editable: true,
 				created: server.created,
 				registry,
-				hasServers: connected,
 				connected,
 				status: connected
 					? instance.configured === false
