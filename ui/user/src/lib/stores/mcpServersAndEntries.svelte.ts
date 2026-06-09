@@ -20,6 +20,7 @@ interface McpServerAndEntries {
 const store = $state<{
 	current: McpServerAndEntries;
 	refreshAll: () => Promise<void>;
+	refreshEntries: () => Promise<void>;
 	refreshUserConfiguredServers: () => Promise<void>;
 	refreshUserInstances: () => Promise<void>;
 	removeServer: (serverID: string) => void;
@@ -36,6 +37,7 @@ const store = $state<{
 		isInitialized: false
 	},
 	refreshAll,
+	refreshEntries,
 	refreshUserConfiguredServers,
 	refreshUserInstances,
 	removeServer,
@@ -88,6 +90,7 @@ async function fetchData(forceRefresh = false) {
 				UserService.listMCPs(),
 				UserService.listMCPCatalogServers()
 			]);
+			console.log('test');
 
 			// Create sets of IDs the admin has access to via ACRs
 			const accessibleEntryIds = new Set(userScopedEntries.map((e) => e.id));
@@ -141,6 +144,25 @@ async function refreshAll() {
 
 async function initialize(forceRefresh = false) {
 	await fetchData(forceRefresh);
+}
+
+async function refreshEntries() {
+	if (profile.current.hasAdminAccess?.()) {
+		const [adminEntries, workspaceEntries] = await Promise.all([
+			AdminService.listMCPCatalogEntries(DEFAULT_MCP_CATALOG_ID, { all: true }),
+			AdminService.listAllUserWorkspaceCatalogEntries()
+		]);
+		store.current = {
+			...store.current,
+			entries: [...adminEntries, ...workspaceEntries]
+		};
+	} else {
+		const entries = await UserService.listMCPs();
+		store.current = {
+			...store.current,
+			entries
+		};
+	}
 }
 
 async function refreshUserConfiguredServers() {

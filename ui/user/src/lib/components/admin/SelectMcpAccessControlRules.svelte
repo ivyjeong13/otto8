@@ -12,7 +12,7 @@
 		type OrgGroup,
 		type AccessControlRuleSubject
 	} from '$lib/services';
-	import { profile } from '$lib/stores';
+	import { mcpServersAndEntries, profile } from '$lib/stores';
 	import { goto } from '$lib/url';
 	import InfoTooltip from '../InfoTooltip.svelte';
 	import ResponsiveDialog from '../ResponsiveDialog.svelte';
@@ -109,6 +109,9 @@
 		if (entry) {
 			sessionStorage.setItem(ADMIN_SESSION_STORAGE.ACCESS_CONTROL_RULE_CREATION, entry.id);
 		}
+
+		mcpServersAndEntries.refreshEntries();
+
 		goto(
 			profile.current?.hasAdminAccess?.()
 				? '/admin/mcp-access-policies?new=true'
@@ -119,7 +122,7 @@
 
 <ResponsiveDialog
 	bind:this={dialog}
-	title="Add to MCP Registry(ies)"
+	title="Add to Access Policies"
 	class="overflow-visible md:w-2xl"
 >
 	{#if accessControlRules.length === 0}
@@ -191,7 +194,9 @@
 	{/if}
 	{#if accessControlRules.length > 0}
 		<div class="mt-auto flex justify-between gap-4">
-			<button class="btn btn-primary" onclick={handleCreateNewRule}> Create New Registry </button>
+			<button class="btn btn-primary" onclick={handleCreateNewRule}>
+				Create New Access Policy
+			</button>
 			<div class="flex items-center gap-4">
 				<button
 					class="btn btn-primary flex items-center gap-1"
@@ -209,7 +214,7 @@
 	{:else}
 		<div class="mt-auto flex justify-end gap-4">
 			<button class="btn btn-secondary" onclick={close}> Skip Step </button>
-			<button class="btn btn-primary" onclick={handleCreateNewRule}> Create MCP Registry </button>
+			<button class="btn btn-primary" onclick={handleCreateNewRule}> Create Access Policy </button>
 		</div>
 	{/if}
 </ResponsiveDialog>
