@@ -1758,24 +1758,6 @@ func (m *MCPHandler) CreateServer(req api.Context) error {
 			return err
 		}
 
-		var (
-			err       error
-			hasAccess bool
-		)
-
-		if catalogEntry.Spec.MCPCatalogName != "" {
-			hasAccess, err = m.acrHelper.UserHasAccessToMCPServerCatalogEntryInCatalog(req.User, catalogEntry.Name, catalogEntry.Spec.MCPCatalogName)
-		} else if catalogEntry.Spec.PowerUserWorkspaceID != "" {
-			hasAccess, err = m.acrHelper.UserHasAccessToMCPServerCatalogEntryInWorkspace(req.Context(), req.User, catalogEntry.Name, catalogEntry.Spec.PowerUserWorkspaceID)
-		}
-		if err != nil {
-			return err
-		}
-
-		if !hasAccess {
-			return types.NewErrForbidden("user does not have access to MCP server catalog entry")
-		}
-
 		// Validate that the catalog entry type is compatible with the route used.
 		if err := validation.ValidateCatalogEntryForRoute(catalogEntry.Spec.Manifest, catalogID, workspaceID); err != nil {
 			return types.NewErrBadRequest("%v", err)
