@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tooltip } from '$lib/actions/tooltip.svelte';
+	import Confirm from '$lib/components/Confirm.svelte';
 	import DotDotDot from '$lib/components/DotDotDot.svelte';
 	import ConnectToServer from '$lib/components/mcp/ConnectToServer.svelte';
 	import McpConfirmDelete from '$lib/components/mcp/McpConfirmDelete.svelte';
@@ -21,7 +22,6 @@
 	} from '$lib/services';
 	import {
 		convertEntriesAndServersToTableData,
-		getServerTypeLabelByType,
 		deleteMcpServerDeployment,
 		isMultiUserCatalogEntry,
 		isMultiUserServer,
@@ -93,6 +93,11 @@
 	let oauthConfigEntry = $state<MCPCatalogEntry>();
 	let oauthStatus = $state<MCPServerOAuthCredentialStatus>();
 
+	let confirmNewDeployForMultiUserEntry = $state<{
+		entry: MCPCatalogEntry;
+		servers: MCPCatalogServer[];
+	}>();
+
 	let tableData = $derived(
 		convertEntriesAndServersToTableData(
 			mcpServersAndEntries.current.entries,
@@ -105,7 +110,7 @@
 				profile.current.hasAdminAccess?.() ||
 				(entity === 'workspace' && id && d.data.powerUserWorkspaceID === id);
 			const isMultiUserFromCatalogEntry = !('isCatalogEntry' in d.data) && !!d.data.catalogEntryID;
-			const isMultiUser = d.type === 'multi';
+			const isMultiUser = d.type.toLowerCase() === 'multi';
 			return isOwnedByUser && !isMultiUserFromCatalogEntry && !isMultiUser;
 		})
 	);
@@ -137,7 +142,7 @@
 			return null;
 		}
 
-		const isCatalogEntry = d.type === 'remote' || d.type === 'composite' || d.type === 'hosted';
+		const isCatalogEntry = d.type.toLowerCase() !== 'multi';
 		if (isCatalogEntry) {
 			if (useAdminUrl) {
 				return d.data.powerUserWorkspaceID
@@ -285,7 +290,6 @@
 			{#snippet onRenderColumn(property, d)}
 				{@const isCatalogEntry = 'isCatalogEntry' in d.data}
 				{@const catalogEntry = isCatalogEntry ? (d.data as MCPCatalogEntry) : undefined}
-				{@const server = !isCatalogEntry ? d.data : undefined}
 				{#if property === 'name'}
 					<div class="flex shrink-0 items-center gap-2">
 						<div class="icon">
@@ -297,7 +301,7 @@
 						</div>
 						<p class="flex items-center gap-2">
 							{d.name}
-							{#if (catalogEntry?.needsUpdate || server?.needsUpdate) && !('missingKubernetesSecret' in d && d.missingKubernetesSecret)}
+							{#if catalogEntry?.needsUpdate && !('missingKubernetesSecret' in d && d.missingKubernetesSecret)}
 								<span
 									use:tooltip={{
 										classes: ['border-primary', 'bg-primary/10', 'dark:bg-primary/50'],
@@ -319,17 +323,20 @@
 									<TriangleAlert class="size-4" />
 								</span>
 							{/if}
+							{#if d.status.toLowerCase() === 'deployed'}
+								<span class="badge badge-xs badge-secondary">Deployed</span>
+							{/if}
 						</p>
 					</div>
 				{:else if property === 'type'}
-					{getServerTypeLabelByType(d.type)}
+					{d.type}
 				{:else if property === 'created'}
 					{formatTimeAgo(d.created).relativeTime}
 				{:else if property === 'source'}
-					{#if d.source.type === 'git'}
+					{#if d.sourceType === 'git'}
 						<a
 							onclick={(e) => e.stopPropagation()}
-							href={d.source.url}
+							href={d.source}
 							target="_blank"
 							rel="external noopener noreferrer"
 							use:tooltip={{
@@ -338,10 +345,10 @@
 							class="btn btn-ghost hover:text-blue-500 btn-xs shrink-0"
 						>
 							<GitBranch class="size-4" />
-							{d.source.url?.split('/').pop()}
+							{d.source?.split('/').pop()}
 						</a>
 					{:else}
-						{d.source.name}
+						<p class="px-2 text-xs">{d.source}</p>
 					{/if}
 				{:else}
 					{d[property as keyof typeof d]}
@@ -364,7 +371,18 @@
 						class="btn btn-xs btn-primary self-center mr-2"
 						onclick={(e) => {
 							e.stopPropagation();
-							connectToServerDialog?.open({ entry: catalogEntry });
+
+							const deployedServers = mcpServersAndEntries.current.servers.filter(
+								(s) => s.catalogEntryID === catalogEntry.id
+							);
+							if (deployedServers.length >= 1) {
+								confirmNewDeployForMultiUserEntry = {
+									entry: catalogEntry,
+									servers: deployedServers
+								};
+							} else {
+								connectToServerDialog?.open({ entry: catalogEntry });
+							}
 						}}
 					>
 						Launch
@@ -545,3 +563,40 @@
 	onSave={handleSaveOAuth}
 	onDelete={handleDeleteOAuth}
 />
+
+<Confirm
+	show={Boolean(confirmNewDeployForMultiUserEntry)}
+	title="Launch New Server?"
+	msg=""
+	type="info"
+	onsuccess={() => {
+		if (!confirmNewDeployForMultiUserEntry?.entry) {
+			console.error('Entry required to launch a new server');
+			return;
+		}
+		connectToServerDialog?.open({ entry: confirmNewDeployForMultiUserEntry.entry });
+		confirmNewDeployForMultiUserEntry = undefined;
+	}}
+	oncancel={() => (confirmNewDeployForMultiUserEntry = undefined)}
+	submitText="Launch New Server"
+>
+	{#snippet msgContent()}{/snippet}
+	{#snippet note()}
+		<p>
+			There {confirmNewDeployForMultiUserEntry?.servers.length === 1
+				? 'is an existing deployment'
+				: `are ${confirmNewDeployForMultiUserEntry?.servers.length} existing deployments`}
+			of this catalog entry:
+		</p>
+
+		{#if confirmNewDeployForMultiUserEntry?.servers && confirmNewDeployForMultiUserEntry?.servers.length > 0}
+			<ul class="my-4">
+				{#each confirmNewDeployForMultiUserEntry?.servers as server (server.id)}
+					<li>{getMCPDisplayName(server)}</li>
+				{/each}
+			</ul>
+		{/if}
+
+		<p>Would you like to launch a new server?</p>
+	{/snippet}
+</Confirm>
