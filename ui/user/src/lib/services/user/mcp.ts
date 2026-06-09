@@ -69,11 +69,14 @@ export function parseCategories(item?: MCPCatalogServer | MCPCatalogEntry | null
 
 export function convertEnvHeadersToRecord(
 	envs: MCPServerInfo['env'],
-	headers: MCPServerInfo['headers']
+	headers: MCPServerInfo['headers'],
+	staticEnvValues: Record<string, string> = {}
 ) {
 	const secretValues: Record<string, string> = {};
 	for (const env of envs ?? []) {
-		if (!hasSecretBinding(env) && env.value) {
+		if (!env.value && staticEnvValues[env.key]) {
+			secretValues[env.key] = staticEnvValues[env.key];
+		} else if (!hasSecretBinding(env) && env.value) {
 			secretValues[env.key] = env.value;
 		}
 	}
