@@ -7,6 +7,7 @@ import {
 	type MCPServerInstance
 } from '$lib/services';
 import { profile } from '.';
+import errors from './errors.svelte';
 
 interface McpServerAndEntries {
 	entries: MCPCatalogEntry[];
@@ -142,7 +143,7 @@ async function fetchData(forceRefresh = false) {
 			isInitialized: true
 		};
 	} catch (error) {
-		console.error('Failed to fetch mcp server, entries, and user configured servers:', error);
+		errors.append(error);
 		store.current.loading = false;
 	}
 }
@@ -156,25 +157,29 @@ async function initialize(forceRefresh = false) {
 }
 
 async function refreshEntries() {
-	if (profile.current.hasAdminAccess?.()) {
-		const [adminEntries, workspaceEntries, userScopedEntries] = await Promise.all([
-			AdminService.listMCPCatalogEntries(DEFAULT_MCP_CATALOG_ID, { all: true }),
-			AdminService.listAllUserWorkspaceCatalogEntries(),
-			UserService.listMCPs()
-		]);
-		store.current = {
-			...store.current,
-			entries: setCanConnectAndFilterDeleted(
-				[...adminEntries, ...workspaceEntries],
-				userScopedEntries
-			)
-		};
-	} else {
-		const entries = await UserService.listMCPs();
-		store.current = {
-			...store.current,
-			entries: entries.filter((entry) => !entry.deleted)
-		};
+	try {
+		if (profile.current.hasAdminAccess?.()) {
+			const [adminEntries, workspaceEntries, userScopedEntries] = await Promise.all([
+				AdminService.listMCPCatalogEntries(DEFAULT_MCP_CATALOG_ID, { all: true }),
+				AdminService.listAllUserWorkspaceCatalogEntries(),
+				UserService.listMCPs()
+			]);
+			store.current = {
+				...store.current,
+				entries: setCanConnectAndFilterDeleted(
+					[...adminEntries, ...workspaceEntries],
+					userScopedEntries
+				)
+			};
+		} else {
+			const entries = await UserService.listMCPs();
+			store.current = {
+				...store.current,
+				entries: entries.filter((entry) => !entry.deleted)
+			};
+		}
+	} catch (error) {
+		errors.append(error);
 	}
 }
 

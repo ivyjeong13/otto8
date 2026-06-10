@@ -593,15 +593,13 @@
 			}
 			server = created;
 
-			const staticEnvValues = entry.manifest.env?.reduce(
-				(acc, env) => {
+			const staticEnvValues =
+				entry.manifest.env?.reduce<Record<string, string>>((acc, env) => {
 					if (env.value) {
 						acc[env.key] = env.value;
 					}
 					return acc;
-				},
-				{} as Record<string, string>
-			);
+				}, {}) ?? {};
 			const envs = convertEnvHeadersToRecord(lf?.envs, lf?.headers, staticEnvValues);
 			server = workspaceID
 				? await UserService.configureWorkspaceMCPCatalogServer(workspaceID, created.id, envs)

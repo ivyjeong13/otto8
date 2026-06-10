@@ -1769,10 +1769,11 @@ func (m *MCPHandler) CreateServer(req api.Context) error {
 			return err
 		}
 
-		// On POST /api/mcp-servers the catalog entry ID comes from the request body, so
-		// authz middleware cannot validate per-entry ACR permissions. Admin catalog and
-		// workspace routes skip this check.
-		if catalogID == "" && workspaceID == "" {
+		// POST /api/mcp-catalogs/{catalog_id}/servers is admin-only and skips per-entry ACR.
+		// POST /api/mcp-servers and POST /api/workspaces/{workspace_id}/servers must check ACR
+		// because the catalog entry ID comes from the request body and authz middleware cannot
+		// validate per-entry permissions.
+		if catalogID == "" {
 			var (
 				err       error
 				hasAccess bool
