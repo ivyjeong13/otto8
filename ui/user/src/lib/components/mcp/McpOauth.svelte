@@ -65,7 +65,6 @@
 		} catch (err: unknown) {
 			// Only handle errors if the request wasn't aborted
 			if (err instanceof Error && err.name !== 'AbortError') {
-				console.error(err);
 				const { message } = parseErrorContent(err);
 				error = message;
 			}

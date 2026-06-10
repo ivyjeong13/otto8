@@ -571,7 +571,6 @@
 	type="info"
 	onsuccess={() => {
 		if (!confirmNewDeployForMultiUserEntry?.entry) {
-			console.error('Entry required to launch a new server');
 			return;
 		}
 		connectToServerDialog?.open({ entry: confirmNewDeployForMultiUserEntry.entry });

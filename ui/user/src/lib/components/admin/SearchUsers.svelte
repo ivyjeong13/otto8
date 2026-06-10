@@ -78,8 +78,8 @@
 			if (searchNames.length === 0) {
 				groups = filteredGroups;
 			}
-		} catch (error) {
-			console.error('Error loading groups:', error);
+		} catch (_error) {
+			// HTTP layer surfaces errors to the user
 		} finally {
 			loading = false;
 		}
@@ -102,8 +102,8 @@
 			if (users.length === 0) {
 				users = await UserService.listUsers();
 			}
-		} catch (error) {
-			console.error('Error loading initial users:', error);
+		} catch (_error) {
+			// HTTP layer surfaces errors to the user
 		} finally {
 			loading = false;
 		}

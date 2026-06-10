@@ -16,7 +16,7 @@
 		type DeviceScanSkill,
 		type OrgUser
 	} from '$lib/services';
-	import { profile } from '$lib/stores';
+	import { errors, profile } from '$lib/stores';
 	import { formatTimeAgo } from '$lib/time';
 	import { goto } from '$lib/url';
 	import { openUrl } from '$lib/utils';
@@ -357,7 +357,9 @@
 													e.stopPropagation();
 													e.preventDefault();
 													if (!d.configHash) {
-														console.error('No config hash found for MCP server', d);
+														errors.append(
+															new Error('Unable to view related occurrences for this MCP server')
+														);
 														return;
 													}
 													const isCtrlClick = e.ctrlKey || e.metaKey;

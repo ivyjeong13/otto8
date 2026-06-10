@@ -25,7 +25,7 @@
 				};
 			});
 		} catch (error) {
-			console.error('Failed to rename thread:', error);
+			errors.append(error);
 		}
 	}
 
@@ -56,7 +56,7 @@
 				goto(`/agent`, { replaceState: true });
 			}
 		} catch (error) {
-			console.error('Failed to delete thread:', error);
+			errors.append(error);
 		}
 	}
 

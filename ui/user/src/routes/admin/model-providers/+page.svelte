@@ -10,7 +10,7 @@
 	import { HttpError } from '$lib/errors.js';
 	import { AdminService, type ModelProvider as ModelProviderType } from '$lib/services';
 	import { sortModelProviders } from '$lib/sort.js';
-	import { defaultModelAliases as defaultModelAliasesStore, license } from '$lib/stores';
+	import { defaultModelAliases as defaultModelAliasesStore, errors, license } from '$lib/stores';
 	import { adminConfigStore } from '$lib/stores/adminConfig.svelte.js';
 	import { profile } from '$lib/stores/index.js';
 	import { delay } from '$lib/utils';
@@ -180,7 +180,7 @@
 						} catch (err) {
 							// if 404, ignore, it means no credentials are set
 							if (!(err instanceof HttpError) || err.statusCode !== 404) {
-								console.error('An error occurred while revealing model provider credentials', err);
+								errors.append(err);
 							}
 						}
 						providerConfigure?.open();

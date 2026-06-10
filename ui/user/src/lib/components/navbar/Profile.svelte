@@ -92,17 +92,13 @@
 			await AdminService.bootstrapLogout();
 			window.location.href = `/oauth2/sign_out?rd=${profile.current.isBootstrapUser?.() ? '/admin' : '/'}`;
 		} catch (err) {
-			console.error(err);
+			errors.append(err);
 		}
 	}
 
-	async function handleLogout() {
-		try {
-			localStorage.removeItem('seenSplashDialog');
-			window.location.href = '/oauth2/sign_out?rd=/';
-		} catch (err) {
-			console.error(err);
-		}
+	function handleLogout() {
+		localStorage.removeItem('seenSplashDialog');
+		window.location.href = '/oauth2/sign_out?rd=/';
 	}
 
 	async function handleRestartAgent() {
@@ -113,7 +109,6 @@
 			await NanobotService.launchProjectAgent(projectId, agentId);
 			window.location.reload();
 		} catch (error) {
-			console.error('Failed to restart agent:', error);
 			errors.append(error);
 		} finally {
 			restartingAgent = false;

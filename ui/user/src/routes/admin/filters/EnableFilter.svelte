@@ -15,6 +15,7 @@
 	} from '$lib/services';
 	import { EventStreamService } from '$lib/services/admin/eventstream.svelte';
 	import { convertEnvHeadersToRecord, hasEditableConfiguration } from '$lib/services/user/mcp';
+	import { errors } from '$lib/stores';
 
 	interface Props {
 		configuredFilterServers: SystemMCPServer[];
@@ -113,7 +114,7 @@
 		if (!entry) return;
 
 		if (!entry.manifest) {
-			console.error('No server manifest found');
+			errors.append(new Error('No server manifest found'));
 			return;
 		}
 
@@ -130,7 +131,6 @@
 			});
 			filterId = response.id;
 		} catch (err) {
-			console.error('error: ', err);
 			launchError = err instanceof Error ? err.message : 'An unknown error occurred';
 		}
 
@@ -168,8 +168,8 @@
 		saving = true;
 		try {
 			await handleEnableFilter();
-		} catch (error) {
-			console.error('Error during launching', error);
+		} catch (_error) {
+			// Inner handlers set launchError; HTTP layer surfaces API failures
 		} finally {
 			saving = false;
 		}
@@ -204,7 +204,6 @@
 			await new Promise((resolve) => setTimeout(resolve, 300));
 			await handleSave();
 		} catch (_error) {
-			console.error('Error during configuration:', _error);
 			configDialog?.close();
 		}
 	}

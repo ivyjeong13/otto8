@@ -145,9 +145,8 @@
 			timeout = setTimeout(() => {
 				showSaved = false;
 			}, 3000);
-		} catch (err) {
-			console.error(err);
-			// default behavior will show snackbar error
+		} catch (_err) {
+			// HTTP layer surfaces errors to the user
 		} finally {
 			saving = false;
 		}

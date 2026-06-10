@@ -291,9 +291,8 @@
 			prevAppPreferences = saveForm;
 			customSurfaces = surfacesSnapshotFromTheme(saveForm.theme);
 			success.add('Your changes have been saved.');
-		} catch (err) {
-			console.error(err);
-			// default behavior will show snackbar error
+		} catch (_err) {
+			// HTTP layer surfaces errors to the user
 		} finally {
 			saving = false;
 		}

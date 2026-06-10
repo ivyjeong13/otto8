@@ -113,9 +113,8 @@
 					useWorkloadIdentity = false;
 				}
 			}
-		} catch (error) {
+		} catch (_error) {
 			// Ignore errors - likely means no credentials are configured yet
-			console.error('Failed to get storage credentials:', error);
 		} finally {
 			loading = false;
 		}

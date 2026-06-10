@@ -9,6 +9,7 @@
 		type MCPServerTool
 	} from '$lib/services';
 	import { conflictIssue, duplicateToolNames, toolNameIssue } from '$lib/services/user/mcp';
+	import { errors } from '$lib/stores';
 	import Search from '../Search.svelte';
 	import Toggle from '../Toggle.svelte';
 	import IconButton from '../primitives/IconButton.svelte';
@@ -120,7 +121,7 @@
 			});
 			tools = await toolCall;
 		} catch (err) {
-			console.error(err);
+			errors.append(err);
 		} finally {
 			loading = false;
 		}

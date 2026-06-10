@@ -329,8 +329,8 @@
 					await UserService.restartK8sDeployment(id);
 				}
 			}
-		} catch (err) {
-			console.error('Failed to restart deployments:', err);
+		} catch (_err) {
+			// HTTP layer surfaces errors to the user
 		} finally {
 			restarting = false;
 			selected = {};
@@ -382,10 +382,10 @@
 			} else {
 				await UserService.triggerMcpServerUpdate(server.id);
 			}
-		} catch (err) {
+		} catch (_err) {
 			updating[server.id] = {
 				inProgress: false,
-				error: err instanceof Error ? err.message : 'An unknown error occurred'
+				error: _err instanceof Error ? _err.message : 'An unknown error occurred'
 			};
 		}
 
@@ -415,10 +415,10 @@
 				: catalogEntryId
 					? AdminService.redeployMCPCatalogServerWithK8sSettings(catalogEntryId, mcpServerId)
 					: AdminService.redeployWithK8sSettings(mcpServerId, server.mcpCatalogID));
-		} catch (err) {
+		} catch (_err) {
 			updating[server.id] = {
 				inProgress: false,
-				error: err instanceof Error ? err.message : 'An unknown error occurred'
+				error: _err instanceof Error ? _err.message : 'An unknown error occurred'
 			};
 
 			return undefined;

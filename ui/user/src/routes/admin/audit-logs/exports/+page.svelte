@@ -11,7 +11,7 @@
 	import StorageCredentialsForm from '$lib/components/admin/audit-log-exports/StorageCredentialsForm.svelte';
 	import { PAGE_TRANSITION_DURATION } from '$lib/constants';
 	import { AdminService, type AuditLogExport, type ScheduledAuditLogExport } from '$lib/services';
-	import { profile } from '$lib/stores';
+	import { errors, profile } from '$lib/stores';
 	import { replaceState, goto } from '$lib/url';
 	import ExportsView from './ExportsView.svelte';
 	import ScheduledExportsView from './ScheduledExportsView.svelte';
@@ -110,8 +110,7 @@
 					goto(`/admin/audit-logs/exports?form=storage&next=${formType}`, { replaceState: false });
 				}
 			} catch (error) {
-				// Error getting storage credentials, assume not configured and redirect to storage form
-				console.error('Failed to get storage credentials:', error);
+				errors.append(error);
 				showForm = 'storage';
 				goto(`/admin/audit-logs/exports?form=storage&next=${formType}`, { replaceState: false });
 			}

@@ -60,8 +60,7 @@ const createAdminConfigStore = () => {
 			});
 
 			isInitialized = true;
-		} catch (error) {
-			console.error('Failed to fetch admin config:', error);
+		} catch (_error) {
 			update((state) => ({ ...state, loading: false }));
 		}
 	};

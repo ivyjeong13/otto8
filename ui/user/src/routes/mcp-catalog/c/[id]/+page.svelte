@@ -17,7 +17,7 @@
 		AdminService
 	} from '$lib/services';
 	import { isMultiUserCatalogEntry } from '$lib/services/user/mcp';
-	import { profile } from '$lib/stores';
+	import { errors, profile } from '$lib/stores';
 	import { success } from '$lib/stores/success';
 	import { CircleFadingArrowUp, Info, GitCompare } from 'lucide-svelte';
 	import { untrack, type Component } from 'svelte';
@@ -117,8 +117,8 @@
 							newManifest: currentManifest
 						});
 					}
-				} catch (error) {
-					const { status } = parseErrorContent(error);
+				} catch (_error) {
+					const { status } = parseErrorContent(_error);
 					if (status === 404) {
 						const componentName =
 							component.manifest?.name ??
@@ -136,15 +136,15 @@
 						});
 					} else {
 						// If we can't fetch the entry, it might have been deleted or another error occurred
-						console.warn(`Could not fetch component:`, error);
+						console.warn(`Could not fetch component:`, _error);
 					}
 				}
 			}
 
 			componentDiffs = diffs;
 			showUpgradeConfirm = true;
-		} catch (error) {
-			console.error('Failed to calculate component changes:', error);
+		} catch (_error) {
+			errors.append(_error);
 		}
 	}
 
@@ -165,10 +165,9 @@
 			catalogEntry = { ...updated, needsUpdate: false };
 			showUpgradeConfirm = false;
 			upgradeSuccessDialog?.open();
-		} catch (error) {
+		} catch (_error) {
 			// Restore on error
 			catalogEntry = { ...catalogEntry, needsUpdate: prevNeedsUpdate };
-			console.error('Failed to refresh composite components:', error);
 		} finally {
 			upgrading = false;
 		}

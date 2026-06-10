@@ -29,7 +29,6 @@
 
 	async function handleDowngrade() {
 		if (!version.current.licenseEntitlementViolations) {
-			console.error('No license entitlement violations found');
 			return;
 		}
 

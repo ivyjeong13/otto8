@@ -27,8 +27,7 @@
 				.then((preview) => {
 					skillPreviewContent = preview;
 				})
-				.catch((err) => {
-					console.error(err);
+				.catch((_err) => {
 					skillPreviewContent = 'Error loading skill preview';
 				})
 				.finally(() => {

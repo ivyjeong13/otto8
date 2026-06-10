@@ -33,9 +33,6 @@
 					previewUrl = result.imageUrl;
 				}
 			})
-			.catch((error) => {
-				console.error('Failed to upload icon:', error);
-			})
 			.finally(() => {
 				uploadInProgress = undefined;
 			});

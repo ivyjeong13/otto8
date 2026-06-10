@@ -6,6 +6,7 @@
 	import { PAGE_TRANSITION_DURATION } from '$lib/constants';
 	import { formatDeviceCommand } from '$lib/format.js';
 	import type { DeviceClientFleetSummary } from '$lib/services';
+	import { errors } from '$lib/stores';
 	import { goto } from '$lib/url';
 	import { openUrl } from '$lib/utils.js';
 	import { CheckIcon, PencilRuler, Server, Users, XIcon } from 'lucide-svelte';
@@ -117,7 +118,9 @@
 							fields={['name', 'transport', 'endpoint']}
 							onClickRow={(d, isCtrlClick) => {
 								if (!d.configHash) {
-									console.error('No config hash found for MCP server', d);
+									errors.append(
+										new Error('Unable to view related occurrences for this MCP server')
+									);
 									return;
 								}
 								openUrl(

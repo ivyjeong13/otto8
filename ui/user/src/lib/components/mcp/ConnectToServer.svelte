@@ -17,7 +17,7 @@
 		hasEditableConfiguration,
 		getMCPDisplayName
 	} from '$lib/services/user/mcp';
-	import { version } from '$lib/stores';
+	import { errors, version } from '$lib/stores';
 	import CopyButton from '../CopyButton.svelte';
 	import PageLoading from '../PageLoading.svelte';
 	import ResponsiveDialog from '../ResponsiveDialog.svelte';
@@ -372,7 +372,7 @@
 		if (!entry) return;
 
 		if (!entry.manifest) {
-			console.error('No server manifest found');
+			errors.append(new Error('No server manifest found'));
 			return;
 		}
 
@@ -398,7 +398,6 @@
 			});
 			server = response;
 		} catch (err) {
-			console.error('error: ', err);
 			launchError = err instanceof Error ? err.message : 'An unknown error occurred';
 		}
 
@@ -450,7 +449,7 @@
 		}
 
 		if (!entry.manifest) {
-			console.error('No server manifest found');
+			errors.append(new Error('No server manifest found'));
 			return;
 		}
 
@@ -619,7 +618,7 @@
 					server = undefined;
 					instance = undefined;
 				} catch (cleanupErr) {
-					console.error('Failed to clean up partially-created multi-user server', cleanupErr);
+					errors.append(cleanupErr);
 				}
 			}
 			error = err instanceof Error ? err.message : 'An unknown error occurred';
@@ -652,8 +651,8 @@
 			} else {
 				await handleMultiUserServer();
 			}
-		} catch (error) {
-			console.error('Error during launching', error);
+		} catch (_error) {
+			// Inner handlers set error/launchError; HTTP layer surfaces API failures
 		} finally {
 			saving = false;
 		}
@@ -765,7 +764,6 @@
 				await handleLaunch();
 			}
 		} catch (_error) {
-			console.error('Error during configuration:', _error);
 			configDialog?.close();
 		}
 	}

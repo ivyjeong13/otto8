@@ -59,7 +59,6 @@
 			sessions = await chatApi.listSessions();
 			resources = await chatApi.listResources();
 		} catch (error) {
-			console.error(`Error listing sessions or resources`, error);
 			errors.append(error);
 		} finally {
 			nanobotChat.update((data) => {
@@ -84,16 +83,11 @@
 				try {
 					await NanobotService.launchProjectAgent(projects[0].id, agent.id);
 				} catch (error) {
-					console.error(error);
 					errors.append(error);
 				}
 			}
 
-			try {
-				await initNanobotStore();
-			} catch (error) {
-				console.error(`Error initializing nanobot store`, error);
-			}
+			await initNanobotStore();
 			loading = false;
 		}
 	});

@@ -208,8 +208,7 @@
 
 				loadingUsersAndGroups = false;
 			})
-			.catch((error) => {
-				console.error('Failed to load users and groups:', error);
+			.catch((_error) => {
 				loadingUsersAndGroups = false;
 			});
 	});

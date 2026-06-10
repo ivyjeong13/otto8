@@ -15,7 +15,7 @@
 		type ServerK8sSettings
 	} from '$lib/services';
 	import { EventStreamService } from '$lib/services/admin/eventstream.svelte';
-	import { profile } from '$lib/stores';
+	import { errors, profile } from '$lib/stores';
 	import { formatTimeAgo } from '$lib/time';
 	import { isOwnSingleUserServer } from '$lib/utils';
 	import Confirm from '../Confirm.svelte';
@@ -208,9 +208,12 @@
 						? AdminService.restartMcpCatalogServerDeployment(entityId, mcpServerId)
 						: UserService.restartK8sDeployment(mcpServerId));
 			// Refresh the k8s info after restart
-			listK8sInfo = getK8sInfo();
-		} catch (err) {
-			console.error('Failed to restart deployment:', err);
+			listK8sInfo = getK8sInfo().catch((err) => {
+				errors.append(err);
+				return undefined;
+			});
+		} catch (_err) {
+			// HTTP layer surfaces errors to the user
 		} finally {
 			restarting = false;
 			showRestartConfirm = false;
@@ -219,13 +222,11 @@
 
 	async function handleRefreshEvents() {
 		refreshingEvents = true;
-		try {
-			listK8sInfo = getK8sInfo();
-		} catch (err) {
-			console.error('Failed to refresh events:', err);
-		} finally {
-			refreshingEvents = false;
-		}
+		listK8sInfo = getK8sInfo().catch((err) => {
+			errors.append(err);
+			return undefined;
+		});
+		refreshingEvents = false;
 	}
 
 	async function handleRefreshLogs() {
@@ -254,7 +255,7 @@
 				});
 			}
 		} catch (err) {
-			console.error('Failed to refresh logs:', err);
+			errors.append(err);
 		} finally {
 			refreshingLogs = false;
 		}
@@ -300,8 +301,8 @@
 							mcpServer?.mcpCatalogID ?? DEFAULT_MCP_CATALOG_ID
 						));
 			listK8sSettingsStatus = getK8sSettingsStatus();
-		} catch (err) {
-			console.error('Failed to update Kubernetes settings:', err);
+		} catch (_err) {
+			// HTTP layer surfaces errors to the user
 		} finally {
 			updatingK8sSettings = false;
 			showUpdateK8sSettingsConfirm = false;

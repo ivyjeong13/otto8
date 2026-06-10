@@ -16,7 +16,7 @@
 	} from '$lib/services/nanobot/types';
 	import { PROJECT_LAYOUT_CONTEXT } from '$lib/services/nanobot/types';
 	import { hasNewerVersion } from '$lib/services/nanobot/versioning';
-	import { profile, responsive, userDeviceSettings } from '$lib/stores';
+	import { errors, profile, responsive, userDeviceSettings } from '$lib/stores';
 	import { nanobotChat } from '$lib/stores/nanobotChat.svelte';
 	import { formatTimeAgo } from '$lib/time';
 	import { goto } from '$lib/url';
@@ -131,7 +131,7 @@
 					}
 				})
 				.catch((error) => {
-					console.error(error);
+					errors.append(error);
 				});
 
 			$nanobotChat.api.listSessions().then((sessionData) => {

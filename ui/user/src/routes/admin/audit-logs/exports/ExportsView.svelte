@@ -67,8 +67,8 @@
 		try {
 			const response = await AdminService.getAuditLogExports();
 			return response.items ?? [];
-		} catch (error) {
-			console.error('Failed to load exports:', error);
+		} catch (_error) {
+			// HTTP layer surfaces errors to the user
 			return [];
 		}
 	}
@@ -92,8 +92,8 @@
 		try {
 			await AdminService.deleteAuditLogExport(exp.id);
 			await loadExports(); // Refresh the list
-		} catch (error) {
-			console.error('Failed to delete export:', error);
+		} catch (_error) {
+			// HTTP layer surfaces errors to the user
 		}
 	}
 

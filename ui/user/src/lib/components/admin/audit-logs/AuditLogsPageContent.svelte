@@ -19,7 +19,7 @@
 		UserService
 	} from '$lib/services';
 	import type { PaginatedResponse } from '$lib/services/http';
-	import { responsive } from '$lib/stores';
+	import { errors, responsive } from '$lib/stores';
 	import profile from '$lib/stores/profile.svelte';
 	import { goto, replaceState } from '$lib/url';
 	import { getUserDisplayName, isBasicUser } from '$lib/utils';
@@ -503,7 +503,7 @@
 				goto(url.pathname + url.search);
 			}
 		} catch (error) {
-			console.error('Failed to get storage credentials:', error);
+			errors.append(error);
 			const url = new URL(window.location.origin + `/admin/audit-logs/exports`);
 			url.searchParams.set('form', 'storage');
 			url.searchParams.set('next', formType);
@@ -699,8 +699,7 @@
 				try {
 					const fullDetails = await UserService.getAuditLog(d.id);
 					selectedAuditLog = { ...fullDetails, user: d.user };
-				} catch (error) {
-					console.error('Failed to fetch audit log details:', error);
+				} catch (_error) {
 					// Fallback to the cached data if fetch fails
 					selectedAuditLog = d;
 				}

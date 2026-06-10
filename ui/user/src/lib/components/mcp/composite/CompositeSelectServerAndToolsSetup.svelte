@@ -314,7 +314,6 @@
 		} else if (mcpServerIds?.length === 1) {
 			configuringEntry = await AdminService.getMCPCatalogServer(catalogId!, mcpServerIds[0]);
 		} else {
-			console.error('Incorrect type selected.', _otherSelectors);
 			return;
 		}
 

@@ -67,8 +67,8 @@
 		try {
 			const response = await AdminService.getScheduledAuditLogExports();
 			return response.items ?? [];
-		} catch (error) {
-			console.error('Failed to load scheduled exports:', error);
+		} catch (_error) {
+			// HTTP layer surfaces errors to the user
 			return [];
 		}
 	}
@@ -100,8 +100,8 @@
 
 			await AdminService.updateScheduledAuditLogExport(id, request);
 			await reload(); // Refresh the list
-		} catch (error) {
-			console.error('Failed to update scheduled export:', error);
+		} catch (_error) {
+			// HTTP layer surfaces errors to the user
 		} finally {
 			toggleAction = undefined;
 		}
@@ -111,8 +111,8 @@
 		try {
 			await AdminService.deleteScheduledAuditLogExport(exp.id);
 			await reload(); // Refresh the list
-		} catch (error) {
-			console.error('Failed to delete scheduled export:', error);
+		} catch (_error) {
+			// HTTP layer surfaces errors to the user
 		}
 	}
 

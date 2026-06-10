@@ -37,8 +37,8 @@
 		try {
 			await NanobotService.launchProjectAgent(agent.projectID, agent.id);
 			window.open(`/agent?projectId=${agent.projectID}&agentId=${agent.id}`, '_blank');
-		} catch (error) {
-			console.error('Failed to launch agent:', error);
+		} catch (_error) {
+			// HTTP layer surfaces errors to the user
 		} finally {
 			launchingAgentId = null;
 			confirmImpersonate = false;

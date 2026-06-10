@@ -16,7 +16,7 @@
 		hasSecretBinding,
 		isKubernetesRuntimeBackend
 	} from '$lib/services/user/mcp';
-	import { version } from '$lib/stores';
+	import { errors, version } from '$lib/stores';
 	import PageLoading from '../PageLoading.svelte';
 	import CatalogConfigureForm, {
 		type CompositeLaunchFormData,
@@ -75,7 +75,7 @@
 			values = await revealServerValues(server);
 		} catch (error) {
 			if (!(error instanceof HttpError) || error.statusCode !== 404) {
-				console.error('Failed to reveal server values due to unexpected error', error);
+				errors.append(error);
 			}
 			values = {};
 		}
@@ -120,7 +120,7 @@
 			values = await revealServerValues(updatedServer);
 		} catch (error) {
 			if (!(error instanceof HttpError) || error.statusCode !== 404) {
-				console.error('Failed to reveal server values due to unexpected error', error);
+				errors.append(error);
 			}
 			values = {};
 		}
@@ -343,7 +343,6 @@
 				editing = false;
 			}, 1000);
 		} catch (_error) {
-			console.error('Error during configuration:', _error);
 			launchError = _error instanceof Error ? _error.message : 'An unknown error occurred';
 			configDialog?.close();
 		}

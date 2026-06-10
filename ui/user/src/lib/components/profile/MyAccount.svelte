@@ -26,8 +26,7 @@
 				success.add('Successfully logged out of all other sessions');
 				toRevoke = false;
 			}
-		} catch (error) {
-			console.error('Failed to logout all sessions:', error);
+		} catch (_error) {
 			errors.items.push(new Error('Failed to log out of other sessions'));
 		}
 	}
@@ -36,8 +35,7 @@
 		try {
 			await UserService.deleteProfile();
 			goto('/oauth2/sign_out?rd=/');
-		} catch (error) {
-			console.error('Failed to delete account:', error);
+		} catch (_error) {
 			errors.items.push(new Error('Failed to delete account'));
 		} finally {
 			toDelete = false;

@@ -355,13 +355,9 @@
 			revealCatalogServer(id, entry.id, entity);
 		}
 		if (version.current.engine === 'kubernetes') {
-			UserService.getK8sResourceDefaults()
-				.then((defaults) => {
-					mcpResourceDefaults = defaults;
-				})
-				.catch((err) => {
-					console.error('Failed to load Kubernetes resource defaults:', err);
-				});
+			UserService.getK8sResourceDefaults().then((defaults) => {
+				mcpResourceDefaults = defaults;
+			});
 		}
 	});
 

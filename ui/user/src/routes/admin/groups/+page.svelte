@@ -111,8 +111,8 @@
 			if (profile.current.groups.includes(groupName)) {
 				profile.current = await UserService.getProfile();
 			}
-		} catch (error) {
-			console.error('Failed to update group role:', error);
+		} catch (_error) {
+			// HTTP layer surfaces errors to the user
 		}
 		loading = false;
 		updatingRole = undefined;
