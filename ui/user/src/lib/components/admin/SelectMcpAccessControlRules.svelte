@@ -37,6 +37,7 @@
 
 	let selectedRules = $state<string[]>([]);
 	let savingRules = $state(false);
+	let updatingBeforeCreate = $state(false);
 
 	export async function open() {
 		accessControlRules =
@@ -105,12 +106,14 @@
 		return '';
 	}
 
-	function handleCreateNewRule() {
+	async function handleCreateNewRule() {
+		updatingBeforeCreate = true;
 		if (entry) {
 			sessionStorage.setItem(ADMIN_SESSION_STORAGE.ACCESS_CONTROL_RULE_CREATION, entry.id);
 		}
 
-		mcpServersAndEntries.refreshEntries();
+		await mcpServersAndEntries.refreshEntries();
+		updatingBeforeCreate = false;
 
 		goto(
 			profile.current?.hasAdminAccess?.()
@@ -194,9 +197,7 @@
 	{/if}
 	{#if accessControlRules.length > 0}
 		<div class="mt-auto flex justify-between gap-4">
-			<button class="btn btn-primary" onclick={handleCreateNewRule}>
-				Create New Access Policy
-			</button>
+			{@render createAccessPolicyButton()}
 			<div class="flex items-center gap-4">
 				<button
 					class="btn btn-primary flex items-center gap-1"
@@ -214,7 +215,17 @@
 	{:else}
 		<div class="mt-auto flex justify-end gap-4">
 			<button class="btn btn-secondary" onclick={close}> Skip Step </button>
-			<button class="btn btn-primary" onclick={handleCreateNewRule}> Create Access Policy </button>
+			{@render createAccessPolicyButton()}
 		</div>
 	{/if}
 </ResponsiveDialog>
+
+{#snippet createAccessPolicyButton()}
+	<button class="btn btn-primary" onclick={handleCreateNewRule} disabled={updatingBeforeCreate}>
+		{#if updatingBeforeCreate}
+			<Loading class="size-4" />
+		{:else}
+			Create Access Policy
+		{/if}
+	</button>
+{/snippet}

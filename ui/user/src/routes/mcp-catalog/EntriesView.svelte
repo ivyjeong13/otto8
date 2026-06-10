@@ -373,7 +373,7 @@
 							e.stopPropagation();
 
 							const deployedServers = mcpServersAndEntries.current.servers.filter(
-								(s) => s.catalogEntryID === catalogEntry.id
+								(s) => !s.deleted && isMultiUserServer(s) && s.catalogEntryID === catalogEntry.id
 							);
 							if (deployedServers.length >= 1) {
 								confirmNewDeployForMultiUserEntry = {

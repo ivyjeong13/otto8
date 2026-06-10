@@ -1769,6 +1769,29 @@ func (m *MCPHandler) CreateServer(req api.Context) error {
 			return err
 		}
 
+		// On POST /api/mcp-servers the catalog entry ID comes from the request body, so
+		// authz middleware cannot validate per-entry ACR permissions. Admin catalog and
+		// workspace routes skip this check.
+		if catalogID == "" && workspaceID == "" {
+			var (
+				err       error
+				hasAccess bool
+			)
+
+			if catalogEntry.Spec.MCPCatalogName != "" {
+				hasAccess, err = m.acrHelper.UserHasAccessToMCPServerCatalogEntryInCatalog(req.User, catalogEntry.Name, catalogEntry.Spec.MCPCatalogName)
+			} else if catalogEntry.Spec.PowerUserWorkspaceID != "" {
+				hasAccess, err = m.acrHelper.UserHasAccessToMCPServerCatalogEntryInWorkspace(req.Context(), req.User, catalogEntry.Name, catalogEntry.Spec.PowerUserWorkspaceID)
+			}
+			if err != nil {
+				return err
+			}
+
+			if !hasAccess {
+				return types.NewErrForbidden("user does not have access to MCP server catalog entry")
+			}
+		}
+
 		// Block server creation if OAuth is required but not configured
 		if entryRequiresStaticOAuthCreds(catalogEntry) {
 			return types.NewErrBadRequest("catalog entry requires OAuth configuration by an administrator before it can be used")

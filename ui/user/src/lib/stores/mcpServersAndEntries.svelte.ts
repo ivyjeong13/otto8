@@ -51,6 +51,19 @@ function filterOutDuplicateAndDeleted(servers: MCPCatalogServer[]) {
 	);
 }
 
+function setCanConnectAndFilterDeleted(
+	entries: MCPCatalogEntry[],
+	userScopedEntries: MCPCatalogEntry[]
+) {
+	const accessibleEntryIds = new Set(userScopedEntries.map((e) => e.id));
+	return entries
+		.filter((entry) => !entry.deleted)
+		.map((entry) => ({
+			...entry,
+			canConnect: accessibleEntryIds.has(entry.id)
+		}));
+}
+
 async function fetchData(forceRefresh = false) {
 	if (store.current.loading) return;
 
@@ -90,18 +103,14 @@ async function fetchData(forceRefresh = false) {
 				UserService.listMCPs(),
 				UserService.listMCPCatalogServers()
 			]);
-			console.log('test');
 
 			// Create sets of IDs the admin has access to via ACRs
-			const accessibleEntryIds = new Set(userScopedEntries.map((e) => e.id));
 			const accessibleServerIds = new Set(userScopedServers.map((s) => s.id));
 
-			entries = [...adminEntries, ...workspaceEntries]
-				.filter((entry) => !entry.deleted)
-				.map((entry) => ({
-					...entry,
-					canConnect: accessibleEntryIds.has(entry.id)
-				}));
+			entries = setCanConnectAndFilterDeleted(
+				[...adminEntries, ...workspaceEntries],
+				userScopedEntries
+			);
 			servers = [...adminServers, ...workspaceServers].map((server) => ({
 				...server,
 				canConnect: accessibleServerIds.has(server.id)
@@ -148,19 +157,23 @@ async function initialize(forceRefresh = false) {
 
 async function refreshEntries() {
 	if (profile.current.hasAdminAccess?.()) {
-		const [adminEntries, workspaceEntries] = await Promise.all([
+		const [adminEntries, workspaceEntries, userScopedEntries] = await Promise.all([
 			AdminService.listMCPCatalogEntries(DEFAULT_MCP_CATALOG_ID, { all: true }),
-			AdminService.listAllUserWorkspaceCatalogEntries()
+			AdminService.listAllUserWorkspaceCatalogEntries(),
+			UserService.listMCPs()
 		]);
 		store.current = {
 			...store.current,
-			entries: [...adminEntries, ...workspaceEntries]
+			entries: setCanConnectAndFilterDeleted(
+				[...adminEntries, ...workspaceEntries],
+				userScopedEntries
+			)
 		};
 	} else {
 		const entries = await UserService.listMCPs();
 		store.current = {
 			...store.current,
-			entries
+			entries: entries.filter((entry) => !entry.deleted)
 		};
 	}
 }

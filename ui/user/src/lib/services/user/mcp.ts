@@ -74,7 +74,7 @@ export function convertEnvHeadersToRecord(
 ) {
 	const secretValues: Record<string, string> = {};
 	for (const env of envs ?? []) {
-		if (!env.value && staticEnvValues[env.key]) {
+		if (!env.value && !hasSecretBinding(env) && staticEnvValues[env.key]) {
 			secretValues[env.key] = staticEnvValues[env.key];
 		} else if (!hasSecretBinding(env) && env.value) {
 			secretValues[env.key] = env.value;
