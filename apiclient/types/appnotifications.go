@@ -1,0 +1,23 @@
+package types
+
+// BannerType represents the visual style of a notification banner
+type BannerType string
+
+const (
+	BannerTypeInfo    BannerType = "info"
+	BannerTypeWarning BannerType = "warning"
+)
+
+// AppNotifications represents global application notification settings
+type AppNotifications struct {
+	Banner   BannerNotification `json:"banner,omitempty"`
+	Updated  Time               `json:"updated,omitzero"`
+	Metadata Metadata           `json:"metadata,omitempty"`
+}
+
+type BannerNotification struct {
+	Dismissable bool       `json:"dismissable,omitempty"`
+	Type        BannerType `json:"type,omitempty"`
+	Enabled     bool       `json:"enabled,omitempty"`
+	Text        string     `json:"text,omitempty"`
+}

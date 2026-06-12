@@ -38,10 +38,12 @@
 		type Layout as LayoutState
 	} from '$lib/context/layout.svelte';
 	import Bots from '$lib/icons/Bots.svelte';
+	import { localState } from '$lib/runes/localState.svelte';
 	import { Group } from '$lib/services';
 	import { defaultModelAliases, profile, responsive, version } from '$lib/stores';
 	import { adminConfigStore } from '$lib/stores/adminConfig.svelte';
 	import { isAgentEnabled } from '$lib/utils';
+	import AppNotificationBanner from './AppNotificationBanner.svelte';
 	import InfoTooltip from './InfoTooltip.svelte';
 	import Logo from './Logo.svelte';
 	import Tour from './Tour.svelte';
@@ -57,7 +59,6 @@
 		ChevronDown,
 		ChevronLeft,
 		ChevronUp,
-		Palette,
 		RadioTower,
 		Server,
 		Users,
@@ -70,9 +71,9 @@
 		Notebook,
 		Laptop,
 		PanelLeftOpen,
-		KeySquare,
 		Settings,
-		PanelLeftClose
+		PanelLeftClose,
+		LayoutGrid
 	} from 'lucide-svelte';
 	import { type Component, type Snippet, untrack } from 'svelte';
 	import { fade, slide, type TransitionConfig } from 'svelte/transition';
@@ -509,20 +510,33 @@
 					},
 					...agentManagementLinks,
 					{
-						id: 'app-preferences',
-						href: '/admin/app-preferences',
-						icon: Palette,
-						label: 'Branding',
-						disabled: false,
-						collapsible: false
-					},
-					{
-						id: 'license',
-						href: '/admin/license',
-						icon: KeySquare,
-						label: 'License',
-						disabled: false,
-						collapsible: false
+						id: 'app-management',
+						icon: LayoutGrid,
+						label: 'App Management',
+						collapsible: true,
+						items: [
+							{
+								id: 'app-preferences',
+								href: '/admin/app-preferences',
+								label: 'Branding',
+								disabled: false,
+								collapsible: false
+							},
+							{
+								id: 'app-notifications',
+								href: '/admin/app-notifications',
+								label: 'Notifications',
+								disabled: false,
+								collapsible: false
+							},
+							{
+								id: 'license',
+								href: '/admin/license',
+								label: 'License',
+								disabled: false,
+								collapsible: false
+							}
+						]
 					}
 				]
 			: [
@@ -614,6 +628,29 @@
 
 	untrack(() => (layoutContext?.initLayout ?? defaultInitLayout)());
 	const layout = untrack(() => (layoutContext?.getLayout ?? defaultGetLayout)());
+
+	let bannerDismissed = localState('@obot/banner', undefined, {
+		parse: (ls) => {
+			if (!ls) return undefined;
+			const parsed = JSON.parse(ls);
+			return typeof parsed === 'string' ? parsed : undefined;
+		}
+	});
+
+	function handleDismissBanner() {
+		// todo: update banner dismissed date
+		bannerDismissed.current = new Date().toISOString();
+	}
+
+	let showAppNotificationBanner = $derived.by(() => {
+		return (
+			version.current.banner &&
+			version.current.bannerUpdated &&
+			(!bannerDismissed.current ||
+				(bannerDismissed.current &&
+					new Date(bannerDismissed.current) < new Date(version.current.bannerUpdated ?? '')))
+		);
+	});
 </script>
 
 <div class="flex min-h-dvh flex-col items-center">
@@ -703,6 +740,8 @@
 					{@render banner()}
 				{:else if (version.current.licenseEntitlementViolations?.length ?? 0) > 0}
 					<LicenseViolationBanner />
+				{:else if showAppNotificationBanner}
+					<AppNotificationBanner data={version.current.banner} onDismiss={handleDismissBanner} />
 				{/if}
 				<Navbar class={twMerge('dark:bg-base-100', classes?.navbar)} {hideProfileButton}>
 					{#snippet leftContent()}
