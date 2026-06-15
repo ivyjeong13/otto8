@@ -2,6 +2,7 @@
 	import AppNotificationBanner from '$lib/components/AppNotificationBanner.svelte';
 	import InfoTooltip from '$lib/components/InfoTooltip.svelte';
 	import Layout from '$lib/components/Layout.svelte';
+	import MarkdownInput from '$lib/components/MarkdownInput.svelte';
 	import Select from '$lib/components/Select.svelte';
 	import { PAGE_TRANSITION_DURATION } from '$lib/constants';
 	import { AdminService, type AppNotifications, type BannerType } from '$lib/services';
@@ -16,20 +17,76 @@
 
 	const duration = PAGE_TRANSITION_DURATION;
 	let saving = $state(false);
-	let showRequiredFieldsError = $state(false);
+	let bannerTextValidationError = $state<string | null>(null);
 	let isAdminReadonly = $derived(profile.current.isAdminReadonly?.());
 
+	function hasOnlyAllowedMarkdown(text: string) {
+		const disallowedPatterns = [
+			/```/,
+			/!\[[^\]]*]\([^)]*\)/,
+			/<\/?[a-z][^>]*>/i,
+			/^\s{0,3}#{1,6}\s/m,
+			/^\s{0,3}>\s/m,
+			/^\s{0,3}(?:[-*+]|\d+\.)\s/m,
+			/^\s{0,3}(?:[-*_]\s*){3,}$/m,
+			/\[[^\]]+]\[[^\]]*]/,
+			/^\s*\|.+\|\s*$/m
+		];
+		if (disallowedPatterns.some((pattern) => pattern.test(text))) {
+			return false;
+		}
+
+		const markdownLinks = [...text.matchAll(/\[([^\]]+)]\(([^)]+)\)/g)];
+		for (const [, label, href] of markdownLinks) {
+			if (!label.trim()) {
+				return false;
+			}
+
+			try {
+				const parsedUrl = new URL(href.trim());
+				if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+					return false;
+				}
+			} catch {
+				return false;
+			}
+		}
+
+		const textWithoutLinks = text.replace(/\[([^\]]+)]\(([^)]+)\)/g, '$1');
+		if (/[\\`]/.test(textWithoutLinks)) {
+			return false;
+		}
+
+		return true;
+	}
+
 	function validate(banner: AppNotifications['banner']) {
-		return banner.enabled ? banner.text?.trim().length > 0 && banner.type : true;
+		if (!banner.enabled) {
+			return true;
+		}
+
+		const text = banner.text?.trim() ?? '';
+		if (!text || !banner.type) {
+			bannerTextValidationError = 'This field is required.';
+			return false;
+		}
+
+		if (!hasOnlyAllowedMarkdown(text)) {
+			bannerTextValidationError =
+				'Only simple formatting and HTTP(S) text links are supported (bold, italic, strikethrough, inline code, and [text](url)).';
+			return false;
+		}
+
+		bannerTextValidationError = null;
+		return true;
 	}
 
 	async function handleSave() {
 		if (!validate(appNotifications.banner)) {
-			showRequiredFieldsError = true;
 			return;
 		}
 
-		showRequiredFieldsError = false;
+		bannerTextValidationError = null;
 		saving = true;
 		try {
 			await AdminService.updateAppNotifications(appNotifications);
@@ -60,7 +117,7 @@
 					id="enable-banner"
 					disabled={isAdminReadonly}
 					onclick={() => {
-						showRequiredFieldsError = false;
+						bannerTextValidationError = null;
 					}}
 				/>
 			</label>
@@ -103,21 +160,23 @@
 						<p
 							class={twMerge(
 								'text-sm font-light inline-flex items-center gap-1',
-								showRequiredFieldsError && 'text-error'
+								bannerTextValidationError && 'text-error'
 							)}
 						>
-							Text <InfoTooltip text="Supports Markdown syntax." />
+							Text <InfoTooltip text="Supports simple markdown formatting and text URL links." />
 						</p>
-						<textarea
-							class={twMerge(
-								'input-text-filled min-h-[120px] resize-y',
-								showRequiredFieldsError && 'error'
-							)}
+						<MarkdownInput
 							bind:value={appNotifications.banner.text}
+							class={twMerge(
+								'min-h-[120px]',
+								bannerTextValidationError && 'ring-2 ring-error border-error'
+							)}
+							classes={{ input: 'min-h-[120px]' }}
+							placeholder="Add banner text. Supports simple formatting and [text](https://example.com) links."
 							disabled={isAdminReadonly}
-						></textarea>
-						{#if showRequiredFieldsError}
-							<p class="text-xs font-light text-error">This field is required.</p>
+						/>
+						{#if bannerTextValidationError}
+							<p class="text-xs font-light text-error">{bannerTextValidationError}</p>
 						{/if}
 					</div>
 					<label for="dismiss-banner-toggle" class="flex items-center justify-between">

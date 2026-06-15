@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { toHTMLFromMarkdownWithNewTabLinks } from '$lib/markdown';
 	import type { AppNotifications } from '$lib/services/user/types';
 	import { CircleAlert, Info, X } from 'lucide-svelte';
 	import { twMerge } from 'tailwind-merge';
@@ -30,7 +31,9 @@
 				{/if}
 			</div>
 			{#if data?.text}
-				<p class="text-xs font-light max-w-2xl">{data.text}</p>
+				<div class="banner-markdown text-xs font-light max-w-2xl">
+					{@html toHTMLFromMarkdownWithNewTabLinks(data.text)}
+				</div>
 			{:else if placeholder}
 				<p
 					class={twMerge(
@@ -55,3 +58,17 @@
 		{/if}
 	</div>
 </div>
+
+<style lang="postcss">
+	.banner-markdown :global(*) {
+		margin: 0;
+	}
+
+	.banner-markdown :global(a) {
+		text-decoration: underline;
+	}
+
+	.banner-markdown :global(strong) {
+		font-weight: 600;
+	}
+</style>
