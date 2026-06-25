@@ -377,8 +377,8 @@
 							},
 							version.current.engine === 'kubernetes'
 								? {
-										id: 'server-scheduling',
-										href: '/admin/server-scheduling',
+										id: 'mcp-server-scheduling',
+										href: '/admin/mcp-server-scheduling',
 										label: 'Server Scheduling',
 										collapsible: false
 									}
@@ -573,7 +573,18 @@
 								label: 'App Notification',
 								disabled: false,
 								collapsible: false
-							}
+							},
+							...(version.current.engine === 'kubernetes'
+								? [
+										{
+											id: 'server-scheduling',
+											href: '/admin/server-scheduling',
+											label: 'Server Scheduling',
+											disabled: false,
+											collapsible: false
+										}
+									]
+								: [])
 						]
 					}
 				]
