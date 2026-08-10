@@ -2,6 +2,7 @@ package client
 
 import (
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -16,6 +17,149 @@ func insertScan(t *testing.T, c *Client, scan types.DeviceScan) types.DeviceScan
 		t.Fatalf("failed to insert scan: %v", err)
 	}
 	return scan
+}
+
+func TestListDeviceScansSortAndPagination(t *testing.T) {
+	c := newTestClient(t)
+	ctx := t.Context()
+	baseTime := time.Now().UTC().Add(-time.Hour)
+
+	// This older scan has the largest client count, but group-by-device sorting
+	// must use only the latest scan for device-a.
+	insertScan(t, c, types.DeviceScan{
+		CreatedAt: baseTime,
+		ScannedAt: baseTime,
+		DeviceID:  "device-a",
+		Clients: []types.DeviceScanClient{
+			{Name: "client-1"},
+			{Name: "client-2"},
+			{Name: "client-3"},
+			{Name: "client-4"},
+			{Name: "client-5"},
+		},
+	})
+	insertScan(t, c, types.DeviceScan{
+		CreatedAt: baseTime.Add(time.Minute),
+		ScannedAt: baseTime.Add(time.Minute),
+		DeviceID:  "device-b",
+		Username:  "alice",
+		OS:        "darwin",
+		Arch:      "arm64",
+		MCPServers: []types.DeviceScanMCPServer{
+			{Name: "mcp-1"},
+		},
+		Skills: []types.DeviceScanSkill{
+			{Name: "skill-1"},
+			{Name: "skill-2"},
+			{Name: "skill-3"},
+		},
+		Plugins: []types.DeviceScanPlugin{
+			{Name: "plugin-1"},
+			{Name: "plugin-2"},
+		},
+		Clients: []types.DeviceScanClient{{Name: "client-1"}},
+	})
+	insertScan(t, c, types.DeviceScan{
+		CreatedAt: baseTime.Add(2 * time.Minute),
+		ScannedAt: baseTime.Add(2 * time.Minute),
+		DeviceID:  "device-c",
+		Username:  "bob",
+		OS:        "linux",
+		Arch:      "arm64",
+		Plugins:   []types.DeviceScanPlugin{{Name: "plugin-1"}},
+		Clients: []types.DeviceScanClient{
+			{Name: "client-1"},
+			{Name: "client-2"},
+			{Name: "client-3"},
+			{Name: "client-4"},
+		},
+	})
+	insertScan(t, c, types.DeviceScan{
+		CreatedAt: baseTime.Add(3 * time.Minute),
+		ScannedAt: baseTime.Add(3 * time.Minute),
+		DeviceID:  "device-a",
+		Username:  "charlie",
+		OS:        "linux",
+		Arch:      "amd64",
+		MCPServers: []types.DeviceScanMCPServer{
+			{Name: "mcp-1"},
+			{Name: "mcp-2"},
+			{Name: "mcp-3"},
+		},
+		Skills: []types.DeviceScanSkill{{Name: "skill-1"}},
+	})
+
+	tests := []struct {
+		name      string
+		sortBy    string
+		sortOrder string
+		want      []string
+	}{
+		{
+			name: "device ID ascending", sortBy: "device_id", sortOrder: "asc",
+			want: []string{"device-a", "device-b", "device-c"},
+		},
+		{
+			name: "OS and architecture ascending", sortBy: "os_arch", sortOrder: "asc",
+			want: []string{"device-b", "device-a", "device-c"},
+		},
+		{
+			name: "username ascending", sortBy: "username", sortOrder: "asc",
+			want: []string{"device-b", "device-c", "device-a"},
+		},
+		{
+			name: "scan time descending", sortBy: "scanned_at", sortOrder: "desc",
+			want: []string{"device-a", "device-c", "device-b"},
+		},
+		{
+			name: "MCP count descending", sortBy: "mcp_count", sortOrder: "desc",
+			want: []string{"device-a", "device-b", "device-c"},
+		},
+		{
+			name: "skill count descending", sortBy: "skill_count", sortOrder: "desc",
+			want: []string{"device-b", "device-a", "device-c"},
+		},
+		{
+			name: "plugin count descending", sortBy: "plugin_count", sortOrder: "desc",
+			want: []string{"device-b", "device-c", "device-a"},
+		},
+		{
+			name: "client count descending", sortBy: "client_count", sortOrder: "desc",
+			want: []string{"device-c", "device-b", "device-a"},
+		},
+		{
+			name: "client count ascending", sortBy: "client_count", sortOrder: "asc",
+			want: []string{"device-a", "device-b", "device-c"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := make([]string, 0, len(tt.want))
+			for offset := range len(tt.want) {
+				scans, total, err := c.ListDeviceScans(ctx, DeviceScanListOptions{
+					GroupByDevice: true,
+					SortBy:        tt.sortBy,
+					SortOrder:     tt.sortOrder,
+					Limit:         1,
+					Offset:        offset,
+				})
+				if err != nil {
+					t.Fatalf("list page at offset %d: %v", offset, err)
+				}
+				if total != int64(len(tt.want)) {
+					t.Fatalf("total at offset %d: got %d, want %d", offset, total, len(tt.want))
+				}
+				if len(scans) != 1 {
+					t.Fatalf("rows at offset %d: got %d, want 1", offset, len(scans))
+				}
+				got = append(got, scans[0].DeviceID)
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("device order: got %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
 
 // TestGetDeviceScanStats exercises the dashboard rollup: device_count

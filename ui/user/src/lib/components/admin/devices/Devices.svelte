@@ -9,6 +9,7 @@
 	import {
 		UserService,
 		type DeviceScan,
+		type DeviceScanSortKey,
 		type DeviceScanResponse,
 		type OrgUser
 	} from '$lib/services';
@@ -22,7 +23,7 @@
 		setFilterUrlParams,
 		setSortUrlParams
 	} from '$lib/url';
-	import { openUrl } from '$lib/utils';
+	import { getSortParams, openUrl } from '$lib/utils';
 	import { Laptop } from '@lucide/svelte';
 	import { debounce } from 'es-toolkit';
 	import { onMount, untrack } from 'svelte';
@@ -60,6 +61,22 @@
 		plugin_count: number;
 		client_count: number;
 	};
+
+	const defaultSort = { property: 'scannedAt', order: 'desc' } as const;
+	const sortFields: Record<string, DeviceScanSortKey> = {
+		short_device_id: 'device_id',
+		os_arch: 'os_arch',
+		username: 'username',
+		mcp_count: 'mcp_count',
+		skill_count: 'skill_count',
+		plugin_count: 'plugin_count',
+		client_count: 'client_count',
+		scannedAt: 'scanned_at'
+	};
+
+	function isSortProperty(property: string | undefined): property is keyof typeof sortFields {
+		return property != null && Object.hasOwn(sortFields, property);
+	}
 
 	const userById = $derived<Map<string, OrgUser>>(new Map(usersResp.map((u) => [u.id, u])));
 
@@ -105,7 +122,10 @@
 
 	let total = $derived(onlyShowMyDevices ? (devicesToShow?.length ?? 0) : (devicesResp.total ?? 0));
 	let lastPageIndex = $derived(total > 0 ? Math.ceil(total / PAGE_SIZE) - 1 : 0);
-	let initSort = $derived(getTableUrlParamsSort({ property: 'scannedAt', order: 'desc' }));
+	let initSort = $derived.by(() => {
+		const sort = getTableUrlParamsSort(defaultSort);
+		return isSortProperty(sort?.property) ? sort : defaultSort;
+	});
 
 	onMount(async () => {
 		if (!devices) {
@@ -133,19 +153,25 @@
 		syncUrl();
 	}, 100);
 
-	async function fetchPage(idx: number) {
+	async function fetchPage(idx: number, sort = initSort) {
 		loading = true;
 		try {
 			devicesResp = await UserService.listDeviceScans({
 				limit: PAGE_SIZE,
 				offset: idx * PAGE_SIZE,
-				groupByDevice: true
+				groupByDevice: true,
+				...getSortParams(sort, sortFields, defaultSort)
 			});
 			pageIndex = idx;
 			syncUrl();
 		} finally {
 			loading = false;
 		}
+	}
+
+	function handleSort(property: string, order: 'asc' | 'desc') {
+		setSortUrlParams(property, order);
+		fetchPage(0, { property, order });
 	}
 
 	const hasAdminAccess = $derived(profile.current.hasAdminAccess?.());
@@ -200,7 +226,7 @@
 		{initSort}
 		onFilter={setFilterUrlParams}
 		onClearAllFilters={() => clearUrlParams(filterable)}
-		onSort={setSortUrlParams}
+		onSort={handleSort}
 		{filters}
 	>
 		{#snippet onRenderColumn(property, d: Row)}

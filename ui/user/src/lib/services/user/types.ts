@@ -384,12 +384,24 @@ export interface DeviceScanFile {
 export interface DeviceScanList {
 	items: DeviceScan[] | null;
 }
+export type DeviceScanSortKey =
+	| 'device_id'
+	| 'os_arch'
+	| 'username'
+	| 'mcp_count'
+	| 'skill_count'
+	| 'plugin_count'
+	| 'client_count'
+	| 'scanned_at';
+
 export type DeviceScanListFilters = {
 	limit?: number;
 	offset?: number;
 	submittedBy?: string[];
 	deviceId?: string[];
 	groupByDevice?: boolean;
+	sortBy?: DeviceScanSortKey;
+	sortOrder?: 'asc' | 'desc';
 };
 export interface DeviceScanMCPServer {
 	id: number;

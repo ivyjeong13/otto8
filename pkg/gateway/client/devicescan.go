@@ -46,7 +46,7 @@ func (c *Client) DeleteDeviceScan(ctx context.Context, id uint) error {
 	return c.db.WithContext(ctx).Delete(&types.DeviceScan{}, id).Error
 }
 
-// DeviceScanListOptions filters the scan-envelope list endpoint.
+// DeviceScanListOptions filters, sorts, and paginates the scan-envelope list endpoint.
 // SubmittedBy and DeviceID are multi-value; either narrows the result.
 type DeviceScanListOptions struct {
 	SubmittedBy   []string
@@ -54,9 +54,11 @@ type DeviceScanListOptions struct {
 	Limit         int
 	Offset        int
 	GroupByDevice bool
+	SortBy        string
+	SortOrder     string
 }
 
-// ListDeviceScans returns scan envelopes ordered newest first.
+// ListDeviceScans returns scan envelopes in the requested order.
 // MCP servers, skills, and plugins are preloaded; files are not —
 // DeviceScanFile.Content can be large and isn't needed for the list.
 func (c *Client) ListDeviceScans(ctx context.Context, opts DeviceScanListOptions) ([]types.DeviceScan, int64, error) {
@@ -81,10 +83,10 @@ func (c *Client) ListDeviceScans(ctx context.Context, opts DeviceScanListOptions
 	if opts.Offset > 0 {
 		db = db.Offset(opts.Offset)
 	}
+	db = applyDeviceScanListSort(db, opts)
 
 	var scans []types.DeviceScan
-	if err := db.Order("created_at DESC").
-		Preload("MCPServers").
+	if err := db.Preload("MCPServers").
 		Preload("Skills").
 		Preload("Plugins").
 		Preload("Clients").
@@ -102,6 +104,37 @@ func applyDeviceScanListFilters(db *gorm.DB, opts DeviceScanListOptions) *gorm.D
 		db = db.Where("device_id IN (?)", opts.DeviceID)
 	}
 	return db
+}
+
+func applyDeviceScanListSort(db *gorm.DB, opts DeviceScanListOptions) *gorm.DB {
+	sortExpressions := map[string]string{
+		"device_id":    "device_scans.device_id",
+		"os_arch":      "device_scans.os",
+		"username":     "device_scans.username",
+		"mcp_count":    "(SELECT COUNT(*) FROM device_scan_mcp_servers WHERE device_scan_id = device_scans.id)",
+		"skill_count":  "(SELECT COUNT(*) FROM device_scan_skills WHERE device_scan_id = device_scans.id)",
+		"plugin_count": "(SELECT COUNT(*) FROM device_scan_plugins WHERE device_scan_id = device_scans.id)",
+		"client_count": "(SELECT COUNT(*) FROM device_scan_clients WHERE device_scan_id = device_scans.id)",
+		"scanned_at":   "device_scans.scanned_at",
+	}
+
+	sortExpression, ok := sortExpressions[opts.SortBy]
+	if !ok {
+		sortExpression = "device_scans.created_at"
+	}
+	sortOrder := "DESC"
+	if strings.EqualFold(opts.SortOrder, "asc") {
+		sortOrder = "ASC"
+	}
+
+	db = db.Order(sortExpression + " " + sortOrder)
+	if opts.SortBy == "os_arch" {
+		db = db.Order("device_scans.arch " + sortOrder)
+	}
+	if sortExpression != "device_scans.created_at" {
+		db = db.Order("device_scans.created_at DESC")
+	}
+	return db.Order("device_scans.id DESC")
 }
 
 // DeviceScanStatsOptions bounds the dashboard rollup. Zero-valued
