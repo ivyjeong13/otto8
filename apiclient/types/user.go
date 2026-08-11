@@ -146,6 +146,8 @@ type User struct {
 	Email                  string   `json:"email,omitempty"`
 	IconURL                string   `json:"iconURL,omitempty"`
 	Timezone               string   `json:"timezone,omitempty"`
+	Onboarded              bool     `json:"onboarded,omitempty"`
+	CategoryPreferences    []string `json:"categoryPreferences"`
 	CurrentAuthProvider    string   `json:"currentAuthProvider,omitempty"`
 	LastActiveDay          Time     `json:"lastActiveDay,omitzero"`
 	Internal               bool     `json:"internal,omitempty"`

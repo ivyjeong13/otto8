@@ -681,6 +681,19 @@ export async function patchProfile(
 	return (await doPatch('/me', profile, opts)) as Profile;
 }
 
+export async function markProfileOnboarded(
+	opts?: { dontLogErrors?: boolean }
+): Promise<Profile> {
+	return patchProfile({ onboarded: true }, opts);
+}
+
+export async function updateCategoryPreferences(
+	categoryPreferences: string[],
+	opts?: { dontLogErrors?: boolean }
+): Promise<Profile> {
+	return patchProfile({ categoryPreferences }, opts);
+}
+
 export async function deleteProfile() {
 	return doDelete(`/me`);
 }

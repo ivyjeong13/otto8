@@ -8,7 +8,7 @@
 	import Logo from '../Logo.svelte';
 	import ResponsiveDialog from '../ResponsiveDialog.svelte';
 	import { CircleCheckBig } from '@lucide/svelte';
-	import type { Snippet } from 'svelte';
+	import { type Snippet } from 'svelte';
 	import { twMerge } from 'tailwind-merge';
 
 	let dialog = $state<ReturnType<typeof ResponsiveDialog>>();
@@ -66,7 +66,7 @@
 	<div class="flex w-full items-center justify-center">
 		<Logo class="size-18" />
 	</div>
-	<h2 class="mb-8 text-center text-2xl font-semibold">Welcome to Obot!</h2>
+	<h2 class="mb-6 text-center text-2xl font-semibold">Welcome to Obot!</h2>
 
 	<div class="w-fit self-center">
 		{#if !isAuthProviderConfigured || requiresModelProviderConfiguration}
@@ -90,13 +90,13 @@
 			</ul>
 		{/if}
 
-		<p class="pt-4">
+		<p class="pt-4 text-center">
 			By continuing, you agree to Obot's <a
 				href="https://obot.ai/eul"
 				rel="external"
 				target="_blank"
 				class="text-link">EULA</a
-			>
+			>.
 		</p>
 	</div>
 

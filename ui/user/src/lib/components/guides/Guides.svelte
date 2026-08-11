@@ -137,8 +137,8 @@
 		rafId = requestAnimationFrame(() => {
 			highlighter?.highlight({
 				selector: { id: 'btn-get-started-guide' },
-				title: 'First Time Here?',
-				description: 'Check out our quick start guides to get you up and running quickly.',
+				title: 'Getting Started?',
+				description: 'Need a guide through the features of Obot? Check them out here.',
 				side: 'left',
 				align: 'start'
 			});

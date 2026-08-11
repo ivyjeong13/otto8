@@ -28,6 +28,11 @@
 		isDeprecatedMCPServer,
 		supportsMCPBackendDetails
 	} from '$lib/services/user/mcp';
+	import {
+		compareConnectedThenName,
+		getPopularRank,
+		getPreferredRank
+	} from '$lib/services/user/mcpSort';
 	import { isMcpTunnelDisconnected } from '$lib/services/user/mcpTunnel';
 	import { mcpServersAndEntries, mcpTunnelConnections, profile, version } from '$lib/stores';
 	import { openUrl } from '$lib/utils';
@@ -45,6 +50,8 @@
 		| 'restart'
 		| 'reauthenticate';
 
+	type SortBy = 'sort_by_name' | 'sort_by_name_reverse' | 'sort_by_popular' | 'sort_by_preferred';
+
 	interface Props {
 		entity?: 'workspace' | 'catalog';
 		id?: string;
@@ -52,9 +59,18 @@
 		noDataContent?: Snippet;
 		usersMap?: Map<string, OrgUser>;
 		query?: string;
+		sortBy?: SortBy;
 	}
 
-	let { entity, id, catalog = $bindable(), noDataContent, query, usersMap }: Props = $props();
+	let {
+		entity,
+		id,
+		catalog = $bindable(),
+		noDataContent,
+		query,
+		usersMap,
+		sortBy
+	}: Props = $props();
 
 	let connectToServerDialog = $state<ReturnType<typeof ConnectToServer>>();
 	let editExistingDialog = $state<ReturnType<typeof EditExistingDeployment>>();
@@ -103,11 +119,29 @@
 	);
 
 	let filteredTableData = $derived.by(() => {
+		const preferences = profile.current.categoryPreferences ?? [];
 		const sorted = [...tableData].sort((a, b) => {
-			if (a.connected !== b.connected) {
-				return a.connected ? -1 : 1;
+			switch (sortBy) {
+				case 'sort_by_name':
+					return a.name.localeCompare(b.name);
+				case 'sort_by_name_reverse':
+					return b.name.localeCompare(a.name);
+				case 'sort_by_popular': {
+					const popularDiff = getPopularRank(a) - getPopularRank(b);
+					if (popularDiff !== 0) return popularDiff;
+					return compareConnectedThenName(a, b);
+				}
+				case 'sort_by_preferred':
+				default: {
+					const preferredDiff =
+						getPreferredRank(a, preferences) - getPreferredRank(b, preferences);
+					if (preferredDiff !== 0) return preferredDiff;
+					// Fall back to popular ranking when preferences don't distinguish items.
+					const popularDiff = getPopularRank(a) - getPopularRank(b);
+					if (popularDiff !== 0) return popularDiff;
+					return compareConnectedThenName(a, b);
+				}
 			}
-			return a.name.localeCompare(b.name);
 		});
 
 		return query

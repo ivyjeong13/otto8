@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { dialogAnimation } from '$lib/actions/dialogAnimation';
 	import { DEFAULT_MCP_CATALOG_ID } from '$lib/constants';
+	import { generateIdFromName } from '$lib/format';
 	import {
 		AdminService,
 		UserService,
@@ -1039,13 +1040,6 @@
 		oauthDialog?.close();
 		oauthURL = '';
 		handleConnect();
-	}
-
-	function generateIdFromName(name: string) {
-		return name
-			.toLowerCase()
-			.replace(/ /g, '-')
-			.replace(/[^a-z0-9-_]/g, '');
 	}
 
 	function isEditableCatalogEntry(entry?: MCPCatalogEntry) {

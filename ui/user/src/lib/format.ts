@@ -140,3 +140,10 @@ export const formatDeviceClient = (client?: string, projectPath?: string): strin
 	}
 	return client;
 };
+
+export function generateIdFromName(name: string) {
+	return name
+		.toLowerCase()
+		.replace(/ /g, '-')
+		.replace(/[^a-z0-9-_]/g, '');
+}

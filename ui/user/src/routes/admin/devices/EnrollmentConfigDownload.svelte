@@ -13,20 +13,13 @@
 		type MDMAssetSource,
 		type MDMConfiguration
 	} from '$lib/services';
+	import { getPlatformGroups, getTargetOptions, type TargetOption } from '$lib/services/devices';
 	import { formatTimeAgo } from '$lib/time';
 	import { editableMDMValues, mdmFieldProblem, submittedMDMValues } from './platforms';
 	import { CircleCheck, Download, RefreshCw, Save, Settings, TriangleAlert } from '@lucide/svelte';
 	import { onDestroy, onMount, untrack, type Snippet } from 'svelte';
 
 	const rememberedTargetKey = 'obot-device-configuration-target';
-
-	interface TargetOption {
-		description?: string;
-		os: string;
-		osLabel: string;
-		platform: string;
-		platformLabel: string;
-	}
 
 	interface Props {
 		configuration: MDMConfiguration;
@@ -81,48 +74,10 @@
 		if (configuration.assetDigest) return configuration.assetDigest.slice(0, 12);
 		return latestVersion ? `v${latestVersion}` : undefined;
 	});
-	let targetOptions = $derived.by((): TargetOption[] => {
-		if (latestAsset?.configurations.length) {
-			const asset = latestAsset;
-			return asset.configurations.map((target) => ({
-				description: target.description,
-				os: target.os,
-				osLabel: target.osLabel || target.os,
-				platform: target.platform,
-				platformLabel:
-					asset.platforms.find((platform) => platform.id === target.platform)?.label ??
-					target.platform
-			}));
-		}
-		return (configuration.artifacts ?? []).map((artifact) => ({
-			os: artifact.os,
-			osLabel: artifact.os,
-			platform: artifact.platform,
-			platformLabel: artifact.platform
-		}));
-	});
+	let targetOptions = $derived(getTargetOptions(latestAsset, configuration));
 	// Targets group by installation method with its operating systems
 	// underneath. The manual installation method always sorts first.
-	let platformGroups = $derived.by(() => {
-		const groups: {
-			platform: string;
-			platformLabel: string;
-			targets: { option: TargetOption; index: number }[];
-		}[] = [];
-		for (const [index, option] of targetOptions.entries()) {
-			let group = groups.find((candidate) => candidate.platform === option.platform);
-			if (!group) {
-				group = { platform: option.platform, platformLabel: option.platformLabel, targets: [] };
-				groups.push(group);
-			}
-			group.targets.push({ option, index });
-		}
-		const manualIndex = groups.findIndex((group) => group.platform.toLowerCase() === 'manual');
-		if (manualIndex > 0) {
-			groups.unshift(...groups.splice(manualIndex, 1));
-		}
-		return groups;
-	});
+	let platformGroups = $derived(getPlatformGroups(targetOptions));
 	let selectedTarget = $derived(targetOptions[selectedIndex]);
 	let selectedGroup = $derived(
 		platformGroups.find((group) => group.platform === selectedTarget?.platform)

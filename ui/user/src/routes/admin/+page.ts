@@ -17,10 +17,13 @@ export const load: PageLoad = async ({ fetch, url }) => {
 	const hasAccess =
 		profile?.groups.includes(Group.ADMIN) || profile?.groups.includes(Group.AUDITOR);
 	if (hasAccess && !showSetupHandoff) {
-		throw redirect(
-			307,
-			profile?.isBootstrapUser?.() ? '/admin/auth-providers' : '/admin/dashboard'
-		);
+		if (profile?.isBootstrapUser?.()) {
+			throw redirect(307, '/admin/auth-providers');
+		} else if (profile?.onboarded) {
+			throw redirect(307, '/admin/dashboard');
+		} else {
+			throw redirect(307, '/');
+		}
 	}
 
 	return {

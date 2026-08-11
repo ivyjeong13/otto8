@@ -816,6 +816,8 @@ export interface OrgUser {
 	deletedAt?: string;
 	originalEmail?: string;
 	originalUsername?: string;
+	onboarded?: boolean;
+	categoryPreferences?: string[];
 }
 export interface OrgGroup {
 	id: string;
@@ -841,6 +843,8 @@ export interface Profile {
 	unauthorized?: boolean;
 	username: string;
 	currentAuthProvider?: string;
+	onboarded?: boolean;
+	categoryPreferences?: string[];
 	expired?: boolean;
 	created?: string;
 	displayName?: string;

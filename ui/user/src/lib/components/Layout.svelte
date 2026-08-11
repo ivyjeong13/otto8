@@ -117,6 +117,8 @@
 	let showAdvancedPane = $state(untrack(() => isAdvancedPaneRoute(page.url.pathname)));
 	let animatingNavSectionId = $state<string | null>(null);
 
+	let guide = $state<ReturnType<typeof Guide>>();
+
 	function isAdvancedPaneRoute(route: string): boolean {
 		return (
 			route.includes('/admin') ||
@@ -1008,7 +1010,7 @@
 
 	{#if !isBootStrapUser && !responsive.isMobile}
 		<GuidePanel />
-		<Guide />
+		<Guide bind:this={guide} />
 	{/if}
 </div>
 

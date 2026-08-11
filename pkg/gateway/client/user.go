@@ -252,6 +252,17 @@ func (c *Client) UpdateUser(ctx context.Context, actingUserCanChangeRole bool, u
 			existingUser.Timezone = updatedUser.Timezone
 		}
 
+		// Onboarding is a one-way completion state. Omitted false values in partial updates must not
+		// clear it after it has been set.
+		if updatedUser.Onboarded {
+			existingUser.Onboarded = true
+		}
+
+		categoryPreferencesUpdated := updatedUser.CategoryPreferences != nil
+		if categoryPreferencesUpdated {
+			existingUser.CategoryPreferences = append([]string{}, updatedUser.CategoryPreferences...)
+		}
+
 		// Only admins can change user roles.
 		if actingUserCanChangeRole {
 			if updatedUser.Role > 0 {
@@ -308,7 +319,14 @@ func (c *Client) UpdateUser(ctx context.Context, actingUserCanChangeRole bool, u
 			return fmt.Errorf("failed to encrypt user: %w", err)
 		}
 
-		return tx.Updates(&u).Error
+		if err := tx.Updates(&u).Error; err != nil {
+			return err
+		}
+		if categoryPreferencesUpdated {
+			return tx.Model(&u).Select("category_preferences").Updates(&u).Error
+		}
+
+		return nil
 	})
 }
 

@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import Logo from '$lib/components/Logo.svelte';
+	import Onboarding from '$lib/components/onboarding/Onboarding.svelte';
 	import { type PageProps } from './$types';
 
 	let { data }: PageProps = $props();
-	let { authProviders, loggedIn } = $derived(data);
+	let { authProviders, loggedIn, onboarded } = $derived(data);
 	let overrideRedirect = $state<string | null>(null);
 
 	let rd = $derived.by(() => {
@@ -27,6 +28,8 @@
 
 {#if !loggedIn}
 	{@render unauthorizedContent()}
+{:else if loggedIn && !onboarded}
+	<Onboarding />
 {:else}
 	<div class="flex h-svh w-svw flex-col items-center justify-center">
 		<div class="flex items-center justify-center gap-2">

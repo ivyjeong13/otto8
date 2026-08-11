@@ -200,8 +200,11 @@ export async function updateAccessControlRule(
 	)) as AccessControlRule;
 }
 
-export async function deleteAccessControlRule(id: string): Promise<void> {
-	await doDelete(`/mcp-catalogs/${DEFAULT_MCP_CATALOG_ID}/access-control-rules/${id}`);
+export async function deleteAccessControlRule(
+	id: string,
+	opts?: { dontLogErrors?: boolean }
+): Promise<void> {
+	await doDelete(`/mcp-catalogs/${DEFAULT_MCP_CATALOG_ID}/access-control-rules/${id}`, opts);
 }
 
 // App preferences

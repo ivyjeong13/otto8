@@ -725,6 +725,8 @@ export interface MCPCatalogEntryServerManifest {
 	icon?: string;
 	env?: MCPCatalogEntryFieldManifest[];
 	repoURL?: string;
+	/** Stable catalog identity from the source YAML (e.g. obot-gmail). */
+	entryKey?: string;
 	name?: string;
 	shortDescription?: string;
 	description?: string;

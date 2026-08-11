@@ -14,17 +14,19 @@ import (
 )
 
 type User struct {
-	ID             uint        `json:"id" gorm:"primaryKey"`
-	CreatedAt      time.Time   `json:"createdAt"`
-	DisplayName    string      `json:"displayName"`
-	Username       string      `json:"username"`
-	HashedUsername string      `json:"-" gorm:"unique"`
-	Email          string      `json:"email"`
-	HashedEmail    string      `json:"-"`
-	VerifiedEmail  *bool       `json:"verifiedEmail,omitempty"`
-	Role           types2.Role `json:"role"`
-	IconURL        string      `json:"iconURL"`
-	Timezone       string      `json:"timezone"`
+	ID                  uint        `json:"id" gorm:"primaryKey"`
+	CreatedAt           time.Time   `json:"createdAt"`
+	DisplayName         string      `json:"displayName"`
+	Username            string      `json:"username"`
+	HashedUsername      string      `json:"-" gorm:"unique"`
+	Email               string      `json:"email"`
+	HashedEmail         string      `json:"-"`
+	VerifiedEmail       *bool       `json:"verifiedEmail,omitempty"`
+	Role                types2.Role `json:"role"`
+	IconURL             string      `json:"iconURL"`
+	Timezone            string      `json:"timezone"`
+	Onboarded           bool        `json:"onboarded" gorm:"default:false"`
+	CategoryPreferences []string    `json:"categoryPreferences" gorm:"serializer:json"`
 
 	// LastActiveDay is the time of the last request made by this user, currently at the 24 hour granularity.
 	LastActiveDay          time.Time `json:"lastActiveDay"`
@@ -64,6 +66,8 @@ func ConvertUserWithEffectiveRole(u *User, roleFixed bool, authProviderName stri
 		ExplicitRole:           roleFixed,
 		IconURL:                u.IconURL,
 		Timezone:               u.Timezone,
+		Onboarded:              u.Onboarded,
+		CategoryPreferences:    append([]string{}, u.CategoryPreferences...),
 		CurrentAuthProvider:    authProviderName,
 		LastActiveDay:          *types2.NewTime(u.LastActiveDay),
 		Internal:               u.Internal,

@@ -81,26 +81,24 @@
 		class="mx-auto mb-3 h-28 w-28 rounded-full object-cover"
 	/>
 	<div class="flex flex-row py-3">
-		<div class="w-1/2 max-w-[150px]">Display Name:</div>
+		<div class="w-1/2 max-w-37.5">Display Name:</div>
 		<div class="w-1/2 wrap-break-word">{profile.current.displayName}</div>
 	</div>
-	<hr />
 	<div class="flex flex-row py-3">
-		<div class="w-1/2 max-w-[150px]">Email:</div>
+		<div class="w-1/2 max-w-37.5">Email:</div>
 		<div class="w-1/2 wrap-break-word">{profile.current.email}</div>
 	</div>
-	<hr />
 	<div class="flex flex-row py-3">
-		<div class="w-1/2 max-w-[150px]">Role:</div>
+		<div class="w-1/2 max-w-37.5">Role:</div>
 		<div class="w-1/2 wrap-break-word">
 			{getUserRoleLabel(profile.current.effectiveRole)}
 		</div>
 	</div>
-	<hr />
+	<hr class="mt-3 border-muted-content" />
 
 	<div class="flex flex-row items-center justify-between py-3">
 		<div class="flex flex-col gap-1">
-			<p>Display 24 Hour Format</p>
+			<p class="font-semibold">Display 24 Hour Format</p>
 			<span class="text-sm font-light opacity-70">
 				When enabled, time pickers and viewable times will be displayed in 24 hour format.
 			</span>
@@ -111,11 +109,11 @@
 			onChange={handleDisplay24HourFormatToggle}
 		/>
 	</div>
-	<hr />
+	<hr class="border-muted-content" />
 
 	<div class="flex flex-row items-center justify-between py-3">
 		<div class="flex flex-col gap-1">
-			<p>Display "Get Started" Guides</p>
+			<p class="font-semibold">Display "Get Started" Guides</p>
 			<span class="text-sm font-light opacity-70">
 				When enabled, the "Get Started" guides will be displayed at the bottom right of the screen.
 			</span>
@@ -126,9 +124,9 @@
 			onChange={handleDisplayGetStartedGuidesToggle}
 		/>
 	</div>
-	<hr />
+	<hr class="border-muted-content" />
 
-	<div class="mt-2 flex flex-col gap-4 py-3">
+	<div class="mt-2 flex flex-col gap-4 pt-3">
 		{#if version.current.sessionStore === 'db'}
 			<button
 				class="w-full btn btn-error"
@@ -136,8 +134,10 @@
 					e.preventDefault();
 					toRevoke = !toRevoke;
 					dialog?.close();
-				}}>Log out all other sessions</button
+				}}
 			>
+				Log out all other sessions
+			</button>
 		{/if}
 		<button
 			class="w-full btn btn-error"
@@ -145,8 +145,10 @@
 				e.preventDefault();
 				toDelete = !toDelete;
 				dialog?.close();
-			}}>Delete my account</button
+			}}
 		>
+			Delete my account
+		</button>
 	</div>
 </ResponsiveDialog>
 

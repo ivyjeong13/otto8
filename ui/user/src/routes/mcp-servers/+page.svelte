@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import Layout from '$lib/components/Layout.svelte';
 	import Search from '$lib/components/Search.svelte';
+	import Select from '$lib/components/Select.svelte';
 	import { PAGE_TRANSITION_DURATION } from '$lib/constants';
 	import { Group } from '$lib/services';
 	import { profile } from '$lib/stores/index';
@@ -18,6 +19,9 @@
 	let isAtLeastPowerUser = $derived(profile.current.groups.includes(Group.POWERUSER));
 
 	let query = $derived(page.url.searchParams.get('query') || '');
+	let sortBy = $state<
+		'sort_by_name' | 'sort_by_name_reverse' | 'sort_by_popular' | 'sort_by_preferred'
+	>(profile.current.categoryPreferences?.length ? 'sort_by_preferred' : 'sort_by_popular');
 
 	const updateSearchQuery = debounce((value: string) => {
 		setUrlParamAndUpdateUrl(page.url, 'query', value);
@@ -43,16 +47,40 @@
 		out:fly={{ x: -100, duration }}
 	>
 		<div class="bg-base-200 dark:bg-base-100 sticky top-16 left-0 z-20 w-full py-1">
-			<div class="mb-2">
+			<div class="mb-2 flex items-center gap-2">
 				<Search
 					class="dark:bg-base-200 dark:border-base-400 bg-base-100 border border-transparent shadow-sm"
 					value={query}
 					onChange={updateSearchQuery}
 					placeholder="Search servers..."
 				/>
+				<Select
+					class="md:w-64!"
+					options={[
+						{ label: 'Sort by Name (A-Z)', id: 'sort_by_name' },
+						{ label: 'Sort by Name (Z-A)', id: 'sort_by_name_reverse' },
+						{
+							label: 'Sort by Most Popular',
+							id: 'sort_by_popular'
+						},
+						{
+							label: 'Sort by Preferred',
+							id: 'sort_by_preferred'
+						}
+					]}
+					selected={sortBy}
+					onSelect={(option) => {
+						sortBy = option.id as
+							| 'sort_by_name'
+							| 'sort_by_name_reverse'
+							| 'sort_by_popular'
+							| 'sort_by_preferred';
+					}}
+					id="sort-by-mcp-servers-select"
+				/>
 			</div>
 		</div>
-		<ConnectorsView id={workspaceId} entity="workspace" {query}>
+		<ConnectorsView id={workspaceId} entity="workspace" {query} {sortBy}>
 			{#snippet noDataContent()}
 				<div class="my-12 flex w-md flex-col items-center gap-4 self-center text-center">
 					<Server class="text-base-content/80 size-24 opacity-25" />
