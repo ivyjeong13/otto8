@@ -10,7 +10,7 @@ import (
 )
 
 // PruneDefaultPolicy ensures invalid and ineffectual model resources are removed from
-// the default ModelAccessPolicy. Custom policies are intentionally left intact
+// the default AccessPolicy. Custom policies are intentionally left intact
 // so their legacy resources remain visible for users to remediate.
 // This handler removes:
 // - Models that no longer exist
@@ -21,9 +21,10 @@ import (
 // Wildcard suffix patterns (e.g. "claude-haiku-4-5*") are always kept, even when
 // they currently match no models, since they apply to future models as well.
 func PruneDefaultPolicy(req router.Request, _ router.Response) error {
-	policy := req.Object.(*v1.ModelAccessPolicy)
+	policy := req.Object.(*v1.AccessPolicy)
 	if policy.Namespace != system.DefaultNamespace ||
-		policy.Name != system.ModelAccessPolicyPrefix+"-default" {
+		(policy.Name != system.ModelAccessPolicyPrefix+"-default" &&
+			policy.Name != system.AccessPolicyPrefix+"-default-models") {
 		return nil
 	}
 

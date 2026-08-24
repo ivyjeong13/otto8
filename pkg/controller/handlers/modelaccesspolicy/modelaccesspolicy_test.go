@@ -10,6 +10,7 @@ import (
 	"github.com/obot-platform/obot/pkg/system"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -133,11 +134,13 @@ func TestPruneDefaultPolicy(t *testing.T) {
 
 			client := fake.NewClientBuilder().
 				WithScheme(storagescheme.Scheme).
-				WithObjects(existingModel, embeddingModel, &v1.ModelAccessPolicy{
-					Name:      policyName,
-					Namespace: system.DefaultNamespace,
-					Spec: v1.ModelAccessPolicySpec{
-						Manifest: types.ModelAccessPolicyManifest{
+				WithObjects(existingModel, embeddingModel, &v1.AccessPolicy{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      policyName,
+						Namespace: system.DefaultNamespace,
+					},
+					Spec: v1.AccessPolicySpec{
+						Manifest: types.AccessPolicyManifest{
 							Subjects: []types.Subject{{Type: types.SubjectTypeUser, ID: "u1"}},
 							Models:   models,
 						},
@@ -146,7 +149,7 @@ func TestPruneDefaultPolicy(t *testing.T) {
 				Build()
 
 			// Fetch the stored policy so the handler updates it with a valid resource version
-			var policy v1.ModelAccessPolicy
+			var policy v1.AccessPolicy
 			key := kclient.ObjectKey{Namespace: system.DefaultNamespace, Name: policyName}
 			require.NoError(t, client.Get(t.Context(), key, &policy))
 
@@ -160,7 +163,7 @@ func TestPruneDefaultPolicy(t *testing.T) {
 			}, nil)
 			require.NoError(t, err)
 
-			var updated v1.ModelAccessPolicy
+			var updated v1.AccessPolicy
 			require.NoError(t, client.Get(t.Context(), key, &updated))
 
 			gotIDs := make([]string, 0, len(updated.Spec.Manifest.Models))

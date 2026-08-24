@@ -27,6 +27,7 @@ import (
 	"github.com/obot-platform/obot/pkg/system"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kuser "k8s.io/apiserver/pkg/authentication/user"
 	gocache "k8s.io/client-go/tools/cache"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -641,42 +642,42 @@ func testUserWithRole(userID string, roleGroups ...string) kuser.Info {
 	}
 }
 
-func newSkillAccessRuleHelper(t *testing.T, rules ...*v1.SkillAccessRule) *skillaccessrule.Helper {
+func newSkillAccessRuleHelper(t *testing.T, rules ...*v1.AccessPolicy) *skillaccessrule.Helper {
 	t.Helper()
 
 	indexer := gocache.NewIndexer(gocache.MetaNamespaceKeyFunc, gocache.Indexers{
-		"skill-ids": func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+		skillaccessrule.SkillIDIndex: func(obj any) ([]string, error) {
+			rule := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range rule.Spec.Manifest.Resources {
+			for _, resource := range rule.Spec.Manifest.Skills {
 				if resource.Type == types.SkillResourceTypeSkill {
 					results = append(results, resource.ID)
 				}
 			}
 			return results, nil
 		},
-		"repository-ids": func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+		skillaccessrule.RepositoryIDIndex: func(obj any) ([]string, error) {
+			rule := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range rule.Spec.Manifest.Resources {
+			for _, resource := range rule.Spec.Manifest.Skills {
 				if resource.Type == types.SkillResourceTypeSkillRepository {
 					results = append(results, resource.ID)
 				}
 			}
 			return results, nil
 		},
-		"selectors": func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+		skillaccessrule.ResourceSelectorIndex: func(obj any) ([]string, error) {
+			rule := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range rule.Spec.Manifest.Resources {
+			for _, resource := range rule.Spec.Manifest.Skills {
 				if resource.Type == types.SkillResourceTypeSelector {
 					results = append(results, resource.ID)
 				}
 			}
 			return results, nil
 		},
-		"user-ids": func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+		skillaccessrule.UserIDIndex: func(obj any) ([]string, error) {
+			rule := obj.(*v1.AccessPolicy)
 			var results []string
 			for _, subject := range rule.Spec.Manifest.Subjects {
 				if subject.Type == types.SubjectTypeUser {
@@ -685,8 +686,8 @@ func newSkillAccessRuleHelper(t *testing.T, rules ...*v1.SkillAccessRule) *skill
 			}
 			return results, nil
 		},
-		"group-ids": func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+		skillaccessrule.GroupIDIndex: func(obj any) ([]string, error) {
+			rule := obj.(*v1.AccessPolicy)
 			var results []string
 			for _, subject := range rule.Spec.Manifest.Subjects {
 				if subject.Type == types.SubjectTypeGroup {
@@ -695,8 +696,8 @@ func newSkillAccessRuleHelper(t *testing.T, rules ...*v1.SkillAccessRule) *skill
 			}
 			return results, nil
 		},
-		"subject-selectors": func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+		skillaccessrule.SubjectSelectorIndex: func(obj any) ([]string, error) {
+			rule := obj.(*v1.AccessPolicy)
 			var results []string
 			for _, subject := range rule.Spec.Manifest.Subjects {
 				if subject.Type == types.SubjectTypeSelector {
@@ -714,14 +715,16 @@ func newSkillAccessRuleHelper(t *testing.T, rules ...*v1.SkillAccessRule) *skill
 	return skillaccessrule.NewHelper(indexer)
 }
 
-func newSkillRule(name string, subjects []types.Subject, resources []types.SkillResource) *v1.SkillAccessRule {
-	return &v1.SkillAccessRule{
-		Name:      name,
-		Namespace: system.DefaultNamespace,
-		Spec: v1.SkillAccessRuleSpec{
-			Manifest: types.SkillAccessRuleManifest{
-				Subjects:  subjects,
-				Resources: resources,
+func newSkillRule(name string, subjects []types.Subject, resources []types.SkillResource) *v1.AccessPolicy {
+	return &v1.AccessPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: system.DefaultNamespace,
+		},
+		Spec: v1.AccessPolicySpec{
+			Manifest: types.AccessPolicyManifest{
+				Subjects: subjects,
+				Skills:   resources,
 			},
 		},
 	}

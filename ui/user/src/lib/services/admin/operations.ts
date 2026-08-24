@@ -34,6 +34,8 @@ import type {
 	MCPSubField
 } from '../user/types';
 import type {
+	AccessPolicy,
+	AccessPolicyManifest,
 	MCPCatalog,
 	MCPCatalogEntry,
 	MCPCatalogEntryServerManifest,
@@ -157,51 +159,107 @@ export async function listMCPSecretBindingTargets(
 	return response.items ?? [];
 }
 
-// Access control rules
+// Access policies
+
+export async function listAccessPolicies(opts?: RequestOptions): Promise<AccessPolicy[]> {
+	const response = (await doGet('/access-policies', opts)) as ItemsResponse<AccessPolicy>;
+	return response.items ?? [];
+}
+
+export async function getAccessPolicy(id: string, opts?: RequestOptions): Promise<AccessPolicy> {
+	return (await doGet(`/access-policies/${id}`, opts)) as AccessPolicy;
+}
+
+export async function createAccessPolicy(
+	policy: AccessPolicyManifest,
+	opts?: RequestOptions
+): Promise<AccessPolicy> {
+	return (await doPost('/access-policies', policy, opts)) as AccessPolicy;
+}
+
+export async function updateAccessPolicy(
+	id: string,
+	policy: AccessPolicyManifest,
+	opts?: RequestOptions
+): Promise<AccessPolicy> {
+	return (await doPut(`/access-policies/${id}`, policy, opts)) as AccessPolicy;
+}
+
+export async function deleteAccessPolicy(id: string, opts?: RequestOptions): Promise<void> {
+	await doDelete(`/access-policies/${id}`, opts);
+}
+
+function editableAccessPolicy(policy: AccessPolicy): AccessPolicyManifest {
+	return {
+		displayName: policy.displayName,
+		hostedAgents: policy.hostedAgents ?? [],
+		mcpCatalogID: policy.mcpCatalogID,
+		mcpServers: policy.mcpServers ?? [],
+		models: policy.models ?? [],
+		skills: policy.skills ?? [],
+		subjects: policy.subjects ?? []
+	};
+}
+
+function toAccessControlRule(policy: AccessPolicy): AccessControlRule {
+	return {
+		...policy,
+		resources: policy.mcpServers ?? []
+	};
+}
+
+// Legacy MCP-specific client surface. Keep this while existing MCP forms are migrated;
+// all requests are backed by the unified access-policy endpoint.
 
 export async function listAccessControlRules(opts?: {
 	fetch?: Fetcher;
 }): Promise<AccessControlRule[]> {
-	const response = (await doGet(
-		`/mcp-catalogs/${DEFAULT_MCP_CATALOG_ID}/access-control-rules`,
-		opts
-	)) as ItemsResponse<AccessControlRule>;
-	return response.items ?? [];
+	const policies = await listAccessPolicies(opts);
+	return policies
+		.filter(
+			(policy) =>
+				(policy.mcpServers?.length ?? 0) > 0 && policy.mcpCatalogID === DEFAULT_MCP_CATALOG_ID
+		)
+		.map(toAccessControlRule);
 }
 
 export async function getAccessControlRule(
 	id: string,
 	opts?: { fetch?: Fetcher }
 ): Promise<AccessControlRule> {
-	const response = (await doGet(
-		`/mcp-catalogs/${DEFAULT_MCP_CATALOG_ID}/access-control-rules/${id}`,
-		opts
-	)) as AccessControlRule;
-	return response;
+	return toAccessControlRule(await getAccessPolicy(id, opts));
 }
 
 export async function createAccessControlRule(
 	rule: AccessControlRuleManifest
 ): Promise<AccessControlRule> {
-	const response = (await doPost(
-		`/mcp-catalogs/${DEFAULT_MCP_CATALOG_ID}/access-control-rules`,
-		rule
-	)) as AccessControlRule;
-	return response;
+	return toAccessControlRule(
+		await createAccessPolicy({
+			displayName: rule.displayName,
+			mcpCatalogID: DEFAULT_MCP_CATALOG_ID,
+			mcpServers: rule.resources ?? [],
+			subjects: rule.subjects ?? []
+		})
+	);
 }
 
 export async function updateAccessControlRule(
 	id: string,
 	rule: AccessControlRuleManifest
 ): Promise<AccessControlRule> {
-	return (await doPut(
-		`/mcp-catalogs/${DEFAULT_MCP_CATALOG_ID}/access-control-rules/${id}`,
-		rule
-	)) as AccessControlRule;
+	const existing = await getAccessPolicy(id);
+	return toAccessControlRule(
+		await updateAccessPolicy(id, {
+			...editableAccessPolicy(existing),
+			displayName: rule.displayName,
+			mcpServers: rule.resources ?? [],
+			subjects: rule.subjects ?? []
+		})
+	);
 }
 
 export async function deleteAccessControlRule(id: string): Promise<void> {
-	await doDelete(`/mcp-catalogs/${DEFAULT_MCP_CATALOG_ID}/access-control-rules/${id}`);
+	await deleteAccessPolicy(id);
 }
 
 // App preferences
@@ -1538,40 +1596,57 @@ export async function getMessagePolicyViolationStats(
 
 // Model access policies
 
+function toModelAccessPolicy(policy: AccessPolicy): ModelAccessPolicy {
+	return {
+		...policy,
+		models: policy.models ?? []
+	};
+}
+
 export async function listModelAccessPolicies(opts?: {
 	fetch?: Fetcher;
 }): Promise<ModelAccessPolicy[]> {
-	const response = (await doGet(
-		'/model-access-policies',
-		opts
-	)) as ItemsResponse<ModelAccessPolicy>;
-	return response.items ?? [];
+	return (await listAccessPolicies(opts))
+		.filter((policy) => (policy.models?.length ?? 0) > 0)
+		.map(toModelAccessPolicy);
 }
 
 export async function getModelAccessPolicy(
 	id: string,
 	opts?: { fetch?: Fetcher }
 ): Promise<ModelAccessPolicy> {
-	const response = (await doGet(`/model-access-policies/${id}`, opts)) as ModelAccessPolicy;
-	return response;
+	return toModelAccessPolicy(await getAccessPolicy(id, opts));
 }
 
 export async function createModelAccessPolicy(
 	rule: ModelAccessPolicyManifest
 ): Promise<ModelAccessPolicy> {
-	const response = (await doPost('/model-access-policies', rule)) as ModelAccessPolicy;
-	return response;
+	return toModelAccessPolicy(
+		await createAccessPolicy({
+			displayName: rule.displayName,
+			models: rule.models ?? [],
+			subjects: rule.subjects ?? []
+		})
+	);
 }
 
 export async function updateModelAccessPolicy(
 	id: string,
 	rule: ModelAccessPolicyManifest
 ): Promise<ModelAccessPolicy> {
-	return (await doPut(`/model-access-policies/${id}`, rule)) as ModelAccessPolicy;
+	const existing = await getAccessPolicy(id);
+	return toModelAccessPolicy(
+		await updateAccessPolicy(id, {
+			...editableAccessPolicy(existing),
+			displayName: rule.displayName,
+			models: rule.models ?? [],
+			subjects: rule.subjects ?? []
+		})
+	);
 }
 
 export async function deleteModelAccessPolicy(id: string): Promise<void> {
-	await doDelete(`/model-access-policies/${id}`);
+	await deleteAccessPolicy(id);
 }
 
 // Model providers
@@ -1775,27 +1850,42 @@ export async function refreshSkillRepository(
 
 // Skill access policies
 
+function toSkillAccessPolicy(policy: AccessPolicy): SkillAccessPolicy {
+	return {
+		...policy,
+		resources: policy.skills ?? []
+	};
+}
+
 export async function listSkillAccessPolicies(opts?: {
 	fetch?: Fetcher;
 }): Promise<SkillAccessPolicy[]> {
-	const response = (await doGet('/skill-access-rules', opts)) as ItemsResponse<SkillAccessPolicy>;
-	return response.items ?? [];
+	return (await listAccessPolicies(opts))
+		.filter((policy) => (policy.skills?.length ?? 0) > 0)
+		.map(toSkillAccessPolicy);
 }
 
 export async function getSkillAccessPolicy(
 	id: string,
 	opts?: { fetch?: Fetcher }
 ): Promise<SkillAccessPolicy> {
-	const response = (await doGet(`/skill-access-rules/${id}`, opts)) as SkillAccessPolicy;
-	return response;
+	return toSkillAccessPolicy(await getAccessPolicy(id, opts));
 }
 
 export async function createSkillAccessPolicy(
 	request: SkillAccessPolicyManifest,
 	opts?: { fetch?: Fetcher }
 ): Promise<SkillAccessPolicy> {
-	const response = (await doPost('/skill-access-rules', request, opts)) as SkillAccessPolicy;
-	return response;
+	return toSkillAccessPolicy(
+		await createAccessPolicy(
+			{
+				displayName: request.displayName,
+				skills: request.resources,
+				subjects: request.subjects
+			},
+			opts
+		)
+	);
 }
 
 export async function updateSkillAccessPolicy(
@@ -1803,15 +1893,26 @@ export async function updateSkillAccessPolicy(
 	request: SkillAccessPolicyManifest,
 	opts?: { fetch?: Fetcher }
 ): Promise<SkillAccessPolicy> {
-	const response = (await doPut(`/skill-access-rules/${id}`, request, opts)) as SkillAccessPolicy;
-	return response;
+	const existing = await getAccessPolicy(id, opts);
+	return toSkillAccessPolicy(
+		await updateAccessPolicy(
+			id,
+			{
+				...editableAccessPolicy(existing),
+				displayName: request.displayName,
+				skills: request.resources,
+				subjects: request.subjects
+			},
+			opts
+		)
+	);
 }
 
 export async function deleteSkillAccessPolicy(
 	id: string,
 	opts?: { signal?: AbortSignal }
 ): Promise<void> {
-	await doDelete(`/skill-access-rules/${id}`, opts);
+	await deleteAccessPolicy(id, opts);
 }
 
 // Agent sources
@@ -2073,32 +2174,43 @@ export async function deleteHostedAgentInstance(
 }
 
 // Hosted agent access policies
-//
-// The UI calls these "Access Policies"; the API resource is
-// hosted-agent-access-rules. This mirrors the skill access policy naming.
+
+function toHostedAgentAccessPolicy(policy: AccessPolicy): HostedAgentAccessPolicy {
+	return {
+		...policy,
+		resources: policy.hostedAgents ?? []
+	};
+}
 
 export async function listHostedAgentAccessPolicies(opts?: {
 	fetch?: Fetcher;
 }): Promise<HostedAgentAccessPolicy[]> {
-	const response = (await doGet(
-		'/hosted-agent-access-rules',
-		opts
-	)) as ItemsResponse<HostedAgentAccessPolicy>;
-	return response.items ?? [];
+	return (await listAccessPolicies(opts))
+		.filter((policy) => (policy.hostedAgents?.length ?? 0) > 0)
+		.map(toHostedAgentAccessPolicy);
 }
 
 export async function getHostedAgentAccessPolicy(
 	id: string,
 	opts?: { fetch?: Fetcher }
 ): Promise<HostedAgentAccessPolicy> {
-	return (await doGet(`/hosted-agent-access-rules/${id}`, opts)) as HostedAgentAccessPolicy;
+	return toHostedAgentAccessPolicy(await getAccessPolicy(id, opts));
 }
 
 export async function createHostedAgentAccessPolicy(
 	request: HostedAgentAccessPolicyManifest,
 	opts?: { fetch?: Fetcher }
 ): Promise<HostedAgentAccessPolicy> {
-	return (await doPost('/hosted-agent-access-rules', request, opts)) as HostedAgentAccessPolicy;
+	return toHostedAgentAccessPolicy(
+		await createAccessPolicy(
+			{
+				displayName: request.displayName,
+				hostedAgents: request.resources,
+				subjects: request.subjects
+			},
+			opts
+		)
+	);
 }
 
 export async function updateHostedAgentAccessPolicy(
@@ -2106,18 +2218,26 @@ export async function updateHostedAgentAccessPolicy(
 	request: HostedAgentAccessPolicyManifest,
 	opts?: { fetch?: Fetcher }
 ): Promise<HostedAgentAccessPolicy> {
-	return (await doPut(
-		`/hosted-agent-access-rules/${id}`,
-		request,
-		opts
-	)) as HostedAgentAccessPolicy;
+	const existing = await getAccessPolicy(id, opts);
+	return toHostedAgentAccessPolicy(
+		await updateAccessPolicy(
+			id,
+			{
+				...editableAccessPolicy(existing),
+				displayName: request.displayName,
+				hostedAgents: request.resources,
+				subjects: request.subjects
+			},
+			opts
+		)
+	);
 }
 
 export async function deleteHostedAgentAccessPolicy(
 	id: string,
 	opts?: { signal?: AbortSignal }
 ): Promise<void> {
-	await doDelete(`/hosted-agent-access-rules/${id}`, opts);
+	await deleteAccessPolicy(id, opts);
 }
 
 // Storage credentials
@@ -2466,10 +2586,16 @@ export async function listAllUserWorkspaceMCPServers(opts?: { fetch?: Fetcher })
 }
 
 export async function listAllUserWorkspaceAccessControlRules(opts?: { fetch?: Fetcher }) {
+	return (await listAllWorkspaceAccessPolicies(opts)).map(toAccessControlRule);
+}
+
+export async function listAllWorkspaceAccessPolicies(opts?: {
+	fetch?: Fetcher;
+}): Promise<AccessPolicy[]> {
 	const response = (await doGet(
-		`/workspaces/all-access-control-rules`,
+		`/workspaces/all-access-policies`,
 		opts
-	)) as ItemsResponse<AccessControlRule>;
+	)) as ItemsResponse<AccessPolicy>;
 	return response.items ?? [];
 }
 

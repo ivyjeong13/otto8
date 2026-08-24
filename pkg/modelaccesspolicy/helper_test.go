@@ -89,14 +89,14 @@ func TestGetUserAllowedTargetModels(t *testing.T) {
 	)
 
 	// userPolicy grants the given model IDs to userID.
-	userPolicy := func(modelIDs ...string) *v1.ModelAccessPolicy {
+	userPolicy := func(modelIDs ...string) *v1.AccessPolicy {
 		models := make([]types2.ModelResource, 0, len(modelIDs))
 		for _, id := range modelIDs {
 			models = append(models, types2.ModelResource{ID: id})
 		}
-		return &v1.ModelAccessPolicy{
-			Name: "p-user", Namespace: "default",
-			Spec: v1.ModelAccessPolicySpec{Manifest: types2.ModelAccessPolicyManifest{
+		return &v1.AccessPolicy{
+			ObjectMeta: metav1.ObjectMeta{Name: "p-user", Namespace: "default"},
+			Spec: v1.AccessPolicySpec{Manifest: types2.AccessPolicyManifest{
 				Subjects: []types2.Subject{{Type: types2.SubjectTypeUser, ID: userID}},
 				Models:   models,
 			}},
@@ -104,9 +104,9 @@ func TestGetUserAllowedTargetModels(t *testing.T) {
 	}
 
 	// wildcardPolicy grants every eligible model to every user.
-	wildcardPolicy := &v1.ModelAccessPolicy{
-		Name: "p-wildcard", Namespace: "default",
-		Spec: v1.ModelAccessPolicySpec{Manifest: types2.ModelAccessPolicyManifest{
+	wildcardPolicy := &v1.AccessPolicy{
+		ObjectMeta: metav1.ObjectMeta{Name: "p-wildcard", Namespace: "default"},
+		Spec: v1.AccessPolicySpec{Manifest: types2.AccessPolicyManifest{
 			Subjects: []types2.Subject{{Type: types2.SubjectTypeSelector, ID: "*"}},
 			Models:   []types2.ModelResource{{ID: "*"}},
 		}},
@@ -115,7 +115,7 @@ func TestGetUserAllowedTargetModels(t *testing.T) {
 	tests := []struct {
 		name         string
 		models       []*v1.Model
-		policies     []*v1.ModelAccessPolicy
+		policies     []*v1.AccessPolicy
 		dialect      string
 		want         map[string]bool
 		wantAllowAll bool
@@ -126,7 +126,7 @@ func TestGetUserAllowedTargetModels(t *testing.T) {
 				newModel("m1-gpt-4o", provider, "gpt-4o", true),
 				newModel("m1-gpt-4o-mini", provider, "gpt-4o-mini", true),
 			},
-			policies: []*v1.ModelAccessPolicy{userPolicy("m1-gpt-4o")},
+			policies: []*v1.AccessPolicy{userPolicy("m1-gpt-4o")},
 			want:     map[string]bool{"gpt-4o": true},
 		},
 		{
@@ -138,7 +138,7 @@ func TestGetUserAllowedTargetModels(t *testing.T) {
 			},
 			// Grant every model name; only the active, same-provider one survives
 			// because the provider index drops the others.
-			policies: []*v1.ModelAccessPolicy{userPolicy("m1-gpt-4o", "m1-gpt-4o-inactive", "m1-other")},
+			policies: []*v1.AccessPolicy{userPolicy("m1-gpt-4o", "m1-gpt-4o-inactive", "m1-other")},
 			want:     map[string]bool{"gpt-4o": true},
 		},
 		{
@@ -154,7 +154,7 @@ func TestGetUserAllowedTargetModels(t *testing.T) {
 					withUsage(types2.ModelUsageEmbedding),
 				),
 			},
-			policies: []*v1.ModelAccessPolicy{wildcardPolicy},
+			policies: []*v1.AccessPolicy{wildcardPolicy},
 			want: map[string]bool{
 				"gpt-4o":      true,
 				"gpt-4o-mini": true,
@@ -166,7 +166,7 @@ func TestGetUserAllowedTargetModels(t *testing.T) {
 				newModel("m1-openai", provider, "openai.gpt-5.5", true, withDialect("OpenAIResponses")),
 				newModel("m1-anthropic", provider, "anthropic.claude-haiku-4-5", true, withDialect("AnthropicMessages")),
 			},
-			policies: []*v1.ModelAccessPolicy{userPolicy("m1-openai", "m1-anthropic")},
+			policies: []*v1.AccessPolicy{userPolicy("m1-openai", "m1-anthropic")},
 			dialect:  "AnthropicMessages",
 			want:     map[string]bool{"anthropic.claude-haiku-4-5": true},
 		},
@@ -176,7 +176,7 @@ func TestGetUserAllowedTargetModels(t *testing.T) {
 				newModel("m1-openai", provider, "openai.gpt-5.5", true, withDialect("OpenAIResponses")),
 				newModel("m1-anthropic", provider, "anthropic.claude-haiku-4-5", true, withDialect("AnthropicMessages")),
 			},
-			policies: []*v1.ModelAccessPolicy{wildcardPolicy},
+			policies: []*v1.AccessPolicy{wildcardPolicy},
 			dialect:  "OpenAIResponses",
 			want:     map[string]bool{"openai.gpt-5.5": true},
 		},
@@ -201,7 +201,7 @@ func TestGetUserAllowedTargetModels(t *testing.T) {
 					withUsage(types2.ModelUsageEmbedding),
 				),
 			},
-			policies: []*v1.ModelAccessPolicy{userPolicy("gpt-4o*")},
+			policies: []*v1.AccessPolicy{userPolicy("gpt-4o*")},
 			want:     map[string]bool{"gpt-4o": true, "gpt-4o-mini": true},
 		},
 		{
@@ -215,7 +215,7 @@ func TestGetUserAllowedTargetModels(t *testing.T) {
 					withUsage(types2.ModelUsageEmbedding),
 				),
 			},
-			policies: []*v1.ModelAccessPolicy{userPolicy("m1-text-embedding")},
+			policies: []*v1.AccessPolicy{userPolicy("m1-text-embedding")},
 			want:     map[string]bool{},
 		},
 		{
@@ -223,7 +223,7 @@ func TestGetUserAllowedTargetModels(t *testing.T) {
 			models: []*v1.Model{
 				newModel("m1-gpt-4o", provider, "gpt-4o", true),
 			},
-			policies: []*v1.ModelAccessPolicy{userPolicy("GPT-4o*")},
+			policies: []*v1.AccessPolicy{userPolicy("GPT-4o*")},
 			want:     map[string]bool{},
 		},
 		{
@@ -231,7 +231,7 @@ func TestGetUserAllowedTargetModels(t *testing.T) {
 			models: []*v1.Model{
 				newModel("m1-gpt-4o", provider, "gpt-4o", true),
 			},
-			policies: []*v1.ModelAccessPolicy{userPolicy("claude-haiku-4-5*")},
+			policies: []*v1.AccessPolicy{userPolicy("claude-haiku-4-5*")},
 			want:     map[string]bool{},
 		},
 		{
@@ -241,7 +241,7 @@ func TestGetUserAllowedTargetModels(t *testing.T) {
 				newModel("m1-gpt-5", provider, "gpt-5", true),
 				newModel("m1-o3", provider, "o3", true),
 			},
-			policies: []*v1.ModelAccessPolicy{userPolicy("gpt-4o*", "m1-o3")},
+			policies: []*v1.AccessPolicy{userPolicy("gpt-4o*", "m1-o3")},
 			want:     map[string]bool{"gpt-4o": true, "o3": true},
 		},
 		{
@@ -250,7 +250,7 @@ func TestGetUserAllowedTargetModels(t *testing.T) {
 				newModel("m1-gpt-4o", provider, "gpt-4o", true),
 				newModel("m1-gpt-4o-mini", provider, "gpt-4o-mini", false),
 			},
-			policies: []*v1.ModelAccessPolicy{userPolicy("gpt-4o*")},
+			policies: []*v1.AccessPolicy{userPolicy("gpt-4o*")},
 			want:     map[string]bool{"gpt-4o": true},
 		},
 	}
@@ -276,9 +276,9 @@ func TestUserHasAccessToModelWithWildcardSuffix(t *testing.T) {
 		newModel("m1-anthropic-claude-opus", "anthropic-model-provider", "claude-opus-4-8", true),
 	}
 
-	policy := &v1.ModelAccessPolicy{
-		Name: "p-pattern", Namespace: "default",
-		Spec: v1.ModelAccessPolicySpec{Manifest: types2.ModelAccessPolicyManifest{
+	policy := &v1.AccessPolicy{
+		ObjectMeta: metav1.ObjectMeta{Name: "p-pattern", Namespace: "default"},
+		Spec: v1.AccessPolicySpec{Manifest: types2.AccessPolicyManifest{
 			Subjects: []types2.Subject{{Type: types2.SubjectTypeUser, ID: userID}},
 			Models:   []types2.ModelResource{{ID: "claude-haiku-4-5*"}},
 		}},
@@ -301,7 +301,7 @@ func TestUserHasAccessToModelWithWildcardSuffix(t *testing.T) {
 
 // newModelHelper returns a Helper whose model and policy indexers are populated,
 // mirroring the production indexes built in NewHelper.
-func newModelHelper(t *testing.T, models []*v1.Model, policies ...*v1.ModelAccessPolicy) *Helper {
+func newModelHelper(t *testing.T, models []*v1.Model, policies ...*v1.AccessPolicy) *Helper {
 	t.Helper()
 
 	modelIndexer := gocache.NewIndexer(gocache.MetaNamespaceKeyFunc, gocache.Indexers{
@@ -377,9 +377,9 @@ func TestGetAgentAllowedTargetModels(t *testing.T) {
 
 	// The owner is granted nothing, so any result drawn from policy is empty.
 	// That is what makes these cases prove the agent is not evaluated that way.
-	restrictive := &v1.ModelAccessPolicy{
-		Name: "p-none", Namespace: "default",
-		Spec: v1.ModelAccessPolicySpec{Manifest: types2.ModelAccessPolicyManifest{
+	restrictive := &v1.AccessPolicy{
+		ObjectMeta: metav1.ObjectMeta{Name: "p-none", Namespace: "default"},
+		Spec: v1.AccessPolicySpec{Manifest: types2.AccessPolicyManifest{
 			Subjects: []types2.Subject{{Type: types2.SubjectTypeUser, ID: "someone-else"}},
 			Models:   []types2.ModelResource{},
 		}},

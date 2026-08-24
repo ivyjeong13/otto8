@@ -30,13 +30,12 @@ const adminSectionLabels = [
 
 const adminSharedLinks = [
 	'/admin/mcp-catalog',
-	'/admin/mcp-access-policies',
+	'/admin/access-policies',
 	'/admin/mcp-deployments',
 	'/admin/audit-logs',
 	'/admin/usage',
 	'/admin/filters',
 	'/admin/skills',
-	'/admin/skill-access-policies',
 	'/admin/devices',
 	'/admin/enforcement-decisions',
 	'/admin/users',
@@ -47,7 +46,6 @@ const adminSharedLinks = [
 	'/admin/token-usage',
 	'/admin/llm-audit-logs',
 	'/admin/model-providers',
-	'/admin/model-access-policies',
 	'/admin/license',
 	'/admin/branding',
 	'/admin/app-notification'
@@ -169,9 +167,9 @@ describe('Layout.svelte', () => {
 				await renderLayout([Group.POWERUSER]);
 				await openAdvancedPane('Advanced Settings');
 				await expect.element(page.getByText('MCP Management', { exact: true })).toBeVisible();
-				await expandSection('mcp-server-management', '/mcp-catalog');
+				await expandSection('mcp-server-management', '/audit-logs');
 
-				for (const href of ['/mcp-catalog', '/audit-logs', '/usage']) {
+				for (const href of ['/audit-logs', '/usage']) {
 					await expectLink(href);
 				}
 				await expect
@@ -185,9 +183,9 @@ describe('Layout.svelte', () => {
 				await renderLayout([Group.POWERUSER, Group.POWERUSER_PLUS]);
 				await openAdvancedPane('Advanced Settings');
 				await expect.element(page.getByText('MCP Management', { exact: true })).toBeVisible();
-				await expandSection('mcp-server-management', '/mcp-catalog');
+				await expandSection('mcp-server-management', '/mcp-access-policies');
 
-				for (const href of ['/mcp-catalog', '/mcp-access-policies', '/audit-logs', '/usage']) {
+				for (const href of ['/mcp-access-policies', '/audit-logs', '/usage']) {
 					await expectLink(href);
 				}
 			});

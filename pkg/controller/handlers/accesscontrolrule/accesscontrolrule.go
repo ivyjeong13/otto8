@@ -22,13 +22,13 @@ func New(acrHelper *accesscontrolrule.Helper) *Handler {
 }
 
 func (h *Handler) PruneDeletedResources(req router.Request, _ router.Response) error {
-	acr := req.Object.(*v1.AccessControlRule)
+	acr := req.Object.(*v1.AccessPolicy)
 
 	// Make sure each resource still exists and belongs to the same catalog, remove it if not.
 	var (
 		mcpservercatalogentry v1.MCPServerCatalogEntry
 		mcpserver             v1.MCPServer
-		newResources          = make([]types.Resource, 0, len(acr.Spec.Manifest.Resources))
+		newResources          = make([]types.Resource, 0, len(acr.Spec.Manifest.MCPServers))
 		catalogID             = acr.Spec.MCPCatalogID
 	)
 
@@ -40,7 +40,7 @@ func (h *Handler) PruneDeletedResources(req router.Request, _ router.Response) e
 	// Loop through each resource and make sure that it exists in the catalog or workspace.
 	// We shouldn't ever have a situation where the resource has somehow "moved" to a different catalog or workspace,
 	// but we'll check anyway.
-	for _, resource := range acr.Spec.Manifest.Resources {
+	for _, resource := range acr.Spec.Manifest.MCPServers {
 		switch resource.Type {
 		case types.ResourceTypeMCPServerCatalogEntry:
 			if err := req.Get(&mcpservercatalogentry, req.Namespace, resource.ID); err == nil {
@@ -81,8 +81,8 @@ func (h *Handler) PruneDeletedResources(req router.Request, _ router.Response) e
 		}
 	}
 
-	if len(newResources) != len(acr.Spec.Manifest.Resources) {
-		acr.Spec.Manifest.Resources = newResources
+	if len(newResources) != len(acr.Spec.Manifest.MCPServers) {
+		acr.Spec.Manifest.MCPServers = newResources
 		return req.Client.Update(req.Ctx, acr)
 	}
 

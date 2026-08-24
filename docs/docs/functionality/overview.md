@@ -34,12 +34,11 @@ The only functional difference between Owners and Admins is that Owners can assi
 
 - [MCP Servers](./mcp-servers.md) - Deploy, configure, and manage MCP servers
 - [MCP Tunnels](./mcp-tunnels.md) - Connect the gateway to remote MCP servers on private networks
-- [MCP Access Policies](./mcp-access-policies.md) - Control which servers are available to which users and groups
+- [Access Policies](./access-policies.md) - Grant users and groups access to MCP servers, skills, models, and hosted agents
 - [Audit Logs and Usage](./audit-logs-and-usage.md) - Monitor activity and track consumption
 - [Filters](./filters.md) - Inspect and control MCP traffic
 - [Server Scheduling](./server-scheduling.md) - Configure pod scheduling behavior for MCP servers
 - [Skills](./skills.md) - Manage skill sources and browse discoverable skills for agents
-- [Skill Access Policies](./skill-access-policies.md) - Control which users and groups can access which skills
 - [Device Management](./device-management.md) - Inventory local AI clients, MCP servers, skills, and plugins, audit local tool calls, and enforce tool call allowlists
 - [Obot Agent Management](./obot-agent-management.md) - Configure default agent, conversation, and workflow settings, and monitor activity
 - [Message Policies](./message-policies.md) - Enforce content rules on user prompts and tool calls, and review violations

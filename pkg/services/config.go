@@ -816,78 +816,61 @@ func New(ctx context.Context, config Config) (*Services, error) {
 		return nil, err
 	}
 
-	acrGVK, err := r.Backend().GroupVersionKindFor(&v1.AccessControlRule{})
+	accessPolicyGVK, err := r.Backend().GroupVersionKindFor(&v1.AccessPolicy{})
 	if err != nil {
 		return nil, err
 	}
 
-	acrInformer, err := r.Backend().GetInformerForKind(ctx, acrGVK)
+	accessPolicyInformer, err := r.Backend().GetInformerForKind(ctx, accessPolicyGVK)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = acrInformer.AddIndexers(map[string]gocache.IndexFunc{
-		"user-ids": func(obj any) ([]string, error) {
-			acr := obj.(*v1.AccessControlRule)
+	if err = accessPolicyInformer.AddIndexers(map[string]gocache.IndexFunc{
+		"mcp-user-ids": func(obj any) ([]string, error) {
+			policy := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, subject := range acr.Spec.Manifest.Subjects {
+			for _, subject := range policy.Spec.Manifest.Subjects {
 				if subject.Type == apiclienttypes.SubjectTypeUser {
 					results = append(results, subject.ID)
 				}
 			}
 			return results, nil
 		},
-		"catalog-entry-names": func(obj any) ([]string, error) {
-			acr := obj.(*v1.AccessControlRule)
+		"mcp-catalog-entry-names": func(obj any) ([]string, error) {
+			policy := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range acr.Spec.Manifest.Resources {
+			for _, resource := range policy.Spec.Manifest.MCPServers {
 				if resource.Type == apiclienttypes.ResourceTypeMCPServerCatalogEntry {
 					results = append(results, resource.ID)
 				}
 			}
 			return results, nil
 		},
-		"server-names": func(obj any) ([]string, error) {
-			acr := obj.(*v1.AccessControlRule)
+		"mcp-server-names": func(obj any) ([]string, error) {
+			policy := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range acr.Spec.Manifest.Resources {
+			for _, resource := range policy.Spec.Manifest.MCPServers {
 				if resource.Type == apiclienttypes.ResourceTypeMCPServer {
 					results = append(results, resource.ID)
 				}
 			}
 			return results, nil
 		},
-		"selectors": func(obj any) ([]string, error) {
-			acr := obj.(*v1.AccessControlRule)
+		"mcp-selectors": func(obj any) ([]string, error) {
+			policy := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range acr.Spec.Manifest.Resources {
+			for _, resource := range policy.Spec.Manifest.MCPServers {
 				if resource.Type == apiclienttypes.ResourceTypeSelector {
 					results = append(results, resource.ID)
 				}
 			}
 			return results, nil
 		},
-	}); err != nil {
-		return nil, err
-	}
-
-	acrHelper := accesscontrolrule.NewAccessControlRuleHelper(acrInformer.GetIndexer(), r.Backend())
-
-	skillAccessRuleGVK, err := r.Backend().GroupVersionKindFor(&v1.SkillAccessRule{})
-	if err != nil {
-		return nil, err
-	}
-
-	skillAccessRuleInformer, err := r.Backend().GetInformerForKind(ctx, skillAccessRuleGVK)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = skillAccessRuleInformer.AddIndexers(map[string]gocache.IndexFunc{
 		skillaccessrule.SkillIDIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+			policy := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range rule.Spec.Manifest.Resources {
+			for _, resource := range policy.Spec.Manifest.Skills {
 				if resource.Type == apiclienttypes.SkillResourceTypeSkill {
 					results = append(results, resource.ID)
 				}
@@ -895,9 +878,9 @@ func New(ctx context.Context, config Config) (*Services, error) {
 			return results, nil
 		},
 		skillaccessrule.RepositoryIDIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+			policy := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range rule.Spec.Manifest.Resources {
+			for _, resource := range policy.Spec.Manifest.Skills {
 				if resource.Type == apiclienttypes.SkillResourceTypeSkillRepository {
 					results = append(results, resource.ID)
 				}
@@ -905,9 +888,9 @@ func New(ctx context.Context, config Config) (*Services, error) {
 			return results, nil
 		},
 		skillaccessrule.ResourceSelectorIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+			policy := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range rule.Spec.Manifest.Resources {
+			for _, resource := range policy.Spec.Manifest.Skills {
 				if resource.Type == apiclienttypes.SkillResourceTypeSelector {
 					results = append(results, resource.ID)
 				}
@@ -915,9 +898,9 @@ func New(ctx context.Context, config Config) (*Services, error) {
 			return results, nil
 		},
 		skillaccessrule.UserIDIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+			policy := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, subject := range rule.Spec.Manifest.Subjects {
+			for _, subject := range policy.Spec.Manifest.Subjects {
 				if subject.Type == apiclienttypes.SubjectTypeUser {
 					results = append(results, subject.ID)
 				}
@@ -925,9 +908,9 @@ func New(ctx context.Context, config Config) (*Services, error) {
 			return results, nil
 		},
 		skillaccessrule.GroupIDIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+			policy := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, subject := range rule.Spec.Manifest.Subjects {
+			for _, subject := range policy.Spec.Manifest.Subjects {
 				if subject.Type == apiclienttypes.SubjectTypeGroup {
 					results = append(results, subject.ID)
 				}
@@ -935,36 +918,19 @@ func New(ctx context.Context, config Config) (*Services, error) {
 			return results, nil
 		},
 		skillaccessrule.SubjectSelectorIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+			policy := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, subject := range rule.Spec.Manifest.Subjects {
+			for _, subject := range policy.Spec.Manifest.Subjects {
 				if subject.Type == apiclienttypes.SubjectTypeSelector {
 					results = append(results, subject.ID)
 				}
 			}
 			return results, nil
 		},
-	}); err != nil {
-		return nil, err
-	}
-
-	skillAccessRuleHelper := skillaccessrule.NewHelper(skillAccessRuleInformer.GetIndexer())
-
-	hostedAgentAccessRuleGVK, err := r.Backend().GroupVersionKindFor(&v1.HostedAgentAccessRule{})
-	if err != nil {
-		return nil, err
-	}
-
-	hostedAgentAccessRuleInformer, err := r.Backend().GetInformerForKind(ctx, hostedAgentAccessRuleGVK)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = hostedAgentAccessRuleInformer.AddIndexers(map[string]gocache.IndexFunc{
 		hostedagentaccessrule.HostedAgentIDIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.HostedAgentAccessRule)
+			policy := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range rule.Spec.Manifest.Resources {
+			for _, resource := range policy.Spec.Manifest.HostedAgents {
 				if resource.Type == apiclienttypes.HostedAgentResourceTypeHostedAgent {
 					results = append(results, resource.ID)
 				}
@@ -972,9 +938,9 @@ func New(ctx context.Context, config Config) (*Services, error) {
 			return results, nil
 		},
 		hostedagentaccessrule.ResourceSelectorIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.HostedAgentAccessRule)
+			policy := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range rule.Spec.Manifest.Resources {
+			for _, resource := range policy.Spec.Manifest.HostedAgents {
 				if resource.Type == apiclienttypes.HostedAgentResourceTypeSelector {
 					results = append(results, resource.ID)
 				}
@@ -982,9 +948,9 @@ func New(ctx context.Context, config Config) (*Services, error) {
 			return results, nil
 		},
 		hostedagentaccessrule.UserIDIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.HostedAgentAccessRule)
+			policy := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, subject := range rule.Spec.Manifest.Subjects {
+			for _, subject := range policy.Spec.Manifest.Subjects {
 				if subject.Type == apiclienttypes.SubjectTypeUser {
 					results = append(results, subject.ID)
 				}
@@ -992,9 +958,9 @@ func New(ctx context.Context, config Config) (*Services, error) {
 			return results, nil
 		},
 		hostedagentaccessrule.GroupIDIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.HostedAgentAccessRule)
+			policy := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, subject := range rule.Spec.Manifest.Subjects {
+			for _, subject := range policy.Spec.Manifest.Subjects {
 				if subject.Type == apiclienttypes.SubjectTypeGroup {
 					results = append(results, subject.ID)
 				}
@@ -1002,9 +968,9 @@ func New(ctx context.Context, config Config) (*Services, error) {
 			return results, nil
 		},
 		hostedagentaccessrule.SubjectSelectorIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.HostedAgentAccessRule)
+			policy := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, subject := range rule.Spec.Manifest.Subjects {
+			for _, subject := range policy.Spec.Manifest.Subjects {
 				if subject.Type == apiclienttypes.SubjectTypeSelector {
 					results = append(results, subject.ID)
 				}
@@ -1015,7 +981,9 @@ func New(ctx context.Context, config Config) (*Services, error) {
 		return nil, err
 	}
 
-	hostedAgentAccessRuleHelper := hostedagentaccessrule.NewHelper(hostedAgentAccessRuleInformer.GetIndexer())
+	acrHelper := accesscontrolrule.NewAccessControlRuleHelper(accessPolicyInformer.GetIndexer(), r.Backend())
+	skillAccessRuleHelper := skillaccessrule.NewHelper(accessPolicyInformer.GetIndexer())
+	hostedAgentAccessRuleHelper := hostedagentaccessrule.NewHelper(accessPolicyInformer.GetIndexer())
 
 	mapHelper, err := modelaccesspolicy.NewHelper(ctx, r.Backend())
 	if err != nil {

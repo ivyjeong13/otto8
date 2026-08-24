@@ -21,6 +21,21 @@ func (in AccessControlRuleSpec) OpenAPIModelName() string {
 }
 
 // OpenAPIModelName returns the OpenAPI model name for this type.
+func (in AccessPolicy) OpenAPIModelName() string {
+	return "com.github.obot-platform.obot.pkg.storage.apis.obot.obot.ai.v1.AccessPolicy"
+}
+
+// OpenAPIModelName returns the OpenAPI model name for this type.
+func (in AccessPolicyList) OpenAPIModelName() string {
+	return "com.github.obot-platform.obot.pkg.storage.apis.obot.obot.ai.v1.AccessPolicyList"
+}
+
+// OpenAPIModelName returns the OpenAPI model name for this type.
+func (in AccessPolicySpec) OpenAPIModelName() string {
+	return "com.github.obot-platform.obot.pkg.storage.apis.obot.obot.ai.v1.AccessPolicySpec"
+}
+
+// OpenAPIModelName returns the OpenAPI model name for this type.
 func (in AgentCatalog) OpenAPIModelName() string {
 	return "com.github.obot-platform.obot.pkg.storage.apis.obot.obot.ai.v1.AgentCatalog"
 }

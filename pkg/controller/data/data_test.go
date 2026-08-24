@@ -27,10 +27,10 @@ func TestDataCreatesDefaultModelAccessPolicyWithLLMAliases(t *testing.T) {
 
 	require.NoError(t, Data(ctx, client, Defaults{}))
 
-	var policy v1.ModelAccessPolicy
+	var policy v1.AccessPolicy
 	require.NoError(t, client.Get(ctx, kclient.ObjectKey{
 		Namespace: system.DefaultNamespace,
-		Name:      system.ModelAccessPolicyPrefix + "-default",
+		Name:      system.AccessPolicyPrefix + "-default-models",
 	}, &policy))
 	assert.Equal(t, "Default Policy", policy.Spec.Manifest.DisplayName)
 	assert.Equal(t, []types.Subject{{
@@ -45,6 +45,27 @@ func TestDataCreatesDefaultModelAccessPolicyWithLLMAliases(t *testing.T) {
 	var aliases v1.DefaultModelAliasList
 	require.NoError(t, client.List(ctx, &aliases))
 	assert.Len(t, aliases.Items, 5)
+}
+
+func TestDataCreatesDefaultAccessPolicies(t *testing.T) {
+	ctx := t.Context()
+	client := newFakeClient(t)
+
+	require.NoError(t, Data(ctx, client, Defaults{}))
+
+	var policies v1.AccessPolicyList
+	require.NoError(t, client.List(ctx, &policies))
+	require.Len(t, policies.Items, 4)
+
+	byName := make(map[string]v1.AccessPolicy, len(policies.Items))
+	for _, policy := range policies.Items {
+		byName[policy.Name] = policy
+	}
+	assert.Equal(t, system.DefaultCatalog, byName[system.AccessPolicyPrefix+"-everything-mcp"].Spec.MCPCatalogID)
+	assert.NotEmpty(t, byName[system.AccessPolicyPrefix+"-everything-mcp"].Spec.Manifest.MCPServers)
+	assert.NotEmpty(t, byName[system.AccessPolicyPrefix+"-everything-skills"].Spec.Manifest.Skills)
+	assert.NotEmpty(t, byName[system.AccessPolicyPrefix+"-everything-hosted-agents"].Spec.Manifest.HostedAgents)
+	assert.NotEmpty(t, byName[system.AccessPolicyPrefix+"-default-models"].Spec.Manifest.Models)
 }
 
 func TestCreateDefaultSkillRepository(t *testing.T) {

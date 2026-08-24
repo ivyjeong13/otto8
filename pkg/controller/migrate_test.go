@@ -39,11 +39,13 @@ func TestMigrateDefaultModelAccessPolicyModels(t *testing.T) {
 			ID:   "custom-group",
 		}}
 		client := newFakeClient(t,
-			&v1.ModelAccessPolicy{
-				Name:      defaultPolicyName,
-				Namespace: system.DefaultNamespace,
-				Spec: v1.ModelAccessPolicySpec{
-					Manifest: types.ModelAccessPolicyManifest{
+			&v1.AccessPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      defaultPolicyName,
+					Namespace: system.DefaultNamespace,
+				},
+				Spec: v1.AccessPolicySpec{
+					Manifest: types.AccessPolicyManifest{
 						DisplayName: "Customized Default Policy",
 						Subjects:    subjects,
 						Models: []types.ModelResource{
@@ -58,11 +60,13 @@ func TestMigrateDefaultModelAccessPolicyModels(t *testing.T) {
 					},
 				},
 			},
-			&v1.ModelAccessPolicy{
-				Name:      "custom-policy",
-				Namespace: system.DefaultNamespace,
-				Spec: v1.ModelAccessPolicySpec{
-					Manifest: types.ModelAccessPolicyManifest{
+			&v1.AccessPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "custom-policy",
+					Namespace: system.DefaultNamespace,
+				},
+				Spec: v1.AccessPolicySpec{
+					Manifest: types.AccessPolicyManifest{
 						Subjects: subjects,
 						Models: []types.ModelResource{
 							{ID: "obot://text-embedding"},
@@ -88,7 +92,7 @@ func TestMigrateDefaultModelAccessPolicyModels(t *testing.T) {
 		require.NoError(t, migrateDefaultModelAccessPolicyModels(ctx, client))
 		require.NoError(t, migrateDefaultModelAccessPolicyModels(ctx, client))
 
-		var defaultPolicy v1.ModelAccessPolicy
+		var defaultPolicy v1.AccessPolicy
 		require.NoError(t, client.Get(ctx, kclient.ObjectKey{
 			Namespace: system.DefaultNamespace,
 			Name:      defaultPolicyName,
@@ -102,7 +106,7 @@ func TestMigrateDefaultModelAccessPolicyModels(t *testing.T) {
 			{ID: "custom-*"},
 		}, defaultPolicy.Spec.Manifest.Models)
 
-		var customPolicy v1.ModelAccessPolicy
+		var customPolicy v1.AccessPolicy
 		require.NoError(t, client.Get(ctx, kclient.ObjectKey{
 			Namespace: system.DefaultNamespace,
 			Name:      "custom-policy",
@@ -115,6 +119,86 @@ func TestMigrateDefaultModelAccessPolicyModels(t *testing.T) {
 			{ID: "obot://unknown"},
 		}, customPolicy.Spec.Manifest.Models)
 	})
+}
+
+func TestMigrateAccessPolicies(t *testing.T) {
+	ctx := t.Context()
+	objects := []kclient.Object{
+		&v1.AccessControlRule{
+			ObjectMeta: metav1.ObjectMeta{Name: "acr1-one", Namespace: system.DefaultNamespace},
+			Spec: v1.AccessControlRuleSpec{
+				MCPCatalogID: "mcpc1-test",
+				Manifest: types.AccessControlRuleManifest{
+					DisplayName: "MCP",
+					Subjects:    []types.Subject{{Type: types.SubjectTypeUser, ID: "u1"}},
+					Resources:   []types.Resource{{Type: types.ResourceTypeMCPServer, ID: "mcp1-one"}},
+				},
+			},
+		},
+		&v1.AccessControlRule{
+			ObjectMeta: metav1.ObjectMeta{Name: "acr1-workspace", Namespace: system.DefaultNamespace},
+			Spec: v1.AccessControlRuleSpec{
+				PowerUserWorkspaceID: "pws1",
+				Generated:            true,
+				Manifest: types.AccessControlRuleManifest{
+					DisplayName: "Workspace MCP",
+					Subjects:    []types.Subject{{Type: types.SubjectTypeUser, ID: "u3"}},
+					Resources:   []types.Resource{{Type: types.ResourceTypeSelector, ID: "*"}},
+				},
+			},
+		},
+		&v1.SkillAccessRule{
+			ObjectMeta: metav1.ObjectMeta{Name: "sar1-one", Namespace: system.DefaultNamespace},
+			Spec: v1.SkillAccessRuleSpec{Manifest: types.SkillAccessRuleManifest{
+				DisplayName: "Skills",
+				Subjects:    []types.Subject{{Type: types.SubjectTypeGroup, ID: "g1"}},
+				Resources:   []types.SkillResource{{Type: types.SkillResourceTypeSkill, ID: "skill1"}},
+			}},
+		},
+		&v1.ModelAccessPolicy{
+			ObjectMeta: metav1.ObjectMeta{Name: "map1-one", Namespace: system.DefaultNamespace},
+			Spec: v1.ModelAccessPolicySpec{Manifest: types.ModelAccessPolicyManifest{
+				DisplayName: "Models",
+				Subjects:    []types.Subject{{Type: types.SubjectTypeSelector, ID: "*"}},
+				Models:      []types.ModelResource{{ID: "obot://llm"}},
+			}},
+		},
+		&v1.HostedAgentAccessRule{
+			ObjectMeta: metav1.ObjectMeta{Name: "haar1-one", Namespace: system.DefaultNamespace},
+			Spec: v1.HostedAgentAccessRuleSpec{Manifest: types.HostedAgentAccessRuleManifest{
+				DisplayName: "Agents",
+				Subjects:    []types.Subject{{Type: types.SubjectTypeUser, ID: "u2"}},
+				Resources:   []types.HostedAgentResource{{Type: types.HostedAgentResourceTypeHostedAgent, ID: "ha1"}},
+			}},
+		},
+	}
+
+	client := newFakeClient(t, objects...)
+	require.NoError(t, migrateAccessPolicies(ctx, client))
+	require.NoError(t, migrateAccessPolicies(ctx, client), "migration must be restart-safe")
+
+	var list v1.AccessPolicyList
+	require.NoError(t, client.List(ctx, &list))
+	require.Len(t, list.Items, 5)
+
+	policies := make(map[string]v1.AccessPolicy, len(list.Items))
+	for _, policy := range list.Items {
+		policies[policy.Name] = policy
+		assert.Equal(t, []string{v1.AccessPolicyFinalizer}, policy.Finalizers)
+	}
+	assert.Equal(t, "mcpc1-test", policies["acr1-one"].Spec.MCPCatalogID)
+	assert.Equal(t, objects[0].(*v1.AccessControlRule).Spec.Manifest.Resources, policies["acr1-one"].Spec.Manifest.MCPServers)
+	assert.Equal(t, "pws1", policies["acr1-workspace"].Spec.PowerUserWorkspaceID)
+	assert.True(t, policies["acr1-workspace"].Spec.Generated)
+	assert.Equal(t, objects[2].(*v1.SkillAccessRule).Spec.Manifest.Resources, policies["sar1-one"].Spec.Manifest.Skills)
+	assert.Equal(t, objects[3].(*v1.ModelAccessPolicy).Spec.Manifest.Models, policies["map1-one"].Spec.Manifest.Models)
+	assert.Equal(t, objects[4].(*v1.HostedAgentAccessRule).Spec.Manifest.Resources, policies["haar1-one"].Spec.Manifest.HostedAgents)
+
+	for _, object := range objects {
+		key := kclient.ObjectKeyFromObject(object)
+		require.NoError(t, client.Get(ctx, key, object))
+		assert.NotEmpty(t, object.GetAnnotations()[accessPolicyMigrationAnnotation])
+	}
 }
 
 func TestMigratePublishedArtifactVisibility(t *testing.T) {

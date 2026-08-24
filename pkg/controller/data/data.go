@@ -13,23 +13,13 @@ import (
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	"github.com/obot-platform/obot/pkg/system"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
 
-var (
-	//go:embed default-model-aliases.yaml
-	defaultModelAliasesData []byte
-
-	//go:embed everything-access-control-rule.yaml
-	everythingAccessControlRuleData []byte
-
-	//go:embed everything-skill-access-rule.yaml
-	everythingSkillAccessRuleData []byte
-
-	//go:embed everything-hosted-agent-access-rule.yaml
-	everythingHostedAgentAccessRuleData []byte
-)
+//go:embed default-model-aliases.yaml
+var defaultModelAliasesData []byte
 
 // Defaults are the seed values for the resources that point at Obot's own
 // content repositories. They are grouped rather than passed positionally
@@ -70,16 +60,26 @@ func Data(ctx context.Context, c kclient.Client, defaults Defaults) error {
 		})
 	}
 
-	var policies v1.ModelAccessPolicyList
+	var policies v1.AccessPolicyList
 	// Only create the "default models" model access policy if there are no existing policies
 	if err := c.List(ctx, &policies); err != nil {
 		return err
-	} else if len(policies.Items) == 0 && len(defaultModelAccessPolicyResources) > 0 {
-		if err := kclient.IgnoreAlreadyExists(c.Create(ctx, &v1.ModelAccessPolicy{
-			Name:      system.ModelAccessPolicyPrefix + "-default",
-			Namespace: system.DefaultNamespace,
-			Spec: v1.ModelAccessPolicySpec{
-				Manifest: types.ModelAccessPolicyManifest{
+	}
+	hasModelPolicy := false
+	for _, policy := range policies.Items {
+		if len(policy.Spec.Manifest.Models) > 0 {
+			hasModelPolicy = true
+			break
+		}
+	}
+	if !hasModelPolicy && len(defaultModelAccessPolicyResources) > 0 {
+		if err := kclient.IgnoreAlreadyExists(c.Create(ctx, &v1.AccessPolicy{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      system.AccessPolicyPrefix + "-default-models",
+				Namespace: system.DefaultNamespace,
+			},
+			Spec: v1.AccessPolicySpec{
+				Manifest: types.AccessPolicyManifest{
 					DisplayName: "Default Policy",
 					Subjects: []types.Subject{{
 						Type: types.SubjectTypeSelector,
@@ -93,11 +93,6 @@ func Data(ctx context.Context, c kclient.Client, defaults Defaults) error {
 		}
 	}
 
-	var everythingAccessControlRule v1.AccessControlRule
-	if err := yaml.Unmarshal(everythingAccessControlRuleData, &everythingAccessControlRule); err != nil {
-		return fmt.Errorf("failed to unmarshal everything access control rule: %w", err)
-	}
-
 	var catalogs v1.MCPCatalogList
 	// Only seed default access/skill rules, the default skill repository, and the
 	// default agent catalog if there are no catalogs.
@@ -106,25 +101,7 @@ func Data(ctx context.Context, c kclient.Client, defaults Defaults) error {
 	if err := c.List(ctx, &catalogs); err != nil {
 		return err
 	} else if len(catalogs.Items) == 0 {
-		if err := kclient.IgnoreAlreadyExists(c.Create(ctx, &everythingAccessControlRule)); err != nil {
-			return err
-		}
-
-		var everythingSkillAccessRule v1.SkillAccessRule
-		if err := yaml.Unmarshal(everythingSkillAccessRuleData, &everythingSkillAccessRule); err != nil {
-			return fmt.Errorf("failed to unmarshal everything skill access rule: %w", err)
-		}
-
-		if err := kclient.IgnoreAlreadyExists(c.Create(ctx, &everythingSkillAccessRule)); err != nil {
-			return err
-		}
-
-		var everythingHostedAgentAccessRule v1.HostedAgentAccessRule
-		if err := yaml.Unmarshal(everythingHostedAgentAccessRuleData, &everythingHostedAgentAccessRule); err != nil {
-			return fmt.Errorf("failed to unmarshal everything hosted agent access rule: %w", err)
-		}
-
-		if err := kclient.IgnoreAlreadyExists(c.Create(ctx, &everythingHostedAgentAccessRule)); err != nil {
+		if err := createDefaultAccessPolicies(ctx, c); err != nil {
 			return err
 		}
 
@@ -134,6 +111,73 @@ func Data(ctx context.Context, c kclient.Client, defaults Defaults) error {
 
 		if err := createDefaultAgentCatalog(ctx, c, defaults.HostedAgentsCatalogURL, defaults.HostedAgentsCatalogRef, defaults.AllowLocalRepos); err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func createDefaultAccessPolicies(ctx context.Context, c kclient.Client) error {
+	selectorSubject := []types.Subject{{
+		Type: types.SubjectTypeSelector,
+		ID:   "*",
+	}}
+	policies := []v1.AccessPolicy{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       system.AccessPolicyPrefix + "-everything-mcp",
+				Namespace:  system.DefaultNamespace,
+				Finalizers: []string{v1.AccessPolicyFinalizer},
+			},
+			Spec: v1.AccessPolicySpec{
+				MCPCatalogID: system.DefaultCatalog,
+				Manifest: types.AccessPolicyManifest{
+					DisplayName: "Everything",
+					Subjects:    selectorSubject,
+					MCPServers: []types.Resource{{
+						Type: types.ResourceTypeSelector,
+						ID:   "*",
+					}},
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      system.AccessPolicyPrefix + "-everything-skills",
+				Namespace: system.DefaultNamespace,
+			},
+			Spec: v1.AccessPolicySpec{
+				Manifest: types.AccessPolicyManifest{
+					DisplayName: "Everything",
+					Subjects:    selectorSubject,
+					Skills: []types.SkillResource{{
+						Type: types.SkillResourceTypeSelector,
+						ID:   "*",
+					}},
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      system.AccessPolicyPrefix + "-everything-hosted-agents",
+				Namespace: system.DefaultNamespace,
+			},
+			Spec: v1.AccessPolicySpec{
+				Manifest: types.AccessPolicyManifest{
+					DisplayName: "Everything",
+					Subjects:    selectorSubject,
+					HostedAgents: []types.HostedAgentResource{{
+						Type: types.HostedAgentResourceTypeSelector,
+						ID:   "*",
+					}},
+				},
+			},
+		},
+	}
+
+	for i := range policies {
+		if err := kclient.IgnoreAlreadyExists(c.Create(ctx, &policies[i])); err != nil {
+			return fmt.Errorf("failed to create default access policy %q: %w", policies[i].Name, err)
 		}
 	}
 

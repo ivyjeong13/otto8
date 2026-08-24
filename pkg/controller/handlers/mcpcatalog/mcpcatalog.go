@@ -858,7 +858,7 @@ func (h *Handler) SetUpDefaultSystemMCPCatalog(ctx context.Context, c kclient.Cl
 // It does not delete MCPServerInstances, since those have a delete ref to their MCPServer, and will be deleted automatically.
 func (h *Handler) DeleteUnauthorizedMCPServersForCatalog(req router.Request, _ router.Response) error {
 	// List AccessControlRules so that this handler gets triggered any time one of them changes.
-	if err := req.List(&v1.AccessControlRuleList{}, &kclient.ListOptions{
+	if err := req.List(&v1.AccessPolicyList{}, &kclient.ListOptions{
 		Namespace:     req.Object.GetNamespace(),
 		FieldSelector: fields.OneTermEqualSelector("spec.mcpCatalogID", req.Object.GetName()),
 	}); err != nil {
@@ -922,7 +922,7 @@ func (h *Handler) DeleteUnauthorizedMCPServersForCatalog(req router.Request, _ r
 // It does not delete MCPServerInstances, since those have a delete ref to their MCPServer, and will be deleted automatically.
 func (h *Handler) DeleteUnauthorizedMCPServersForWorkspace(req router.Request, _ router.Response) error {
 	// List AccessControlRules so that this handler gets triggered any time one of them changes.
-	if err := req.List(&v1.AccessControlRuleList{}, &kclient.ListOptions{
+	if err := req.List(&v1.AccessPolicyList{}, &kclient.ListOptions{
 		Namespace:     req.Object.GetNamespace(),
 		FieldSelector: fields.OneTermEqualSelector("spec.powerUserWorkspaceID", req.Object.GetName()),
 	}); err != nil {
@@ -998,7 +998,7 @@ func (h *Handler) DeleteUnauthorizedMCPServersForWorkspace(req router.Request, _
 // This can happen whenever AccessControlRules change.
 func (h *Handler) DeleteUnauthorizedMCPServerInstancesForCatalog(req router.Request, _ router.Response) error {
 	// List AccessControlRules so that this handler gets triggered any time one of them changes.
-	if err := req.List(&v1.AccessControlRuleList{}, &kclient.ListOptions{
+	if err := req.List(&v1.AccessPolicyList{}, &kclient.ListOptions{
 		Namespace:     req.Object.GetNamespace(),
 		FieldSelector: fields.OneTermEqualSelector("spec.mcpCatalogID", req.Object.GetName()),
 	}); err != nil {
@@ -1063,7 +1063,7 @@ func (h *Handler) DeleteUnauthorizedMCPServerInstancesForCatalog(req router.Requ
 // This can happen whenever AccessControlRules change.
 func (h *Handler) DeleteUnauthorizedMCPServerInstancesForWorkspace(req router.Request, _ router.Response) error {
 	// List AccessControlRules so that this handler gets triggered any time one of them changes.
-	if err := req.List(&v1.AccessControlRuleList{}, &kclient.ListOptions{
+	if err := req.List(&v1.AccessPolicyList{}, &kclient.ListOptions{
 		Namespace:     req.Object.GetNamespace(),
 		FieldSelector: fields.OneTermEqualSelector("spec.powerUserWorkspaceID", req.Object.GetName()),
 	}); err != nil {

@@ -11,11 +11,11 @@ import (
 )
 
 const (
-	HostedAgentIDIndex    = "hosted-agent-ids"
-	ResourceSelectorIndex = "selectors"
-	UserIDIndex           = "user-ids"
-	GroupIDIndex          = "group-ids"
-	SubjectSelectorIndex  = "subject-selectors"
+	HostedAgentIDIndex    = "hosted-agent-resource-ids"
+	ResourceSelectorIndex = "hosted-agent-resource-selectors"
+	UserIDIndex           = "hosted-agent-user-ids"
+	GroupIDIndex          = "hosted-agent-group-ids"
+	SubjectSelectorIndex  = "hosted-agent-subject-selectors"
 )
 
 type Helper struct {
@@ -28,23 +28,23 @@ func NewHelper(haarIndexer gocache.Indexer) *Helper {
 	}
 }
 
-func (h *Helper) GetHostedAgentAccessRulesForHostedAgent(namespace, hostedAgentID string) ([]v1.HostedAgentAccessRule, error) {
+func (h *Helper) GetHostedAgentAccessRulesForHostedAgent(namespace, hostedAgentID string) ([]v1.AccessPolicy, error) {
 	return h.getIndexedRules(namespace, HostedAgentIDIndex, hostedAgentID, "hosted agent")
 }
 
-func (h *Helper) GetHostedAgentAccessRulesForSelector(namespace, selector string) ([]v1.HostedAgentAccessRule, error) {
+func (h *Helper) GetHostedAgentAccessRulesForSelector(namespace, selector string) ([]v1.AccessPolicy, error) {
 	return h.getIndexedRules(namespace, ResourceSelectorIndex, selector, "selector")
 }
 
-func (h *Helper) GetHostedAgentAccessRulesForUser(namespace, userID string) ([]v1.HostedAgentAccessRule, error) {
+func (h *Helper) GetHostedAgentAccessRulesForUser(namespace, userID string) ([]v1.AccessPolicy, error) {
 	return h.getIndexedRules(namespace, UserIDIndex, userID, "user")
 }
 
-func (h *Helper) GetHostedAgentAccessRulesForGroup(namespace, groupID string) ([]v1.HostedAgentAccessRule, error) {
+func (h *Helper) GetHostedAgentAccessRulesForGroup(namespace, groupID string) ([]v1.AccessPolicy, error) {
 	return h.getIndexedRules(namespace, GroupIDIndex, groupID, "group")
 }
 
-func (h *Helper) GetHostedAgentAccessRulesForSubjectSelector(namespace, selector string) ([]v1.HostedAgentAccessRule, error) {
+func (h *Helper) GetHostedAgentAccessRulesForSubjectSelector(namespace, selector string) ([]v1.AccessPolicy, error) {
 	return h.getIndexedRules(namespace, SubjectSelectorIndex, selector, "subject selector")
 }
 
@@ -99,7 +99,7 @@ func (h *Helper) GetUserHostedAgentAccessScope(user kuser.Info) (bool, map[strin
 	}
 
 	for _, rule := range rules {
-		for _, resource := range rule.Spec.Manifest.Resources {
+		for _, resource := range rule.Spec.Manifest.HostedAgents {
 			switch resource.Type {
 			case types.HostedAgentResourceTypeSelector:
 				if resource.ID == "*" {
@@ -116,11 +116,11 @@ func (h *Helper) GetUserHostedAgentAccessScope(user kuser.Info) (bool, map[strin
 	return false, hostedAgentIDs, nil
 }
 
-func (h *Helper) getRulesForUser(namespace string, user kuser.Info) ([]v1.HostedAgentAccessRule, error) {
-	result := make([]v1.HostedAgentAccessRule, 0)
+func (h *Helper) getRulesForUser(namespace string, user kuser.Info) ([]v1.AccessPolicy, error) {
+	result := make([]v1.AccessPolicy, 0)
 	seen := map[string]struct{}{}
 
-	addRules := func(rules []v1.HostedAgentAccessRule) {
+	addRules := func(rules []v1.AccessPolicy) {
 		for _, rule := range rules {
 			if _, ok := seen[rule.Name]; ok {
 				continue
@@ -155,15 +155,15 @@ func (h *Helper) getRulesForUser(namespace string, user kuser.Info) ([]v1.Hosted
 	return result, nil
 }
 
-func (h *Helper) getIndexedRules(namespace, indexName, key, target string) ([]v1.HostedAgentAccessRule, error) {
+func (h *Helper) getIndexedRules(namespace, indexName, key, target string) ([]v1.AccessPolicy, error) {
 	rules, err := h.haarIndexer.ByIndex(indexName, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get hosted agent access rules for %s: %w", target, err)
 	}
 
-	result := make([]v1.HostedAgentAccessRule, 0, len(rules))
+	result := make([]v1.AccessPolicy, 0, len(rules))
 	for _, rule := range rules {
-		res, ok := rule.(*v1.HostedAgentAccessRule)
+		res, ok := rule.(*v1.AccessPolicy)
 		if ok && res.Namespace == namespace && res.DeletionTimestamp == nil {
 			result = append(result, *res)
 		}
@@ -172,7 +172,7 @@ func (h *Helper) getIndexedRules(namespace, indexName, key, target string) ([]v1
 	return result, nil
 }
 
-func hasMatchingSubject(rules []v1.HostedAgentAccessRule, userID string, groups map[string]struct{}) bool {
+func hasMatchingSubject(rules []v1.AccessPolicy, userID string, groups map[string]struct{}) bool {
 	for _, rule := range rules {
 		for _, subject := range rule.Spec.Manifest.Subjects {
 			switch subject.Type {

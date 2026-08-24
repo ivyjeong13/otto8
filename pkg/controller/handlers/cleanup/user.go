@@ -143,13 +143,13 @@ func (u *UserCleanup) Cleanup(req router.Request, _ router.Response) error {
 	}
 	slog.Info("Deleted MCP server instances during user cleanup", "userID", userID, "instances", len(instances.Items))
 
-	// Find the AccessControlRules that the user is on, and update them to remove the user.
+	// Find the access policies that the user is on, and update them to remove the user.
 	acrs, err := u.acrHelper.GetAccessControlRulesForUser(req.Namespace, userID)
 	if err != nil {
 		return err
 	}
 
-	var updatedACRs int
+	var updatedPolicies int
 	for _, acr := range acrs {
 		newSubjects := slices.Collect(func(yield func(types.Subject) bool) {
 			for _, subject := range acr.Spec.Manifest.Subjects {
@@ -164,9 +164,9 @@ func (u *UserCleanup) Cleanup(req router.Request, _ router.Response) error {
 		if err := req.Client.Update(req.Ctx, &acr); err != nil {
 			return err
 		}
-		updatedACRs++
+		updatedPolicies++
 	}
-	slog.Info("Updated access control rules during user cleanup", "userID", userID, "rules", updatedACRs)
+	slog.Info("Updated access policies during user cleanup", "userID", userID, "policies", updatedPolicies)
 
 	// Delete the user's PowerUserWorkspace if it exists
 	var workspaces v1.PowerUserWorkspaceList

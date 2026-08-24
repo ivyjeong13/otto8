@@ -1,4 +1,5 @@
 import {
+	type AccessControlRuleResource,
 	type MCPServerTool,
 	type MCPSecretBinding,
 	type MCPConfigurationOption,
@@ -37,6 +38,28 @@ import {
  *
  * Prefer reusing or extending types from `../user/types` when the same shape exists there.
  */
+
+// Access policies
+
+export interface AccessPolicy extends AccessPolicyManifest {
+	created: string;
+	deleted?: string;
+	generated?: boolean;
+	id: string;
+	links?: Record<string, string>;
+	metadata?: Record<string, string>;
+	powerUserID?: string;
+	powerUserWorkspaceID?: string;
+}
+export interface AccessPolicyManifest {
+	displayName: string;
+	hostedAgents?: HostedAgentAccessPolicyResource[];
+	mcpCatalogID?: string;
+	mcpServers?: AccessControlRuleResource[];
+	models?: ModelResource[];
+	skills?: SkillAccessPolicyResource[];
+	subjects: AccessControlRuleSubject[];
+}
 
 // App notification
 

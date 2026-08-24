@@ -7,6 +7,7 @@ const (
 	MCPServerInstanceFinalizer     = "obot.obot.ai/mcp-server-instance"
 	MCPSessionFinalizer            = "obot.obot.ai/mcp-session"
 	AccessControlRuleFinalizer     = "obot.obot.ai/access-control-rule"
+	AccessPolicyFinalizer          = "obot.obot.ai/access-policy"
 	SystemMCPServerFinalizer       = "obot.obot.ai/system-mcp-server"
 	NanobotAgentFinalizer          = "obot.obot.ai/nanobot-agent"
 	ImagePullSecretFinalizer       = "obot.obot.ai/image-pull-secret"

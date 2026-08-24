@@ -69,6 +69,8 @@ func AddToSchemeWithGV(scheme *runtime.Scheme, schemeGroupVersion schema.GroupVe
 		&MDMAssetList{},
 		&SkillAccessRule{},
 		&SkillAccessRuleList{},
+		&AccessPolicy{},
+		&AccessPolicyList{},
 		&AgentCatalog{},
 		&AgentCatalogList{},
 		&Harness{},

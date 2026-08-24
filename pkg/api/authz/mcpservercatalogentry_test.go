@@ -10,6 +10,7 @@ import (
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	storagescheme "github.com/obot-platform/obot/pkg/storage/scheme"
 	"github.com/obot-platform/obot/pkg/system"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apiserver/pkg/authentication/user"
 	gocache "k8s.io/client-go/tools/cache"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,14 +25,16 @@ func TestAllMCPCatalogEntryAuthorizationUsesAccessControlRules(t *testing.T) {
 			MCPCatalogName: system.DefaultCatalog,
 		},
 	}).Build()
-	authorizer := newCatalogEntryTestAuthorizer(t, storage, &v1.AccessControlRule{
-		Name:      "entry-access",
-		Namespace: system.DefaultNamespace,
-		Spec: v1.AccessControlRuleSpec{
+	authorizer := newCatalogEntryTestAuthorizer(t, storage, &v1.AccessPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "entry-access",
+			Namespace: system.DefaultNamespace,
+		},
+		Spec: v1.AccessPolicySpec{
 			MCPCatalogID: system.DefaultCatalog,
-			Manifest: types.AccessControlRuleManifest{
-				Subjects:  []types.Subject{{Type: types.SubjectTypeUser, ID: "allowed-user"}},
-				Resources: []types.Resource{{Type: types.ResourceTypeMCPServerCatalogEntry, ID: "entry-test"}},
+			Manifest: types.AccessPolicyManifest{
+				Subjects:   []types.Subject{{Type: types.SubjectTypeUser, ID: "allowed-user"}},
+				MCPServers: []types.Resource{{Type: types.ResourceTypeMCPServerCatalogEntry, ID: "entry-test"}},
 			},
 		},
 	})
@@ -61,12 +64,12 @@ func TestAllMCPCatalogEntryAuthorizationUsesAccessControlRules(t *testing.T) {
 	}
 }
 
-func newCatalogEntryTestAuthorizer(t *testing.T, storage kclient.Client, acrs ...*v1.AccessControlRule) *Authorizer {
+func newCatalogEntryTestAuthorizer(t *testing.T, storage kclient.Client, acrs ...*v1.AccessPolicy) *Authorizer {
 	t.Helper()
 
 	indexer := gocache.NewIndexer(gocache.MetaNamespaceKeyFunc, gocache.Indexers{
-		"user-ids": func(obj any) ([]string, error) {
-			acr := obj.(*v1.AccessControlRule)
+		"mcp-user-ids": func(obj any) ([]string, error) {
+			acr := obj.(*v1.AccessPolicy)
 			var results []string
 			for _, subject := range acr.Spec.Manifest.Subjects {
 				if subject.Type == types.SubjectTypeUser {
@@ -75,23 +78,23 @@ func newCatalogEntryTestAuthorizer(t *testing.T, storage kclient.Client, acrs ..
 			}
 			return results, nil
 		},
-		"catalog-entry-names": func(obj any) ([]string, error) {
-			acr := obj.(*v1.AccessControlRule)
+		"mcp-catalog-entry-names": func(obj any) ([]string, error) {
+			acr := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range acr.Spec.Manifest.Resources {
+			for _, resource := range acr.Spec.Manifest.MCPServers {
 				if resource.Type == types.ResourceTypeMCPServerCatalogEntry {
 					results = append(results, resource.ID)
 				}
 			}
 			return results, nil
 		},
-		"server-names": func(any) ([]string, error) {
+		"mcp-server-names": func(any) ([]string, error) {
 			return nil, nil
 		},
-		"selectors": func(obj any) ([]string, error) {
-			acr := obj.(*v1.AccessControlRule)
+		"mcp-selectors": func(obj any) ([]string, error) {
+			acr := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range acr.Spec.Manifest.Resources {
+			for _, resource := range acr.Spec.Manifest.MCPServers {
 				if resource.Type == types.ResourceTypeSelector {
 					results = append(results, resource.ID)
 				}

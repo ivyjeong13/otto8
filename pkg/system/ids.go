@@ -35,6 +35,7 @@ const (
 	OAuthClientPrefix             = "oc1"
 	OAuthAuthRequestPrefix        = "oar1"
 	AccessControlRulePrefix       = "acr1"
+	AccessPolicyPrefix            = "ap1"
 	MCPWebhookValidationPrefix    = "mwv1"
 	PowerUserWorkspacePrefix      = "puw1"
 	AuditLogExportPrefix          = "ael1"

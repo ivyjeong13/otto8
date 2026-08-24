@@ -6,7 +6,9 @@ title: MCP Access Policies
 
 MCP Access Policies control which MCP servers are available to which users. Administrators use access policies to map server entries from the MCP Servers page to specific users and groups, ensuring each team has access to the tools they need.
 
-To manage access policies, go to **MCP Management > MCP Access Policies** in the MCP Platform.
+MCP grants now use the shared [Access Policies](./access-policies.md) model and can be combined with skill, model, and hosted-agent grants in one policy.
+
+To manage access policies, go to **MCP Management > Access Policies** in the MCP Platform.
 
 ## Default Access
 
@@ -18,7 +20,7 @@ If this default behavior is not what you want, you can restrict access to specif
 
 To create a new access policy:
 
-1. Click the **Add Access Policy** button in the MCP Access Policies section
+1. Click the **Add policy** button on the Access Policies page
 2. Give your access policy a name
 3. Assign users and groups to the access policy
 4. Add the MCP servers that this access policy should include

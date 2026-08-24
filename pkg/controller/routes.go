@@ -192,18 +192,16 @@ func (c *Controller) setupRoutes() {
 	// MCPHookCorrelation
 	root.Type(&v1.MCPHookCorrelation{}).HandlerFunc(mcpHookCorrelationHandler.Cleanup)
 
-	// AccessControlRule
-	root.Type(&v1.AccessControlRule{}).HandlerFunc(cleanup.Cleanup)
-	root.Type(&v1.AccessControlRule{}).HandlerFunc(accesscontrolrule.PruneDeletedResources)
-	// This is a hack. We use field selectors to trigger other resources. However, when an access control rule is deleted,
+	// AccessPolicy
+	root.Type(&v1.AccessPolicy{}).HandlerFunc(cleanup.Cleanup)
+	root.Type(&v1.AccessPolicy{}).HandlerFunc(accesscontrolrule.PruneDeletedResources)
+	root.Type(&v1.AccessPolicy{}).HandlerFunc(modelaccesspolicy.PruneDefaultPolicy)
+	// This is a hack. We use field selectors to trigger other resources. However, when an access policy is deleted,
 	// we don't trigger because we don't have the object to match the field selectors against.
 	// Having a finalizer that does nothing will ensure that the other resources are triggered.
-	root.Type(&v1.AccessControlRule{}).FinalizeFunc(v1.AccessControlRuleFinalizer, func(router.Request, router.Response) error {
+	root.Type(&v1.AccessPolicy{}).FinalizeFunc(v1.AccessPolicyFinalizer, func(router.Request, router.Response) error {
 		return nil
 	})
-
-	// ModelAccessPolicys
-	root.Type(&v1.ModelAccessPolicy{}).HandlerFunc(modelaccesspolicy.PruneDefaultPolicy)
 
 	// OAuthClients
 	root.Type(&v1.OAuthClient{}).IncludeFinalizing().HandlerFunc(cleanup.OAuthClients)

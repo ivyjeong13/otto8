@@ -11,6 +11,7 @@ import (
 	storagescheme "github.com/obot-platform/obot/pkg/storage/scheme"
 	"github.com/obot-platform/obot/pkg/system"
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apiserver/pkg/authentication/user"
 	gocache "k8s.io/client-go/tools/cache"
 	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -177,9 +178,9 @@ func TestSkillRouteAuthorization(t *testing.T) {
 			allowed: true,
 		},
 		{
-			name:   "auditor can access skill access rules",
+			name:   "auditor can access access policies",
 			method: http.MethodGet,
-			path:   "/api/skill-access-rules",
+			path:   "/api/access-policies",
 			user: &user.DefaultInfo{
 				Name:   "auditor",
 				Groups: []string{types.GroupAuditor, types.GroupAuthenticated},
@@ -187,9 +188,9 @@ func TestSkillRouteAuthorization(t *testing.T) {
 			allowed: true,
 		},
 		{
-			name:   "auditor can access skill access rule detail",
+			name:   "auditor can access access policy detail",
 			method: http.MethodGet,
-			path:   "/api/skill-access-rules/some-rule-id",
+			path:   "/api/access-policies/some-rule-id",
 			user: &user.DefaultInfo{
 				Name:   "auditor",
 				Groups: []string{types.GroupAuditor, types.GroupAuthenticated},
@@ -207,9 +208,9 @@ func TestSkillRouteAuthorization(t *testing.T) {
 			allowed: false,
 		},
 		{
-			name:   "auditor cannot POST skill access rules",
+			name:   "auditor cannot POST access policies",
 			method: http.MethodPost,
-			path:   "/api/skill-access-rules",
+			path:   "/api/access-policies",
 			user: &user.DefaultInfo{
 				Name:   "auditor",
 				Groups: []string{types.GroupAuditor, types.GroupAuthenticated},
@@ -238,13 +239,15 @@ func TestSkillGetAuthorizationUsesAccessRules(t *testing.T) {
 				Valid: true,
 			},
 		},
-		&v1.SkillAccessRule{
-			Name:      "allow-user1-sk1",
-			Namespace: system.DefaultNamespace,
-			Spec: v1.SkillAccessRuleSpec{
-				Manifest: types.SkillAccessRuleManifest{
-					Subjects:  []types.Subject{{Type: types.SubjectTypeUser, ID: "user1"}},
-					Resources: []types.SkillResource{{Type: types.SkillResourceTypeSkill, ID: "sk1"}},
+		&v1.AccessPolicy{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "allow-user1-sk1",
+				Namespace: system.DefaultNamespace,
+			},
+			Spec: v1.AccessPolicySpec{
+				Manifest: types.AccessPolicyManifest{
+					Subjects: []types.Subject{{Type: types.SubjectTypeUser, ID: "user1"}},
+					Skills:   []types.SkillResource{{Type: types.SkillResourceTypeSkill, ID: "sk1"}},
 				},
 			},
 		},
@@ -289,9 +292,9 @@ func newSkillRouteTestAuthorizer(t *testing.T) *Authorizer {
 
 	indexer := gocache.NewIndexer(gocache.MetaNamespaceKeyFunc, gocache.Indexers{
 		skillaccessrule.ResourceSelectorIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+			rule := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range rule.Spec.Manifest.Resources {
+			for _, resource := range rule.Spec.Manifest.Skills {
 				if resource.Type == types.SkillResourceTypeSelector {
 					results = append(results, resource.ID)
 				}
@@ -299,13 +302,15 @@ func newSkillRouteTestAuthorizer(t *testing.T) *Authorizer {
 			return results, nil
 		},
 	})
-	_ = indexer.Add(&v1.SkillAccessRule{
-		Name:      "allow-all",
-		Namespace: system.DefaultNamespace,
-		Spec: v1.SkillAccessRuleSpec{
-			Manifest: types.SkillAccessRuleManifest{
-				Subjects:  []types.Subject{{Type: types.SubjectTypeSelector, ID: "*"}},
-				Resources: []types.SkillResource{{Type: types.SkillResourceTypeSelector, ID: "*"}},
+	_ = indexer.Add(&v1.AccessPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "allow-all",
+			Namespace: system.DefaultNamespace,
+		},
+		Spec: v1.AccessPolicySpec{
+			Manifest: types.AccessPolicyManifest{
+				Subjects: []types.Subject{{Type: types.SubjectTypeSelector, ID: "*"}},
+				Skills:   []types.SkillResource{{Type: types.SkillResourceTypeSelector, ID: "*"}},
 			},
 		},
 	})
@@ -313,15 +318,15 @@ func newSkillRouteTestAuthorizer(t *testing.T) *Authorizer {
 	return NewAuthorizer(nil, storage, storage, false, nil, skillaccessrule.NewHelper(indexer), nil, false)
 }
 
-func newSkillAccessRuleTestAuthorizer(t *testing.T, skill *v1.Skill, rules ...*v1.SkillAccessRule) *Authorizer {
+func newSkillAccessRuleTestAuthorizer(t *testing.T, skill *v1.Skill, rules ...*v1.AccessPolicy) *Authorizer {
 	t.Helper()
 
 	storage := clientfake.NewClientBuilder().WithScheme(storagescheme.Scheme).WithObjects(skill).Build()
 	indexer := gocache.NewIndexer(gocache.MetaNamespaceKeyFunc, gocache.Indexers{
 		skillaccessrule.SkillIDIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+			rule := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range rule.Spec.Manifest.Resources {
+			for _, resource := range rule.Spec.Manifest.Skills {
 				if resource.Type == types.SkillResourceTypeSkill {
 					results = append(results, resource.ID)
 				}
@@ -329,9 +334,9 @@ func newSkillAccessRuleTestAuthorizer(t *testing.T, skill *v1.Skill, rules ...*v
 			return results, nil
 		},
 		skillaccessrule.RepositoryIDIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+			rule := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range rule.Spec.Manifest.Resources {
+			for _, resource := range rule.Spec.Manifest.Skills {
 				if resource.Type == types.SkillResourceTypeSkillRepository {
 					results = append(results, resource.ID)
 				}
@@ -339,9 +344,9 @@ func newSkillAccessRuleTestAuthorizer(t *testing.T, skill *v1.Skill, rules ...*v
 			return results, nil
 		},
 		skillaccessrule.ResourceSelectorIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+			rule := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range rule.Spec.Manifest.Resources {
+			for _, resource := range rule.Spec.Manifest.Skills {
 				if resource.Type == types.SkillResourceTypeSelector {
 					results = append(results, resource.ID)
 				}

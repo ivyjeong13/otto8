@@ -14,8 +14,6 @@ import (
 	gocache "k8s.io/client-go/tools/cache"
 )
 
-type ruleOpt func(*v1.SkillAccessRule)
-
 func TestGetSkillAccessRulesForSkillFiltersDeletedAndNamespace(t *testing.T) {
 	helper := newTestHelper(t,
 		newRule("match", []types.Subject{{Type: types.SubjectTypeUser, ID: "user1"}}, []types.SkillResource{{Type: types.SkillResourceTypeSkill, ID: "sk1"}}),
@@ -35,14 +33,14 @@ func TestUserHasAccessToSkillID(t *testing.T) {
 
 	for _, tt := range []struct {
 		name    string
-		rules   []*v1.SkillAccessRule
+		rules   []*v1.AccessPolicy
 		skillID string
 		repoID  string
 		want    bool
 	}{
 		{
 			name: "direct user skill grant",
-			rules: []*v1.SkillAccessRule{
+			rules: []*v1.AccessPolicy{
 				newRule("rule1", []types.Subject{{Type: types.SubjectTypeUser, ID: "user1"}}, []types.SkillResource{{Type: types.SkillResourceTypeSkill, ID: "sk1"}}),
 			},
 			skillID: "sk1",
@@ -51,7 +49,7 @@ func TestUserHasAccessToSkillID(t *testing.T) {
 		},
 		{
 			name: "group repository grant",
-			rules: []*v1.SkillAccessRule{
+			rules: []*v1.AccessPolicy{
 				newRule("rule1", []types.Subject{{Type: types.SubjectTypeGroup, ID: "eng"}}, []types.SkillResource{{Type: types.SkillResourceTypeSkillRepository, ID: "skr1"}}),
 			},
 			skillID: "sk1",
@@ -60,7 +58,7 @@ func TestUserHasAccessToSkillID(t *testing.T) {
 		},
 		{
 			name: "global wildcard grant",
-			rules: []*v1.SkillAccessRule{
+			rules: []*v1.AccessPolicy{
 				newRule("rule1", []types.Subject{{Type: types.SubjectTypeSelector, ID: "*"}}, []types.SkillResource{{Type: types.SkillResourceTypeSelector, ID: "*"}}),
 			},
 			skillID: "sk1",
@@ -69,7 +67,7 @@ func TestUserHasAccessToSkillID(t *testing.T) {
 		},
 		{
 			name: "wildcard subject repo scoped grant",
-			rules: []*v1.SkillAccessRule{
+			rules: []*v1.AccessPolicy{
 				newRule("rule1", []types.Subject{{Type: types.SubjectTypeSelector, ID: "*"}}, []types.SkillResource{{Type: types.SkillResourceTypeSkillRepository, ID: "skr1"}}),
 			},
 			skillID: "sk1",
@@ -78,7 +76,7 @@ func TestUserHasAccessToSkillID(t *testing.T) {
 		},
 		{
 			name: "different skill does not grant access",
-			rules: []*v1.SkillAccessRule{
+			rules: []*v1.AccessPolicy{
 				newRule("rule1", []types.Subject{{Type: types.SubjectTypeUser, ID: "user1"}}, []types.SkillResource{{Type: types.SkillResourceTypeSkill, ID: "sk2"}}),
 			},
 			skillID: "sk1",
@@ -87,7 +85,7 @@ func TestUserHasAccessToSkillID(t *testing.T) {
 		},
 		{
 			name: "different group does not grant access",
-			rules: []*v1.SkillAccessRule{
+			rules: []*v1.AccessPolicy{
 				newRule("rule1", []types.Subject{{Type: types.SubjectTypeGroup, ID: "ops"}}, []types.SkillResource{{Type: types.SkillResourceTypeSkillRepository, ID: "skr1"}}),
 			},
 			skillID: "sk1",
@@ -96,7 +94,7 @@ func TestUserHasAccessToSkillID(t *testing.T) {
 		},
 		{
 			name: "multiple matching rules still grant access",
-			rules: []*v1.SkillAccessRule{
+			rules: []*v1.AccessPolicy{
 				newRule("rule1", []types.Subject{{Type: types.SubjectTypeGroup, ID: "eng"}}, []types.SkillResource{{Type: types.SkillResourceTypeSkillRepository, ID: "skr1"}}),
 				newRule("rule2", []types.Subject{{Type: types.SubjectTypeUser, ID: "user1"}}, []types.SkillResource{{Type: types.SkillResourceTypeSkill, ID: "sk1"}}),
 			},
@@ -171,14 +169,14 @@ func TestGetUserSkillAccessScopeAllowAll(t *testing.T) {
 	assert.Empty(t, skillIDs)
 }
 
-func newTestHelper(t *testing.T, rules ...*v1.SkillAccessRule) *Helper {
+func newTestHelper(t *testing.T, rules ...*v1.AccessPolicy) *Helper {
 	t.Helper()
 
 	indexer := gocache.NewIndexer(gocache.MetaNamespaceKeyFunc, gocache.Indexers{
 		SkillIDIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+			rule := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range rule.Spec.Manifest.Resources {
+			for _, resource := range rule.Spec.Manifest.Skills {
 				if resource.Type == types.SkillResourceTypeSkill {
 					results = append(results, resource.ID)
 				}
@@ -186,9 +184,9 @@ func newTestHelper(t *testing.T, rules ...*v1.SkillAccessRule) *Helper {
 			return results, nil
 		},
 		RepositoryIDIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+			rule := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range rule.Spec.Manifest.Resources {
+			for _, resource := range rule.Spec.Manifest.Skills {
 				if resource.Type == types.SkillResourceTypeSkillRepository {
 					results = append(results, resource.ID)
 				}
@@ -196,9 +194,9 @@ func newTestHelper(t *testing.T, rules ...*v1.SkillAccessRule) *Helper {
 			return results, nil
 		},
 		ResourceSelectorIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+			rule := obj.(*v1.AccessPolicy)
 			var results []string
-			for _, resource := range rule.Spec.Manifest.Resources {
+			for _, resource := range rule.Spec.Manifest.Skills {
 				if resource.Type == types.SkillResourceTypeSelector {
 					results = append(results, resource.ID)
 				}
@@ -206,7 +204,7 @@ func newTestHelper(t *testing.T, rules ...*v1.SkillAccessRule) *Helper {
 			return results, nil
 		},
 		UserIDIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+			rule := obj.(*v1.AccessPolicy)
 			var results []string
 			for _, subject := range rule.Spec.Manifest.Subjects {
 				if subject.Type == types.SubjectTypeUser {
@@ -216,7 +214,7 @@ func newTestHelper(t *testing.T, rules ...*v1.SkillAccessRule) *Helper {
 			return results, nil
 		},
 		GroupIDIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+			rule := obj.(*v1.AccessPolicy)
 			var results []string
 			for _, subject := range rule.Spec.Manifest.Subjects {
 				if subject.Type == types.SubjectTypeGroup {
@@ -226,7 +224,7 @@ func newTestHelper(t *testing.T, rules ...*v1.SkillAccessRule) *Helper {
 			return results, nil
 		},
 		SubjectSelectorIndex: func(obj any) ([]string, error) {
-			rule := obj.(*v1.SkillAccessRule)
+			rule := obj.(*v1.AccessPolicy)
 			var results []string
 			for _, subject := range rule.Spec.Manifest.Subjects {
 				if subject.Type == types.SubjectTypeSelector {
@@ -244,14 +242,16 @@ func newTestHelper(t *testing.T, rules ...*v1.SkillAccessRule) *Helper {
 	return NewHelper(indexer)
 }
 
-func newRule(name string, subjects []types.Subject, resources []types.SkillResource, opts ...ruleOpt) *v1.SkillAccessRule {
-	rule := &v1.SkillAccessRule{
-		Name:      name,
-		Namespace: system.DefaultNamespace,
-		Spec: v1.SkillAccessRuleSpec{
-			Manifest: types.SkillAccessRuleManifest{
-				Subjects:  subjects,
-				Resources: resources,
+func newRule(name string, subjects []types.Subject, resources []types.SkillResource, opts ...ruleOpt) *v1.AccessPolicy {
+	rule := &v1.AccessPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: system.DefaultNamespace,
+		},
+		Spec: v1.AccessPolicySpec{
+			Manifest: types.AccessPolicyManifest{
+				Subjects: subjects,
+				Skills:   resources,
 			},
 		},
 	}
@@ -263,14 +263,16 @@ func newRule(name string, subjects []types.Subject, resources []types.SkillResou
 	return rule
 }
 
+type ruleOpt func(*v1.AccessPolicy)
+
 func withNamespace(namespace string) ruleOpt {
-	return func(rule *v1.SkillAccessRule) {
+	return func(rule *v1.AccessPolicy) {
 		rule.Namespace = namespace
 	}
 }
 
 func withDeletedTimestamp() ruleOpt {
-	return func(rule *v1.SkillAccessRule) {
+	return func(rule *v1.AccessPolicy) {
 		rule.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 	}
 }

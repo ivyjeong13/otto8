@@ -352,13 +352,6 @@
 								collapsible: false
 							},
 							{
-								id: 'mcp-access-policies',
-								href: '/admin/mcp-access-policies',
-								label: 'MCP Access Policies',
-								disabled: isBootStrapUser,
-								collapsible: false
-							},
-							{
 								id: 'mcp-deployments',
 								href: '/admin/mcp-deployments',
 								label: 'MCP Deployments',
@@ -425,12 +418,6 @@
 								href: '/admin/skills',
 								label: 'Skill Sources',
 								collapsible: false
-							},
-							{
-								id: 'skill-access-policies',
-								href: '/admin/skill-access-policies',
-								label: 'Skill Access Policies',
-								collapsible: false
 							}
 						]
 					},
@@ -447,12 +434,6 @@
 								id: 'hosted-agents',
 								href: '/admin/hosted-agents',
 								label: 'Templates',
-								collapsible: false
-							},
-							{
-								id: 'hosted-agent-access-policies',
-								href: '/admin/hosted-agent-access-policies',
-								label: 'Access Policies',
 								collapsible: false
 							}
 						]
@@ -519,6 +500,13 @@
 								collapsible: false
 							},
 							{
+								id: 'access-policies',
+								href: '/admin/access-policies',
+								label: 'Access Policies',
+								disabled: isBootStrapUser,
+								collapsible: false
+							},
+							{
 								id: 'agent-auth-scopes',
 								href: '/admin/agent-auth-scopes',
 								label: 'Agent Auth Scopes',
@@ -551,12 +539,6 @@
 								id: 'model-providers',
 								href: '/admin/model-providers',
 								label: 'Model Providers',
-								collapsible: false
-							},
-							{
-								id: 'model-access-policies',
-								href: '/admin/model-access-policies',
-								label: 'Model Access Policies',
 								collapsible: false
 							},
 							...(version.current.messagePoliciesEnabled

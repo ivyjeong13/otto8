@@ -15,6 +15,7 @@ import (
 	"github.com/obot-platform/obot/pkg/system"
 	"gorm.io/gorm"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -169,7 +170,7 @@ func (h *Handler) cleanupWorkspaceResources(ctx context.Context, client kclient.
 	namespace := workspace.Namespace
 
 	// Delete AccessControlRules in this workspace
-	var acrs v1.AccessControlRuleList
+	var acrs v1.AccessPolicyList
 	if err := client.List(ctx, &acrs, &kclient.ListOptions{
 		Namespace: namespace,
 		FieldSelector: fields.SelectorFromSet(map[string]string{
@@ -244,7 +245,7 @@ func (h *Handler) createDefaultAccessControlRule(ctx context.Context, client kcl
 		return nil
 	}
 
-	var existingACRs v1.AccessControlRuleList
+	var existingACRs v1.AccessPolicyList
 	if err := client.List(ctx, &existingACRs, &kclient.ListOptions{
 		Namespace: namespace,
 		FieldSelector: fields.SelectorFromSet(map[string]string{
@@ -262,14 +263,16 @@ func (h *Handler) createDefaultAccessControlRule(ctx context.Context, client kcl
 	}
 
 	// For power user plus and admin, generate a rule that gives all users access
-	defaultACR := &v1.AccessControlRule{
-		Namespace:    namespace,
-		GenerateName: system.AccessControlRulePrefix,
-		Finalizers:   []string{v1.AccessControlRuleFinalizer},
-		Spec: v1.AccessControlRuleSpec{
+	defaultACR := &v1.AccessPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:    namespace,
+			GenerateName: system.AccessPolicyPrefix,
+			Finalizers:   []string{v1.AccessPolicyFinalizer},
+		},
+		Spec: v1.AccessPolicySpec{
 			PowerUserWorkspaceID: workspace.Name,
 			Generated:            true,
-			Manifest: types.AccessControlRuleManifest{
+			Manifest: types.AccessPolicyManifest{
 				DisplayName: "My Registry",
 				Subjects: []types.Subject{
 					{
@@ -277,7 +280,7 @@ func (h *Handler) createDefaultAccessControlRule(ctx context.Context, client kcl
 						ID:   "*",
 					},
 				},
-				Resources: []types.Resource{
+				MCPServers: []types.Resource{
 					{
 						Type: types.ResourceTypeSelector,
 						ID:   "*",

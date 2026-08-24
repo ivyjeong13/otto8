@@ -56,6 +56,10 @@ func New(services *services.Services) (*Controller, error) {
 }
 
 func (c *Controller) PreStart(ctx context.Context) error {
+	if err := migrateAccessPolicies(ctx, c.services.StorageClient); err != nil {
+		return fmt.Errorf("failed to migrate access policies: %w", err)
+	}
+
 	if err := data.Data(ctx, c.services.StorageClient, data.Defaults{
 		SkillRepoURL:           c.services.DefaultSkillRepoURL,
 		SkillRepoRef:           c.services.DefaultSkillRepoRef,
@@ -87,10 +91,6 @@ func (c *Controller) PreStart(ctx context.Context) error {
 	}
 	if err := ensureAppPreferences(ctx, c.services.StorageClient); err != nil {
 		return fmt.Errorf("failed to ensure app preferences: %w", err)
-	}
-
-	if err := addCatalogIDToAccessControlRules(ctx, c.services.StorageClient); err != nil {
-		return fmt.Errorf("failed to add catalog ID to access control rules: %w", err)
 	}
 
 	if err := migratePublishedArtifactVisibility(ctx, c.services.StorageClient); err != nil {

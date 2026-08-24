@@ -11,12 +11,12 @@ import (
 )
 
 const (
-	SkillIDIndex          = "skill-ids"
-	RepositoryIDIndex     = "repository-ids"
-	ResourceSelectorIndex = "selectors"
-	UserIDIndex           = "user-ids"
-	GroupIDIndex          = "group-ids"
-	SubjectSelectorIndex  = "subject-selectors"
+	SkillIDIndex          = "skill-resource-ids"
+	RepositoryIDIndex     = "skill-repository-ids"
+	ResourceSelectorIndex = "skill-resource-selectors"
+	UserIDIndex           = "skill-user-ids"
+	GroupIDIndex          = "skill-group-ids"
+	SubjectSelectorIndex  = "skill-subject-selectors"
 )
 
 type Helper struct {
@@ -29,27 +29,27 @@ func NewHelper(sarIndexer gocache.Indexer) *Helper {
 	}
 }
 
-func (h *Helper) GetSkillAccessRulesForSkill(namespace, skillID string) ([]v1.SkillAccessRule, error) {
+func (h *Helper) GetSkillAccessRulesForSkill(namespace, skillID string) ([]v1.AccessPolicy, error) {
 	return h.getIndexedRules(namespace, SkillIDIndex, skillID, "skill")
 }
 
-func (h *Helper) GetSkillAccessRulesForRepository(namespace, repoID string) ([]v1.SkillAccessRule, error) {
+func (h *Helper) GetSkillAccessRulesForRepository(namespace, repoID string) ([]v1.AccessPolicy, error) {
 	return h.getIndexedRules(namespace, RepositoryIDIndex, repoID, "repository")
 }
 
-func (h *Helper) GetSkillAccessRulesForSelector(namespace, selector string) ([]v1.SkillAccessRule, error) {
+func (h *Helper) GetSkillAccessRulesForSelector(namespace, selector string) ([]v1.AccessPolicy, error) {
 	return h.getIndexedRules(namespace, ResourceSelectorIndex, selector, "selector")
 }
 
-func (h *Helper) GetSkillAccessRulesForUser(namespace, userID string) ([]v1.SkillAccessRule, error) {
+func (h *Helper) GetSkillAccessRulesForUser(namespace, userID string) ([]v1.AccessPolicy, error) {
 	return h.getIndexedRules(namespace, UserIDIndex, userID, "user")
 }
 
-func (h *Helper) GetSkillAccessRulesForGroup(namespace, groupID string) ([]v1.SkillAccessRule, error) {
+func (h *Helper) GetSkillAccessRulesForGroup(namespace, groupID string) ([]v1.AccessPolicy, error) {
 	return h.getIndexedRules(namespace, GroupIDIndex, groupID, "group")
 }
 
-func (h *Helper) GetSkillAccessRulesForSubjectSelector(namespace, selector string) ([]v1.SkillAccessRule, error) {
+func (h *Helper) GetSkillAccessRulesForSubjectSelector(namespace, selector string) ([]v1.AccessPolicy, error) {
 	return h.getIndexedRules(namespace, SubjectSelectorIndex, selector, "subject selector")
 }
 
@@ -115,7 +115,7 @@ func (h *Helper) GetUserSkillAccessScope(user kuser.Info) (bool, map[string]stru
 	}
 
 	for _, rule := range rules {
-		for _, resource := range rule.Spec.Manifest.Resources {
+		for _, resource := range rule.Spec.Manifest.Skills {
 			switch resource.Type {
 			case types.SkillResourceTypeSelector:
 				if resource.ID == "*" {
@@ -136,11 +136,11 @@ func (h *Helper) GetUserSkillAccessScope(user kuser.Info) (bool, map[string]stru
 	return false, repoIDs, skillIDs, nil
 }
 
-func (h *Helper) getRulesForUser(namespace string, user kuser.Info) ([]v1.SkillAccessRule, error) {
-	result := make([]v1.SkillAccessRule, 0)
+func (h *Helper) getRulesForUser(namespace string, user kuser.Info) ([]v1.AccessPolicy, error) {
+	result := make([]v1.AccessPolicy, 0)
 	seen := map[string]struct{}{}
 
-	addRules := func(rules []v1.SkillAccessRule) {
+	addRules := func(rules []v1.AccessPolicy) {
 		for _, rule := range rules {
 			if _, ok := seen[rule.Name]; ok {
 				continue
@@ -175,15 +175,15 @@ func (h *Helper) getRulesForUser(namespace string, user kuser.Info) ([]v1.SkillA
 	return result, nil
 }
 
-func (h *Helper) getIndexedRules(namespace, indexName, key, target string) ([]v1.SkillAccessRule, error) {
+func (h *Helper) getIndexedRules(namespace, indexName, key, target string) ([]v1.AccessPolicy, error) {
 	rules, err := h.sarIndexer.ByIndex(indexName, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get skill access rules for %s: %w", target, err)
 	}
 
-	result := make([]v1.SkillAccessRule, 0, len(rules))
+	result := make([]v1.AccessPolicy, 0, len(rules))
 	for _, rule := range rules {
-		res, ok := rule.(*v1.SkillAccessRule)
+		res, ok := rule.(*v1.AccessPolicy)
 		if ok && res.Namespace == namespace && res.DeletionTimestamp == nil {
 			result = append(result, *res)
 		}
@@ -192,7 +192,7 @@ func (h *Helper) getIndexedRules(namespace, indexName, key, target string) ([]v1
 	return result, nil
 }
 
-func hasMatchingSubject(rules []v1.SkillAccessRule, userID string, groups map[string]struct{}) bool {
+func hasMatchingSubject(rules []v1.AccessPolicy, userID string, groups map[string]struct{}) bool {
 	for _, rule := range rules {
 		for _, subject := range rule.Spec.Manifest.Subjects {
 			switch subject.Type {

@@ -6,6 +6,8 @@ title: Skill Access Policies
 
 Skill Access Policies control which users and groups can discover and install which skills. Administrators create policies to grant skill access based on organizational needs—whether that means giving everyone access to all skills, restricting certain skill sources to specific teams, or granting access to individual skills.
 
+Skill grants now use the shared [Access Policies](./access-policies.md) model and can be combined with MCP, model, and hosted-agent grants in one policy.
+
 Without a policy granting access, regular users cannot see or install any skills. Administrators always have full access regardless of policies.
 
 ## How Policies Work
@@ -39,7 +41,7 @@ Skills are displayed grouped by their source repository, making it easy to find 
 
 ## Managing Policies
 
-To manage policies, go to **Obot Agent Management > Skill Access Policies**.
+To manage policies, go to **MCP Management > Access Policies**.
 
 ### Creating a Policy
 

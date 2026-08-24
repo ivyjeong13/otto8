@@ -256,39 +256,28 @@ func (p *PowerUserWorkspaceHandler) ListAllServersForAllEntries(req api.Context)
 	})
 }
 
-func (p *PowerUserWorkspaceHandler) ListAllAccessControlRules(req api.Context) error {
+func (p *PowerUserWorkspaceHandler) ListAllAccessPolicies(req api.Context) error {
 	var list v1.PowerUserWorkspaceList
 	if err := req.List(&list); err != nil {
 		return fmt.Errorf("failed to list power user workspaces: %w", err)
 	}
 
-	accessControlRules := make([]types.AccessControlRule, 0)
+	accessPolicies := make([]types.AccessPolicy, 0)
 	for _, item := range list.Items {
 		fieldSelector := kclient.MatchingFields{"spec.powerUserWorkspaceID": item.Name}
-		var acrList v1.AccessControlRuleList
-		if err := req.List(&acrList, fieldSelector); err != nil {
-			return fmt.Errorf("failed to list access control rules: %w", err)
+		var policyList v1.AccessPolicyList
+		if err := req.List(&policyList, fieldSelector); err != nil {
+			return fmt.Errorf("failed to list access policies: %w", err)
 		}
 
-		for _, acr := range acrList.Items {
-			accessControlRules = append(accessControlRules, convertAccessControlRuleWithWorkspace(acr, item.Spec.UserID))
+		for _, policy := range policyList.Items {
+			accessPolicies = append(accessPolicies, convertAccessPolicy(policy, item.Spec.UserID))
 		}
 	}
 
-	return req.Write(types.AccessControlRuleList{
-		Items: accessControlRules,
+	return req.Write(types.AccessPolicyList{
+		Items: accessPolicies,
 	})
-}
-
-func convertAccessControlRuleWithWorkspace(rule v1.AccessControlRule, powerUserID string) types.AccessControlRule {
-	return types.AccessControlRule{
-		Metadata:                  MetadataFrom(&rule),
-		MCPCatalogID:              rule.Spec.MCPCatalogID,
-		PowerUserWorkspaceID:      rule.Spec.PowerUserWorkspaceID,
-		PowerUserID:               powerUserID,
-		Generated:                 rule.Spec.Generated,
-		AccessControlRuleManifest: rule.Spec.Manifest,
-	}
 }
 
 func (p *PowerUserWorkspaceHandler) ListAllServerInstances(req api.Context) error {

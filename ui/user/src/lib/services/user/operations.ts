@@ -4,6 +4,8 @@ import { mcpServerDeleteResponseHandler } from '$lib/services/admin/operations';
 import { Group } from '$lib/services/admin/types';
 import { buildQueryString } from '$lib/url';
 import type {
+	AccessPolicy,
+	AccessPolicyManifest,
 	AuthProvider,
 	License,
 	MCPCatalogEntry,
@@ -781,7 +783,52 @@ export async function getK8sResourceDefaults(opts?: {
 	return (await doGet('/default-k8s-settings', opts)) as MCPResourceRequirements;
 }
 
-// Workspace access control rules
+// Workspace access policies
+
+export async function listWorkspaceAccessPolicies(
+	workspaceID: string,
+	opts?: { fetch?: Fetcher }
+): Promise<AccessPolicy[]> {
+	const response = (await doGet(
+		`/workspaces/${workspaceID}/access-policies`,
+		opts
+	)) as ItemsResponse<AccessPolicy>;
+	return response.items ?? [];
+}
+
+export async function getWorkspaceAccessPolicy(
+	workspaceID: string,
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<AccessPolicy> {
+	return (await doGet(`/workspaces/${workspaceID}/access-policies/${id}`, opts)) as AccessPolicy;
+}
+
+export async function createWorkspaceAccessPolicy(
+	workspaceID: string,
+	policy: AccessPolicyManifest
+): Promise<AccessPolicy> {
+	return (await doPost(`/workspaces/${workspaceID}/access-policies`, policy)) as AccessPolicy;
+}
+
+export async function updateWorkspaceAccessPolicy(
+	workspaceID: string,
+	id: string,
+	policy: AccessPolicyManifest
+): Promise<AccessPolicy> {
+	return (await doPut(`/workspaces/${workspaceID}/access-policies/${id}`, policy)) as AccessPolicy;
+}
+
+export async function deleteWorkspaceAccessPolicy(workspaceID: string, id: string): Promise<void> {
+	await doDelete(`/workspaces/${workspaceID}/access-policies/${id}`);
+}
+
+function toWorkspaceAccessControlRule(policy: AccessPolicy): AccessControlRule {
+	return {
+		...policy,
+		resources: policy.mcpServers ?? []
+	};
+}
 
 export async function listWorkspaceAccessControlRules(
 	workspaceID: string,
@@ -789,11 +836,7 @@ export async function listWorkspaceAccessControlRules(
 		fetch?: Fetcher;
 	}
 ): Promise<AccessControlRule[]> {
-	const response = (await doGet(
-		`/workspaces/${workspaceID}/access-control-rules`,
-		opts
-	)) as ItemsResponse<AccessControlRule>;
-	return response.items ?? [];
+	return (await listWorkspaceAccessPolicies(workspaceID, opts)).map(toWorkspaceAccessControlRule);
 }
 
 export async function getWorkspaceAccessControlRule(
@@ -801,22 +844,19 @@ export async function getWorkspaceAccessControlRule(
 	id: string,
 	opts?: { fetch?: Fetcher }
 ): Promise<AccessControlRule> {
-	const response = (await doGet(
-		`/workspaces/${workspaceID}/access-control-rules/${id}`,
-		opts
-	)) as AccessControlRule;
-	return response;
+	return toWorkspaceAccessControlRule(await getWorkspaceAccessPolicy(workspaceID, id, opts));
 }
 
 export async function createWorkspaceAccessControlRule(
 	workspaceID: string,
 	rule: AccessControlRuleManifest
 ): Promise<AccessControlRule> {
-	const response = (await doPost(
-		`/workspaces/${workspaceID}/access-control-rules`,
-		rule
-	)) as AccessControlRule;
-	return response;
+	const response = await createWorkspaceAccessPolicy(workspaceID, {
+		displayName: rule.displayName,
+		mcpServers: rule.resources ?? [],
+		subjects: rule.subjects ?? []
+	});
+	return toWorkspaceAccessControlRule(response);
 }
 
 export async function updateWorkspaceAccessControlRule(
@@ -824,17 +864,19 @@ export async function updateWorkspaceAccessControlRule(
 	id: string,
 	rule: AccessControlRuleManifest
 ): Promise<AccessControlRule> {
-	return (await doPut(
-		`/workspaces/${workspaceID}/access-control-rules/${id}`,
-		rule
-	)) as AccessControlRule;
+	const response = await updateWorkspaceAccessPolicy(workspaceID, id, {
+		displayName: rule.displayName,
+		mcpServers: rule.resources ?? [],
+		subjects: rule.subjects ?? []
+	});
+	return toWorkspaceAccessControlRule(response);
 }
 
 export async function deleteWorkspaceAccessControlRule(
 	workspaceID: string,
 	id: string
 ): Promise<void> {
-	await doDelete(`/workspaces/${workspaceID}/access-control-rules/${id}`);
+	await deleteWorkspaceAccessPolicy(workspaceID, id);
 }
 
 // Workspace MCP catalog entries

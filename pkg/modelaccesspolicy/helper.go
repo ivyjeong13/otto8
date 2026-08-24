@@ -33,7 +33,7 @@ type Helper struct {
 
 func NewHelper(ctx context.Context, backend backend.Backend) (*Helper, error) {
 	// Create indexers for ModelAccessPolicy
-	mapGVK, err := backend.GroupVersionKindFor(&v1.ModelAccessPolicy{})
+	mapGVK, err := backend.GroupVersionKindFor(&v1.AccessPolicy{})
 	if err != nil {
 		return nil, err
 	}
@@ -357,30 +357,30 @@ func (h *Helper) resolveTargetModel(provider, targetModel string) (*v1.Model, er
 }
 
 // GetModelAccessPolicysForUser returns all policies that apply to a specific user.
-func (h *Helper) getUserPolicies(userID string) ([]v1.ModelAccessPolicy, error) {
+func (h *Helper) getUserPolicies(userID string) ([]v1.AccessPolicy, error) {
 	return h.getIndexedPolicies(mapUserIndex, userID)
 }
 
 // getModelAccessPolicysForGroup returns all policies that apply to given group.
-func (h *Helper) getGroupPolicies(groupID string) ([]v1.ModelAccessPolicy, error) {
+func (h *Helper) getGroupPolicies(groupID string) ([]v1.AccessPolicy, error) {
 	return h.getIndexedPolicies(mapGroupIndex, groupID)
 }
 
 // getAllUserPolicies returns all policies that apply to all users.
-func (h *Helper) getWildcardUserPolicies() ([]v1.ModelAccessPolicy, error) {
+func (h *Helper) getWildcardUserPolicies() ([]v1.AccessPolicy, error) {
 	return h.getIndexedPolicies(mapSelectorIndex, "*")
 }
 
 // getIndexedPolicies returns all indexed policies for a given index and key.
-func (h *Helper) getIndexedPolicies(index, key string) ([]v1.ModelAccessPolicy, error) {
+func (h *Helper) getIndexedPolicies(index, key string) ([]v1.AccessPolicy, error) {
 	policies, err := h.mapIndexer.ByIndex(index, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get model access policies with wildcard subject: %w", err)
 	}
 
-	result := make([]v1.ModelAccessPolicy, 0, len(policies))
+	result := make([]v1.AccessPolicy, 0, len(policies))
 	for _, policy := range policies {
-		if res, ok := policy.(*v1.ModelAccessPolicy); ok {
+		if res, ok := policy.(*v1.AccessPolicy); ok {
 			result = append(result, *res)
 		}
 	}
@@ -411,7 +411,7 @@ func (h *Helper) getAliasModels() map[string]string {
 // mapSubjectIndexFunc returns a function that ModelAccessPolicies with the given subject type by subject ID.
 func mapSubjectIndexFunc(subjectType types.SubjectType) gocache.IndexFunc {
 	return func(obj any) ([]string, error) {
-		policy := obj.(*v1.ModelAccessPolicy)
+		policy := obj.(*v1.AccessPolicy)
 		if !policy.DeletionTimestamp.IsZero() {
 			// Drop deleted objects from the index
 			return nil, nil

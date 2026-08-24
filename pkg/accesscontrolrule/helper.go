@@ -17,6 +17,13 @@ type Helper struct {
 	client     kclient.Client
 }
 
+const (
+	userIDIndex       = "mcp-user-ids"
+	catalogEntryIndex = "mcp-catalog-entry-names"
+	serverIndex       = "mcp-server-names"
+	selectorIndex     = "mcp-selectors"
+)
+
 func NewAccessControlRuleHelper(acrIndexer gocache.Indexer, client kclient.Client) *Helper {
 	return &Helper{
 		acrIndexer: acrIndexer,
@@ -24,15 +31,15 @@ func NewAccessControlRuleHelper(acrIndexer gocache.Indexer, client kclient.Clien
 	}
 }
 
-func (h *Helper) GetAccessControlRulesForUser(namespace, userID string) ([]v1.AccessControlRule, error) {
-	acrs, err := h.acrIndexer.ByIndex("user-ids", userID)
+func (h *Helper) GetAccessControlRulesForUser(namespace, userID string) ([]v1.AccessPolicy, error) {
+	acrs, err := h.acrIndexer.ByIndex(userIDIndex, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get access control rules for user: %w", err)
 	}
 
-	result := make([]v1.AccessControlRule, 0, len(acrs))
+	result := make([]v1.AccessPolicy, 0, len(acrs))
 	for _, acr := range acrs {
-		res, ok := acr.(*v1.AccessControlRule)
+		res, ok := acr.(*v1.AccessPolicy)
 		if ok && res.Namespace == namespace && res.DeletionTimestamp.IsZero() {
 			result = append(result, *res)
 		}
@@ -42,15 +49,15 @@ func (h *Helper) GetAccessControlRulesForUser(namespace, userID string) ([]v1.Ac
 }
 
 // GetAccessControlRulesForMCPServer returns all AccessControlRules that contain the specified MCP server name
-func (h *Helper) GetAccessControlRulesForMCPServer(namespace, serverName string) ([]v1.AccessControlRule, error) {
-	acrs, err := h.acrIndexer.ByIndex("server-names", serverName)
+func (h *Helper) GetAccessControlRulesForMCPServer(namespace, serverName string) ([]v1.AccessPolicy, error) {
+	acrs, err := h.acrIndexer.ByIndex(serverIndex, serverName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get access control rules for MCP server: %w", err)
 	}
 
-	result := make([]v1.AccessControlRule, 0, len(acrs))
+	result := make([]v1.AccessPolicy, 0, len(acrs))
 	for _, acr := range acrs {
-		res, ok := acr.(*v1.AccessControlRule)
+		res, ok := acr.(*v1.AccessPolicy)
 		if ok && res.Namespace == namespace && res.DeletionTimestamp.IsZero() {
 			result = append(result, *res)
 		}
@@ -60,15 +67,15 @@ func (h *Helper) GetAccessControlRulesForMCPServer(namespace, serverName string)
 }
 
 // GetAccessControlRulesForMCPServerCatalogEntry returns all AccessControlRules that contain the specified catalog entry name
-func (h *Helper) GetAccessControlRulesForMCPServerCatalogEntry(namespace, entryName string) ([]v1.AccessControlRule, error) {
-	acrs, err := h.acrIndexer.ByIndex("catalog-entry-names", entryName)
+func (h *Helper) GetAccessControlRulesForMCPServerCatalogEntry(namespace, entryName string) ([]v1.AccessPolicy, error) {
+	acrs, err := h.acrIndexer.ByIndex(catalogEntryIndex, entryName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get access control rules for MCP server catalog entry: %w", err)
 	}
 
-	result := make([]v1.AccessControlRule, 0, len(acrs))
+	result := make([]v1.AccessPolicy, 0, len(acrs))
 	for _, acr := range acrs {
-		res, ok := acr.(*v1.AccessControlRule)
+		res, ok := acr.(*v1.AccessPolicy)
 		if ok && res.Namespace == namespace && res.DeletionTimestamp.IsZero() {
 			result = append(result, *res)
 		}
@@ -78,15 +85,15 @@ func (h *Helper) GetAccessControlRulesForMCPServerCatalogEntry(namespace, entryN
 }
 
 // GetAccessControlRulesForSelector returns all AccessControlRules that contain the specified selector
-func (h *Helper) GetAccessControlRulesForSelector(namespace, selector string) ([]v1.AccessControlRule, error) {
-	acrs, err := h.acrIndexer.ByIndex("selectors", selector)
+func (h *Helper) GetAccessControlRulesForSelector(namespace, selector string) ([]v1.AccessPolicy, error) {
+	acrs, err := h.acrIndexer.ByIndex(selectorIndex, selector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get access control rules for selector: %w", err)
 	}
 
-	result := make([]v1.AccessControlRule, 0, len(acrs))
+	result := make([]v1.AccessPolicy, 0, len(acrs))
 	for _, acr := range acrs {
-		res, ok := acr.(*v1.AccessControlRule)
+		res, ok := acr.(*v1.AccessPolicy)
 		if ok && res.Namespace == namespace && res.DeletionTimestamp.IsZero() {
 			result = append(result, *res)
 		}
@@ -98,13 +105,13 @@ func (h *Helper) GetAccessControlRulesForSelector(namespace, selector string) ([
 // Catalog-scoped lookup methods
 
 // GetAccessControlRulesForMCPServerInCatalog returns all AccessControlRules that contain the specified MCP server name within a catalog
-func (h *Helper) GetAccessControlRulesForMCPServerInCatalog(namespace, serverName, catalogID string) ([]v1.AccessControlRule, error) {
+func (h *Helper) GetAccessControlRulesForMCPServerInCatalog(namespace, serverName, catalogID string) ([]v1.AccessPolicy, error) {
 	rules, err := h.GetAccessControlRulesForMCPServer(namespace, serverName)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]v1.AccessControlRule, 0, len(rules))
+	result := make([]v1.AccessPolicy, 0, len(rules))
 	for _, rule := range rules {
 		// Include rules that match the catalog ID
 		if rule.Spec.MCPCatalogID == catalogID {
@@ -116,13 +123,13 @@ func (h *Helper) GetAccessControlRulesForMCPServerInCatalog(namespace, serverNam
 }
 
 // GetAccessControlRulesForMCPServerCatalogEntryInCatalog returns all AccessControlRules that contain the specified catalog entry name within a catalog
-func (h *Helper) GetAccessControlRulesForMCPServerCatalogEntryInCatalog(namespace, entryName, catalogID string) ([]v1.AccessControlRule, error) {
+func (h *Helper) GetAccessControlRulesForMCPServerCatalogEntryInCatalog(namespace, entryName, catalogID string) ([]v1.AccessPolicy, error) {
 	rules, err := h.GetAccessControlRulesForMCPServerCatalogEntry(namespace, entryName)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]v1.AccessControlRule, 0, len(rules))
+	result := make([]v1.AccessPolicy, 0, len(rules))
 	for _, rule := range rules {
 		// Include rules that match the catalog ID
 		if rule.Spec.MCPCatalogID == catalogID {
@@ -134,13 +141,13 @@ func (h *Helper) GetAccessControlRulesForMCPServerCatalogEntryInCatalog(namespac
 }
 
 // GetAccessControlRulesForSelectorInCatalog returns all AccessControlRules that contain the specified selector within a catalog
-func (h *Helper) GetAccessControlRulesForSelectorInCatalog(namespace, selector, catalogID string) ([]v1.AccessControlRule, error) {
+func (h *Helper) GetAccessControlRulesForSelectorInCatalog(namespace, selector, catalogID string) ([]v1.AccessPolicy, error) {
 	rules, err := h.GetAccessControlRulesForSelector(namespace, selector)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]v1.AccessControlRule, 0, len(rules))
+	result := make([]v1.AccessPolicy, 0, len(rules))
 	for _, rule := range rules {
 		// Include rules that match the catalog ID
 		if rule.Spec.MCPCatalogID == catalogID {
@@ -349,13 +356,13 @@ func (h *Helper) HasWildcardAccessToMCPServerInCatalog(serverName, catalogID str
 // Workspace-scoped lookup methods
 
 // GetAccessControlRulesForMCPServerInWorkspace returns all AccessControlRules that contain the specified MCP server name within a workspace
-func (h *Helper) GetAccessControlRulesForMCPServerInWorkspace(namespace, serverName, workspaceID string) ([]v1.AccessControlRule, error) {
+func (h *Helper) GetAccessControlRulesForMCPServerInWorkspace(namespace, serverName, workspaceID string) ([]v1.AccessPolicy, error) {
 	rules, err := h.GetAccessControlRulesForMCPServer(namespace, serverName)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]v1.AccessControlRule, 0, len(rules))
+	result := make([]v1.AccessPolicy, 0, len(rules))
 	for _, rule := range rules {
 		if rule.Spec.PowerUserWorkspaceID == workspaceID {
 			result = append(result, rule)
@@ -366,13 +373,13 @@ func (h *Helper) GetAccessControlRulesForMCPServerInWorkspace(namespace, serverN
 }
 
 // GetAccessControlRulesForMCPServerCatalogEntryInWorkspace returns all AccessControlRules that contain the specified catalog entry name within a workspace
-func (h *Helper) GetAccessControlRulesForMCPServerCatalogEntryInWorkspace(namespace, entryName, workspaceID string) ([]v1.AccessControlRule, error) {
+func (h *Helper) GetAccessControlRulesForMCPServerCatalogEntryInWorkspace(namespace, entryName, workspaceID string) ([]v1.AccessPolicy, error) {
 	rules, err := h.GetAccessControlRulesForMCPServerCatalogEntry(namespace, entryName)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]v1.AccessControlRule, 0, len(rules))
+	result := make([]v1.AccessPolicy, 0, len(rules))
 	for _, rule := range rules {
 		if rule.Spec.PowerUserWorkspaceID == workspaceID {
 			result = append(result, rule)
@@ -383,13 +390,13 @@ func (h *Helper) GetAccessControlRulesForMCPServerCatalogEntryInWorkspace(namesp
 }
 
 // GetAccessControlRulesForSelectorInWorkspace returns all AccessControlRules that contain the specified selector within a workspace
-func (h *Helper) GetAccessControlRulesForSelectorInWorkspace(namespace, selector, workspaceID string) ([]v1.AccessControlRule, error) {
+func (h *Helper) GetAccessControlRulesForSelectorInWorkspace(namespace, selector, workspaceID string) ([]v1.AccessPolicy, error) {
 	rules, err := h.GetAccessControlRulesForSelector(namespace, selector)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]v1.AccessControlRule, 0, len(rules))
+	result := make([]v1.AccessPolicy, 0, len(rules))
 	for _, rule := range rules {
 		if rule.Spec.PowerUserWorkspaceID == workspaceID {
 			result = append(result, rule)
