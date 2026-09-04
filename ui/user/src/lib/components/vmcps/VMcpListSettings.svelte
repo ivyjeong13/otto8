@@ -2,11 +2,10 @@
 	import ResponsiveDialog from '$lib/components/ResponsiveDialog.svelte';
 	import Search from '$lib/components/Search.svelte';
 	import Select from '$lib/components/Select.svelte';
-	import IconButton from '$lib/components/primitives/IconButton.svelte';
 	import { VMCP_SORT_OPTIONS } from '$lib/services/vmcps/constants';
 	import type { VMcpFilterOption, VMcpSortBy } from '$lib/services/vmcps/types';
 	import { parseSelectedFilterIds } from '$lib/services/vmcps/utils';
-	import { Settings, X } from '@lucide/svelte';
+	import { Funnel, X } from '@lucide/svelte';
 
 	const BUTTON_ID = 'vmcp-settings-button';
 	const SORT_LABEL_ID = 'vmcp-sort-by-label';
@@ -57,27 +56,21 @@
 	}
 </script>
 
-<div class="flex items-center gap-2">
-	<IconButton
-		class="bg-base-100/80 dark:bg-base-300/80 rounded-md border border-transparent p-2 shadow-sm hover:bg-base-300 dark:hover:bg-base-300"
-		id={BUTTON_ID}
-		tooltip={{ text: 'vMCPs Settings', placement: 'right' }}
-		onclick={() => dialog?.open()}
-	>
-		<Settings class="size-4" />
-	</IconButton>
-	<div
-		class="bg-base-100/80 dark:bg-base-300/80 rounded-md border border-transparent p-2 shadow-sm flex flex-col @md:flex-row items-center gap-2"
-	>
+<div class="bg-base-200 dark:bg-base-100 sticky top-16 left-0 z-20 w-full py-1 flex flex-col gap-2">
+	<div class="flex items-center gap-2">
 		<Search
-			compact
-			class="text-xs w-fit @2xl:min-w-xs dark:bg-base-100 shadow-inner"
 			value={ownerFilterBy}
 			onChange={(value) => (ownerFilterBy = value)}
 			placeholder="Search by user..."
+			class="dark:bg-base-200 dark:border-base-400 bg-base-100 border border-transparent shadow-sm"
 		/>
-		<div class="divider divider-horizontal mx-0"></div>
-		<label class="text-xs flex items-center gap-1.5 shrink-0 mr-2">
+		<button class="btn btn-neutral h-12.5" id={BUTTON_ID} onclick={() => dialog?.open()}>
+			<Funnel class="size-4" /> Filters
+		</button>
+	</div>
+
+	<div>
+		<label class="flex items-center gap-1.5 pt-2 w-fit text-sm">
 			<input
 				type="checkbox"
 				class="checkbox checkbox-xs rounded-sm"

@@ -1,41 +1,33 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import Confirm from '$lib/components/Confirm.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import CopyField from '$lib/components/CopyField.svelte';
-	import Layout from '$lib/components/Layout.svelte';
 	import ResponsiveDialog from '$lib/components/ResponsiveDialog.svelte';
+	import Select from '$lib/components/Select.svelte';
+	import SensitiveInput from '$lib/components/SensitiveInput.svelte';
+	import TabLayout, { type TabView } from '$lib/components/TabLayout.svelte';
 	import ConnectToServer from '$lib/components/mcp/ConnectToServer.svelte';
 	import IconButton from '$lib/components/primitives/IconButton.svelte';
 	import CreateEditVMcp from '$lib/components/vmcps/CreateEditVMcp.svelte';
-	import CreateVMcpButton from '$lib/components/vmcps/CreateVMcpButton.svelte';
-	import McpServersSidebar from '$lib/components/vmcps/McpServersSidebar.svelte';
-	import VMcpDragOverlay from '$lib/components/vmcps/VMcpDragOverlay.svelte';
-	import VMcpGraph from '$lib/components/vmcps/VMcpGraph.svelte';
-	import VMcpGraphRow from '$lib/components/vmcps/VMcpGraphRow.svelte';
-	import VMcpSettings from '$lib/components/vmcps/VMcpSettings.svelte';
-	import VMcpTable from '$lib/components/vmcps/VMcpTable.svelte';
-	import VMcpToolDialogs from '$lib/components/vmcps/VMcpToolDialogs.svelte';
-	import ViewModifyCatalogEntry from '$lib/components/vmcps/ViewModifyCatalogEntry.svelte';
+	import VMcpDesigner from '$lib/components/vmcps/VMcpDesigner.svelte';
+	import VMcpList from '$lib/components/vmcps/VMcpList.svelte';
+	import VMcpListSettings from '$lib/components/vmcps/VMcpListSettings.svelte';
 	import { DEFAULT_MCP_CATALOG_ID } from '$lib/constants';
+	import { parseErrorContent } from '$lib/errors.js';
 	import Loading from '$lib/icons/Loading.svelte';
-	import { createEntryDrag } from '$lib/runes/vmcps/entryDrag.svelte';
-	import { createVMcpToolFlow } from '$lib/runes/vmcps/vmcpToolFlow.svelte';
 	import {
 		AdminService,
-		Group,
 		UserService,
-		type CatalogComponentServer,
 		type MCPCatalogEntry,
 		type MCPServerInstance,
 		type OrgUser
 	} from '$lib/services';
+	import type { GitCredential, VMcpRepository } from '$lib/services/admin/types';
 	import { AiClient, COMMON_AI_CLIENTS } from '$lib/services/user/constants';
-	import { isMultiUserCatalogEntry, isMultiUserServer } from '$lib/services/user/mcp';
-	import { vmcpRowHeight } from '$lib/services/vmcps/camera';
-	import { SHORT_DESCRIPTION_MAX_LENGTH } from '$lib/services/vmcps/constants';
 	import type { VMcpSortBy } from '$lib/services/vmcps/types';
 	import {
-		appendComponentLabel,
 		buildVMcpComponentFilterOptions,
 		filterVMcps,
 		isWorkspaceOwned,
@@ -44,18 +36,31 @@
 		buildConnectAllSnippets
 	} from '$lib/services/vmcps/utils';
 	import { errors, mcpServersAndEntries, profile } from '$lib/stores';
-	import { success } from '$lib/stores/success';
-	import { setUrlParamAndUpdateUrl } from '$lib/url';
-	import { ChartBarStacked, Table } from '@lucide/svelte';
-	import { onMount } from 'svelte';
+	import { goto } from '$lib/url';
+	import SourcesView from './SourcesView.svelte';
+	import { Info, Layers, Plus, Settings, TriangleAlert, X } from '@lucide/svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import { slide } from 'svelte/transition';
 	import { twMerge } from 'tailwind-merge';
 
-	const INITIAL_EXPANDED_VMCPS = 5;
-	const EXPANDED_VMCPS_STORAGE_KEY = 'vmcps.expandedIds';
+	type RepositoryCredentialType = 'none' | 'shared' | 'token';
+
+	const repositoryCredentialOptions = [
+		{ id: 'none', label: 'None' },
+		{ id: 'shared', label: 'Choose existing' },
+		{ id: 'token', label: 'Enter personal access token' }
+	];
+
+	let { data } = $props();
+	let isAdminReadonly = $derived(Boolean(profile.current.isAdminReadonly?.()));
+	let views = $derived.by((): TabView[] => [
+		{ label: 'vMCPs', value: 'vmcps', content: vmcpsView },
+		{ label: 'Sources', value: 'sources', content: sourcesView }
+	]);
+
 	const options = COMMON_AI_CLIENTS.slice(0, 4);
 
-	let viewType = $state<'graph' | 'table'>('graph');
-	let showRightPanel = $state(true);
 	let isLoading = $derived(mcpServersAndEntries.current.loading);
 	let showAllConnectors = $state(false);
 	let sortBy = $state<VMcpSortBy>('name');
@@ -79,9 +84,7 @@
 	);
 
 	let createEditVMcp = $state<ReturnType<typeof CreateEditVMcp>>();
-	let catalogEntryDialog = $state<ReturnType<typeof ViewModifyCatalogEntry>>();
 	let connectToServerDialog = $state<ReturnType<typeof ConnectToServer>>();
-
 	let connectAllVMcpsDialog = $state<ReturnType<typeof ResponsiveDialog>>();
 	let connectAllCopyField = $state<ReturnType<typeof CopyField>>();
 	let selectedClient = $state<(typeof COMMON_AI_CLIENTS)[number]>();
@@ -97,17 +100,8 @@
 	);
 
 	let users = $state<OrgUser[]>([]);
-
-	let rightPanelEl = $state<HTMLElement>();
-	let rightPanelWidth = $state(0);
-	let pendingEntryDrop = $state<{ vmcp?: MCPCatalogEntry }>();
-	let expandedVMcpIds = $state<string[]>([]);
-	let expandedInitialized = $state(false);
-	const toolFlow = createVMcpToolFlow();
-
-	let query = $derived(page.url.searchParams.get('query') ?? '');
+	let creating = $derived(page.url.searchParams.has('new'));
 	let usersMap = $derived(new Map(users.map((user) => [user.id, user])));
-
 	let composites = $derived(
 		sortVMcps(
 			filterVMcps(
@@ -123,165 +117,195 @@
 		)
 	);
 
+	let syncing = new SvelteSet<string>();
+	let isSyncing = $derived(syncing.size > 0);
+	let deleting = $state(false);
+	let deletingSources = $state<VMcpRepository[] | undefined>();
+	let vmcpRepositories = $state<VMcpRepository[]>(untrack(() => data?.vmcpRepositories ?? []));
+	let gitCredentials = $state<GitCredential[]>(untrack(() => data?.gitCredentials ?? []));
+	let sourceDialog = $state<HTMLDialogElement | undefined>(undefined);
+	let syncErrorDialog = $state<ReturnType<typeof ResponsiveDialog>>();
+	let syncError = $state<{ url: string; error: string }>();
+	let syncInterval = new SvelteMap<string, ReturnType<typeof setInterval>>();
+	let editingSource = $state<
+		| {
+				index: number;
+				value: string;
+				name: string;
+				ref: string;
+				token: string;
+				gitCredentialID: string;
+				credentialType: RepositoryCredentialType;
+				repositoryID?: string;
+				clearToken?: boolean;
+		  }
+		| undefined
+	>(undefined);
+	let sourceError = $state<string | undefined>(undefined);
+	let saving = $state(false);
+	let editingSourceHost = $derived(sourceHost(editingSource?.value ?? ''));
+	let gitCredentialOptions = $derived(
+		gitCredentials.map((credential) => ({
+			id: credential.id,
+			label: `${credential.displayName} (${credential.host})`,
+			disabled:
+				!credential.tokenConfigured ||
+				Boolean(editingSourceHost && editingSourceHost !== credential.host.toLowerCase())
+		}))
+	);
+	let editingVMcpRepository = $derived(
+		editingSource?.repositoryID
+			? vmcpRepositories.find((repository) => repository.id === editingSource?.repositoryID)
+			: undefined
+	);
+	let existingVMcpRepositoryToken = $derived(
+		editingSource?.value.trim() === editingVMcpRepository?.repoURL
+			? (editingVMcpRepository?.sourceURLCredentials?.[editingVMcpRepository.repoURL] ?? '')
+			: ''
+	);
+	let existingSourceHasCredential = $derived(
+		Boolean(
+			editingSource &&
+			editingSource.index >= 0 &&
+			(hasVMcpRepositoryToken(editingVMcpRepository) ||
+				Boolean(editingVMcpRepository?.gitCredentialID))
+		)
+	);
+	let credentialLocked = $derived(
+		Boolean(editingSource && existingSourceHasCredential && !editingSource.clearToken)
+	);
+	let credentialSelectionIncomplete = $derived(
+		Boolean(
+			editingSource &&
+			((editingSource.credentialType === 'shared' && !editingSource.gitCredentialID) ||
+				(editingSource.credentialType === 'token' &&
+					!editingSource.token.trim() &&
+					(!hasVMcpRepositoryToken(editingVMcpRepository) ||
+						editingSource.value.trim() !== editingVMcpRepository?.repoURL)))
+		)
+	);
+
+	$effect(() => {
+		vmcpRepositories = data?.vmcpRepositories ?? [];
+	});
+
+	$effect(() => {
+		gitCredentials = data?.gitCredentials ?? [];
+	});
+
 	onMount(() => {
 		UserService.listUsersIncludeDeleted().then((response) => {
 			users = response;
 		});
 	});
 
-	function catalogEntryForComponent(component: CatalogComponentServer) {
-		if (component.catalogEntryID) {
-			return mcpServersAndEntries.current.entries.find(
-				(entry) => entry.id === component.catalogEntryID
-			);
-		}
-
-		if (!component.mcpServerID) return undefined;
-
-		const server = mcpServersAndEntries.current.servers.find(
-			(candidate) => candidate.id === component.mcpServerID
-		);
-		if (!server?.catalogEntryID) return undefined;
-
-		return mcpServersAndEntries.current.entries.find((entry) => entry.id === server.catalogEntryID);
-	}
-
-	function componentManifestField(
-		component: CatalogComponentServer,
-		field: 'name' | 'shortDescription'
-	) {
-		const entry = catalogEntryForComponent(component);
-		const server = component.mcpServerID
-			? mcpServersAndEntries.current.servers.find(
-					(candidate) => candidate.id === component.mcpServerID
-				)
-			: undefined;
-		const manifest = component.manifest ?? entry?.manifest ?? server?.manifest;
-		return manifest?.[field];
-	}
-
-	let canCreateCatalogEntry = $derived(
-		profile.current.isAdmin?.() || profile.current.groups.includes(Group.POWERUSER)
-	);
-
-	const entryDrag = createEntryDrag({
-		composites: () => composites,
-		panelEl: () => rightPanelEl,
-		openEntry: (entry) => openCatalogEntry(entry),
-		createEntry: (target) => startCatalogEntryCreation(target),
-		dropOnCreate: (entry) => handleDroppedOnCreate(entry),
-		dropOnVMcp: (entry, vmcp) => void handleDropped(entry, vmcp)
-	});
-
-	$effect(() => {
-		const el = rightPanelEl;
-		if (!el) return;
-
-		const observer = new ResizeObserver(() => {
-			rightPanelWidth = el.getBoundingClientRect().width;
-		});
-		observer.observe(el);
-		return () => observer.disconnect();
-	});
-
-	function openCatalogEntry(entry: MCPCatalogEntry) {
-		void catalogEntryDialog?.open(entry);
-	}
-
-	function startCatalogEntryCreation(target?: { vmcp?: MCPCatalogEntry }) {
-		pendingEntryDrop = target;
-		catalogEntryDialog?.start(target ? { closeAfterCreate: true } : undefined);
-	}
-
-	async function handleCatalogEntryCreated(created: MCPCatalogEntry) {
-		const pending = pendingEntryDrop;
-		pendingEntryDrop = undefined;
-		if (!pending) return;
-
-		if (pending.vmcp) {
-			await handleDropped(created, pending.vmcp);
-			return;
-		}
-
-		handleDroppedOnCreate(created);
-	}
-
-	function toComponentServer(entry: MCPCatalogEntry): CatalogComponentServer | undefined {
-		if (!isMultiUserCatalogEntry(entry)) {
-			return { catalogEntryID: entry.id, manifest: entry.manifest };
-		}
-
-		const deployed = mcpServersAndEntries.current.servers.find(
-			(server) => isMultiUserServer(server) && server.catalogEntryID === entry.id
-		);
-		return deployed ? { mcpServerID: deployed.id } : undefined;
-	}
-
-	function handleDroppedOnCreate(entry: MCPCatalogEntry) {
-		const component = toComponentServer(entry);
-		if (!component) {
-			errors.append(
-				`${entry.manifest.name} is a multi-user server and must be deployed before it can be added to a vMCP.`
-			);
-			return;
-		}
-
-		createEditVMcp?.openCreate([{ ...component, manifest: component.manifest ?? entry.manifest }]);
-	}
-
-	async function handleDropped(entry: MCPCatalogEntry, vmcp: MCPCatalogEntry) {
-		const component = toComponentServer(entry);
-		if (!component) {
-			errors.append(
-				`${entry.manifest.name} is a multi-user server and must be deployed before it can be added to a vMCP.`
-			);
-			return;
-		}
-
+	function sourceHost(value: string): string {
 		try {
-			const latest = await AdminService.getMCPCatalogEntry(DEFAULT_MCP_CATALOG_ID, vmcp.id);
-			const components = latest.manifest.compositeConfig?.componentServers ?? [];
-			if (
-				components.some(
-					(existing) =>
-						(component.catalogEntryID && existing.catalogEntryID === component.catalogEntryID) ||
-						(component.mcpServerID && existing.mcpServerID === component.mcpServerID)
-				)
-			) {
-				return;
-			}
-
-			const nextComponents = [...components, component];
-			const updated = await AdminService.updateMCPCatalogEntry(DEFAULT_MCP_CATALOG_ID, vmcp.id, {
-				...latest.manifest,
-				name:
-					appendComponentLabel(
-						latest.manifest.name,
-						components.map((existing) => componentManifestField(existing, 'name')),
-						entry.manifest.name
-					) ?? latest.manifest.name,
-				shortDescription:
-					appendComponentLabel(
-						latest.manifest.shortDescription,
-						components.map((existing) => componentManifestField(existing, 'shortDescription')),
-						entry.manifest.shortDescription,
-						SHORT_DESCRIPTION_MAX_LENGTH
-					) ?? latest.manifest.shortDescription,
-				compositeConfig: {
-					...latest.manifest.compositeConfig,
-					componentServers: nextComponents
-				}
-			});
-
-			mcpServersAndEntries.current.entries = mcpServersAndEntries.current.entries.map(
-				(candidate) => (candidate.id === updated.id ? updated : candidate)
-			);
-			success.add(`${entry.manifest.name} added to ${updated.manifest.name}.`);
-
-			toolFlow.offerToolSelection(entry, updated);
+			return new URL(value.includes('://') ? value : `https://${value}`).host.toLowerCase();
 		} catch {
-			errors.append('Failed to add MCP server to vMCP.');
+			return '';
 		}
+	}
+
+	function handleVMcpSourceURLInput() {
+		if (!editingSource?.gitCredentialID) return;
+		const selectedCredential = gitCredentials.find(
+			(credential) => credential.id === editingSource?.gitCredentialID
+		);
+		const host = sourceHost(editingSource.value);
+		if (selectedCredential && host && host !== selectedCredential.host.toLowerCase()) {
+			editingSource.gitCredentialID = '';
+		}
+	}
+
+	function hasVMcpRepositoryToken(repository: VMcpRepository | undefined): boolean {
+		if (!repository) return false;
+		const token = repository.sourceURLCredentials?.[repository.repoURL];
+		return token !== undefined && token !== '';
+	}
+
+	function clearSyncInterval(id: string) {
+		if (syncInterval.get(id)) {
+			clearInterval(syncInterval.get(id));
+			syncInterval.delete(id);
+		}
+	}
+
+	function pollTillSyncComplete(id: string) {
+		if (syncInterval.get(id)) {
+			clearInterval(syncInterval.get(id));
+		}
+
+		syncInterval.set(
+			id,
+			setInterval(async () => {
+				try {
+					const response = await AdminService.getVMcpRepository(id);
+					if (response && !response.isSyncing) {
+						clearSyncInterval(id);
+						vmcpRepositories = await AdminService.listVMcpRepositories();
+						syncing.delete(id);
+					}
+				} catch (err) {
+					errors.append(`Failed to sync vMCP repository: ${err}`);
+					clearSyncInterval(id);
+					syncing.delete(id);
+				}
+			}, 5000)
+		);
+	}
+
+	async function sync(id: string) {
+		syncing.add(id);
+		try {
+			await AdminService.refreshVMcpRepository(id);
+			pollTillSyncComplete(id);
+		} catch (err) {
+			errors.append(`Failed to refresh vMCP repository sync status: ${err}`);
+			syncing.delete(id);
+		}
+	}
+
+	function closeSourceDialog() {
+		editingSource = undefined;
+		sourceError = undefined;
+		saving = false;
+		sourceDialog?.close();
+	}
+
+	function openAddSource() {
+		editingSource = {
+			index: -1,
+			value: '',
+			name: '',
+			ref: 'main',
+			token: '',
+			gitCredentialID: '',
+			credentialType: 'none'
+		};
+		sourceDialog?.showModal();
+	}
+
+	function openEditSource(repository: VMcpRepository) {
+		editingSource = {
+			index: vmcpRepositories.findIndex((candidate) => candidate.id === repository.id),
+			value: repository.repoURL,
+			name: repository.displayName,
+			ref: repository.ref,
+			token: '',
+			gitCredentialID: repository.gitCredentialID ?? '',
+			credentialType: repository.gitCredentialID
+				? 'shared'
+				: hasVMcpRepositoryToken(repository)
+					? 'token'
+					: 'none',
+			repositoryID: repository.id
+		};
+		sourceDialog?.showModal();
+	}
+
+	function openVMcpsForRepository() {
+		goto(`${page.url.pathname}?view=vmcps`);
 	}
 
 	function vmcpComponents(vmcp: MCPCatalogEntry) {
@@ -308,64 +332,57 @@
 		}
 	}
 
-	const updateSearchQuery = (value: string) => {
-		setUrlParamAndUpdateUrl(page.url, 'query', value);
-	};
+	function openCreate() {
+		goto(`${page.url.pathname}?new=true`);
+	}
 
-	function readExpandedVMcps(): string[] | undefined {
-		if (typeof localStorage === 'undefined') return undefined;
-		const raw = localStorage.getItem(EXPANDED_VMCPS_STORAGE_KEY);
-		if (raw === null) return undefined;
-		try {
-			const parsed = JSON.parse(raw);
-			if (!Array.isArray(parsed)) return [];
-			return parsed.filter((id): id is string => typeof id === 'string' && id.length > 0);
-		} catch {
-			return [];
+	function hideCreate() {
+		const url = new URL(page.url);
+		url.searchParams.delete('new');
+		goto(url, { replaceState: true });
+	}
+
+	function openVMcp(vmcp: MCPCatalogEntry) {
+		goto(`/vmcps/${vmcp.id}`);
+	}
+
+	onDestroy(() => {
+		for (const interval of syncInterval.values()) {
+			clearInterval(interval);
 		}
-	}
-
-	function persistExpandedVMcps(ids: string[]) {
-		if (typeof localStorage === 'undefined') return;
-		localStorage.setItem(EXPANDED_VMCPS_STORAGE_KEY, JSON.stringify(ids));
-	}
-
-	function isVMcpExpanded(id: string) {
-		return expandedVMcpIds.includes(id);
-	}
-
-	function toggleExpandedVMcp(vmcp: MCPCatalogEntry) {
-		expandedVMcpIds = isVMcpExpanded(vmcp.id)
-			? expandedVMcpIds.filter((id) => id !== vmcp.id)
-			: [...expandedVMcpIds, vmcp.id];
-		persistExpandedVMcps(expandedVMcpIds);
-	}
-
-	$effect(() => {
-		if (expandedInitialized) return;
-		const stored = readExpandedVMcps();
-		if (stored) {
-			expandedVMcpIds = stored;
-			expandedInitialized = true;
-			return;
-		}
-		if (composites.length === 0) return;
-		expandedVMcpIds = composites.slice(0, INITIAL_EXPANDED_VMCPS).map((vmcp) => vmcp.id);
-		persistExpandedVMcps(expandedVMcpIds);
-		expandedInitialized = true;
 	});
 </script>
 
-<Layout
-	classes={{
-		container: 'p-0 md:px-0 min-h-0',
-		childrenContainer: 'max-w-full',
-		collapsedSidebarHeaderContent: 'p-4 pb-0'
-	}}
-	title="vMCPs"
->
-	{#snippet rightNavActions()}
-		<div class="flex items-center gap-2">
+{#if creating}
+	<VMcpDesigner onBack={hideCreate} />
+{:else}
+	<TabLayout
+		title="vMCPs"
+		defaultView="vmcps"
+		rightNavActions={navActions}
+		{views}
+		classes={{
+			container: 'min-h-0',
+			childrenContainer: 'max-w-full'
+		}}
+	/>
+{/if}
+
+{#snippet navActions(view: string)}
+	{#if view === 'sources'}
+		{#if !isAdminReadonly}
+			<a
+				class="btn btn-secondary flex items-center gap-1 text-sm"
+				href={resolve('/admin/platform?view=git-credentials')}
+			>
+				<Settings class="size-4" /> Manage Credentials
+			</a>
+			<button class="btn btn-primary flex items-center gap-1 text-sm" onclick={openAddSource}>
+				<Plus class="size-4" /> Add Source URL
+			</button>
+		{/if}
+	{:else}
+		<div class="flex items-center gap-2 md:mr-4">
 			<p class="text-xs font-light">Connect all vMCPs:</p>
 			{#each options as option (option.id)}
 				<IconButton
@@ -382,119 +399,79 @@
 				</IconButton>
 			{/each}
 		</div>
-	{/snippet}
-	<div
-		class="@container dark:from-base-300 to-base-200 relative h-full min-h-0 w-full overflow-hidden bg-radial-[at_50%_50%] from-gray-50 p-4 dark:to-black"
-	>
-		{#if isLoading}
-			<Loading class="text-primary" />
-		{:else if allComposites.length > 0}
-			<div class="absolute top-3 left-3 z-10">
-				<VMcpSettings
-					bind:showAllConnectors
-					bind:sortBy
-					bind:ownerFilterBy
-					bind:componentFilterBy
-					{componentFilterOptions}
-				/>
-			</div>
-			{#if viewType === 'graph'}
-				{@render graphView()}
-			{:else}
-				{@render tableView()}
-			{/if}
-		{:else}
-			<div class="flex h-full items-center justify-center">
-				<CreateVMcpButton drag={entryDrag} onCreate={() => createEditVMcp?.openCreate()} />
-			</div>
-		{/if}
-	</div>
-	{#snippet rightSidebar()}
-		<McpServersSidebar
-			bind:panelEl={rightPanelEl}
-			bind:open={showRightPanel}
-			drag={entryDrag}
-			{query}
-			onSearch={updateSearchQuery}
-			{showAllConnectors}
-			canCreateEntry={canCreateCatalogEntry}
+		<button class="btn btn-primary" onclick={openCreate}>
+			<Plus class="size-4" /> Create vMCP
+		</button>
+	{/if}
+{/snippet}
+
+{#snippet vmcpsView()}
+	{#if isLoading}
+		<Loading class="text-primary" />
+	{:else}
+		<VMcpListSettings
+			bind:showAllConnectors
+			bind:sortBy
+			bind:ownerFilterBy
+			bind:componentFilterBy
+			{componentFilterOptions}
 		/>
-	{/snippet}
-</Layout>
-
-{#snippet graphView()}
-	<VMcpGraph
-		items={composites}
-		expandedIds={expandedVMcpIds}
-		dragActive={entryDrag.active}
-		estimateHeight={(vmcp, expanded) => vmcpRowHeight(vmcpComponents(vmcp).length, expanded)}
-	>
-		{#snippet actions()}
-			{@render viewActions()}
-		{/snippet}
-		{#snippet row(vmcp, ctx)}
-			<VMcpGraphRow
-				{vmcp}
-				components={vmcpComponents(vmcp)}
-				expanded={isVMcpExpanded(vmcp.id)}
-				context={ctx}
-				drag={entryDrag}
-				onToggleExpand={() => toggleExpandedVMcp(vmcp)}
-				onEdit={() => createEditVMcp?.openEdit(vmcp)}
-				onConnect={() => handleConnectVMcp(vmcp)}
-				onModifyComponent={(component) => toolFlow.openComponent(component, vmcp)}
-			/>
-		{/snippet}
-		{#snippet footer()}
-			<CreateVMcpButton drag={entryDrag} embedded onCreate={() => createEditVMcp?.openCreate()} />
-		{/snippet}
-	</VMcpGraph>
-{/snippet}
-
-{#snippet tableView()}
-	<VMcpTable
-		items={composites}
-		drag={entryDrag}
-		components={vmcpComponents}
-		{rightPanelWidth}
-		onEdit={(component, vmcp) => toolFlow.editComponent(component, vmcp)}
-		onDelete={(component, vmcp) => toolFlow.promptRemoveComponent(component, vmcp)}
-	>
-		{#snippet actions()}
-			{@render viewActions()}
-		{/snippet}
-	</VMcpTable>
-{/snippet}
-
-{#snippet viewActions()}
-	<div
-		class="bg-base-100/80 dark:bg-base-300/80 flex gap-1 rounded-md border border-transparent p-1 shadow-sm"
-		data-vmcp-ui
-		role="toolbar"
-		tabindex="-1"
-		aria-label="View type"
-		onpointerdown={(event) => event.stopPropagation()}
-	>
-		<IconButton
-			class={twMerge('btn-sm', viewType === 'graph' && 'bg-base-400 dark:bg-base-100')}
-			tooltip={{ text: 'Graph View', placement: 'bottom' }}
-			onclick={() => (viewType = 'graph')}
+		<VMcpList
+			items={composites}
+			components={vmcpComponents}
+			onSelect={openVMcp}
+			onConnect={handleConnectVMcp}
+			onDelete={(item) => createEditVMcp?.openDelete(item)}
 		>
-			<ChartBarStacked class="size-4" />
-		</IconButton>
-		<IconButton
-			class={twMerge('btn-sm', viewType === 'table' && 'bg-base-400 dark:bg-base-100')}
-			tooltip={{ text: 'Table View', placement: 'bottom' }}
-			onclick={() => (viewType = 'table')}
-		>
-			<Table class="size-4" />
-		</IconButton>
-	</div>
+			{#snippet noDataContent()}
+				<div class="my-12 flex w-md flex-col items-center gap-4 self-center text-center">
+					<Layers class="text-muted-content size-24 opacity-25" />
+					<div>
+						<h4 class="text-muted-content text-lg font-semibold">
+							{profile.current.hasAdminAccess?.() ? 'Create a vMCP!' : 'No vMCPs available'}
+						</h4>
+						<p class="text-muted-content text-sm font-light">
+							{profile.current.hasAdminAccess?.()
+								? 'Click below to get started.'
+								: "Looks like there aren't any vMCPs available yet."}
+						</p>
+					</div>
+					{#if profile.current.hasAdminAccess?.()}
+						<button class="btn btn-primary" onclick={openCreate}>
+							<Plus class="size-4" /> Create vMCP Now
+						</button>
+					{/if}
+				</div>
+			{/snippet}
+		</VMcpList>
+	{/if}
 {/snippet}
 
-<VMcpDragOverlay drag={entryDrag} />
-
-<VMcpToolDialogs flow={toolFlow} />
+{#snippet sourcesView()}
+	{#if isSyncing}
+		<div class="p-4" transition:slide={{ axis: 'y' }}>
+			<div class="notification-info p-3 text-sm font-light">
+				<div class="flex items-center gap-3">
+					<Info class="size-6" />
+					<div>The system is currently syncing with your configured Git repositories.</div>
+				</div>
+			</div>
+		</div>
+	{/if}
+	<SourcesView
+		{vmcpRepositories}
+		syncingIds={syncing}
+		{isAdminReadonly}
+		onEdit={openEditSource}
+		onDelete={(repositories) => (deletingSources = repositories)}
+		onSync={sync}
+		onOpenSyncError={(url, error) => {
+			syncError = { url, error };
+			syncErrorDialog?.open();
+		}}
+		onSelectRepository={openVMcpsForRepository}
+	/>
+{/snippet}
 
 <ConnectToServer
 	bind:this={connectToServerDialog}
@@ -502,13 +479,7 @@
 	onConnect={handleConnectToServer}
 />
 
-<CreateEditVMcp bind:this={createEditVMcp} onCreated={toolFlow.handleVMcpCreated} />
-
-<ViewModifyCatalogEntry
-	bind:this={catalogEntryDialog}
-	rightOffsetWidth={rightPanelWidth}
-	onCreated={handleCatalogEntryCreated}
-/>
+<CreateEditVMcp bind:this={createEditVMcp} />
 
 <ResponsiveDialog bind:this={connectAllVMcpsDialog} id="connect-all-vmcps-dialog">
 	{#snippet titleContent()}
@@ -605,6 +576,268 @@
 	</div>
 </ResponsiveDialog>
 
+<Confirm
+	msg={deletingSources
+		? deletingSources.length === 1
+			? `Delete ${deletingSources[0].displayName}?`
+			: `Delete the following Git Source URLs?`
+		: 'Confirm Delete'}
+	show={Boolean(deletingSources && deletingSources.length > 0)}
+	onsuccess={async () => {
+		if (!deletingSources) return;
+		deleting = true;
+		try {
+			for (const source of deletingSources) {
+				await AdminService.deleteVMcpRepository(source.id);
+			}
+			vmcpRepositories = await AdminService.listVMcpRepositories();
+		} catch (error) {
+			errors.append(`Failed to delete Git Source URLs: ${error}`);
+		} finally {
+			deletingSources = undefined;
+			deleting = false;
+		}
+	}}
+	oncancel={() => (deletingSources = undefined)}
+	loading={deleting}
+>
+	{#snippet note()}
+		{#if deletingSources && deletingSources.length > 1}
+			<ul class="mb-3">
+				{#each deletingSources as source (source.id)}
+					<li>{source.displayName}</li>
+				{/each}
+			</ul>
+		{/if}
+		<p>
+			Are you sure you want to delete {deletingSources && deletingSources.length > 1
+				? 'these'
+				: 'this'}? This will delete all related vMCPs and their information from the system.
+		</p>
+	{/snippet}
+</Confirm>
+
+<ResponsiveDialog title="Git Source URL Sync" bind:this={syncErrorDialog} class="md:w-2xl">
+	<div class="mb-4 flex flex-col gap-4">
+		<div class="notification-alert flex flex-col gap-2">
+			<div class="flex items-center gap-2">
+				<TriangleAlert class="size-6 shrink-0 self-start text-warning" />
+				<p class="my-0.5 flex flex-col text-sm font-semibold">
+					An issue occurred fetching this source URL:
+				</p>
+			</div>
+			<span class="text-sm font-light break-all">{syncError?.error}</span>
+		</div>
+	</div>
+</ResponsiveDialog>
+
+<dialog bind:this={sourceDialog} class="dialog">
+	<div class="dialog-container w-full max-w-md p-4 h-134.5 max-h-dvh flex flex-col">
+		{#if editingSource}
+			<h3 class="dialog-title">
+				{editingSource.index === -1 ? 'Add Source URL' : 'Edit Source URL'}
+				<IconButton onclick={() => closeSourceDialog()} class="btn-sm dialog-close-btn">
+					<X class="size-5" />
+				</IconButton>
+			</h3>
+
+			<div class="flex flex-col gap-4">
+				<div class="flex flex-col gap-1">
+					<label for="vmcp-source-name" class="flex-1 text-sm font-light capitalize">Name </label>
+					<input id="vmcp-source-name" bind:value={editingSource.name} class="text-input-filled" />
+				</div>
+				<div class="flex flex-col gap-1">
+					<label for="vmcp-source-url" class="flex-1 text-sm font-light capitalize"
+						>Source URL
+					</label>
+					<input
+						id="vmcp-source-url"
+						bind:value={editingSource.value}
+						oninput={handleVMcpSourceURLInput}
+						class="text-input-filled"
+					/>
+				</div>
+				<div class="flex flex-col gap-1">
+					<label for="vmcp-source-ref" class="flex-1 text-sm font-light capitalize"
+						>Reference
+					</label>
+					<input id="vmcp-source-ref" bind:value={editingSource.ref} class="text-input-filled" />
+					<span class="text-muted-content text-xs"
+						>The branch, commit SHA, or tag to index and pull vMCPs from.</span
+					>
+				</div>
+				<div class="flex flex-col gap-2">
+					<div class="flex flex-col gap-1">
+						<div class="flex items-center justify-between gap-4">
+							<span id="vmcp-source-credential-label" class="flex-1 text-sm font-light capitalize">
+								Credential
+							</span>
+							{#if credentialLocked}
+								<div class="flex justify-end">
+									<button
+										class="text-xs text-error hover:underline"
+										onclick={() => {
+											if (!editingSource) return;
+											editingSource.credentialType = 'none';
+											editingSource.gitCredentialID = '';
+											editingSource.token = '';
+											editingSource.clearToken = true;
+										}}
+									>
+										Clear token
+									</button>
+								</div>
+							{/if}
+						</div>
+						<Select
+							id="vmcp-source-credential-type"
+							class="bg-base-200"
+							options={repositoryCredentialOptions}
+							selected={editingSource.credentialType}
+							ariaLabelledby="vmcp-source-credential-label"
+							disabled={credentialLocked}
+							onSelect={(option) => {
+								if (!editingSource || credentialLocked) return;
+								editingSource.credentialType = option.id as RepositoryCredentialType;
+								if (option.id === 'shared') {
+									editingSource.token = '';
+								} else if (option.id === 'token') {
+									editingSource.gitCredentialID = '';
+								} else {
+									editingSource.gitCredentialID = '';
+									editingSource.token = '';
+									if (hasVMcpRepositoryToken(editingVMcpRepository)) {
+										editingSource.clearToken = true;
+									}
+								}
+							}}
+						/>
+					</div>
+					{#if editingSource.credentialType === 'shared'}
+						<div class="flex flex-col gap-1">
+							<Select
+								id="vmcp-source-git-credential"
+								class="bg-base-200"
+								options={gitCredentialOptions}
+								selected={editingSource.gitCredentialID}
+								searchPlaceholder=""
+								searchInDropdown
+								disabled={credentialLocked}
+								onSelect={(option) => {
+									if (!editingSource || credentialLocked) return;
+									editingSource.gitCredentialID = String(option.id);
+									editingSource.token = '';
+								}}
+								onClear={!credentialLocked && editingSource.gitCredentialID
+									? () => {
+											if (editingSource) editingSource.gitCredentialID = '';
+										}
+									: undefined}
+							/>
+							<span class="text-muted-content text-xs">
+								Only credentials matching the repository host can be selected.
+							</span>
+						</div>
+					{/if}
+					{#if editingSource.credentialType === 'token'}
+						<div class="flex flex-col gap-1">
+							<label for="vmcp-source-token" class="sr-only">Personal Access Token</label>
+							{#if credentialLocked && existingVMcpRepositoryToken}
+								<input
+									id="vmcp-source-token"
+									type="text"
+									readonly
+									aria-readonly="true"
+									data-1p-ignore
+									value={existingVMcpRepositoryToken}
+									class="text-sm text-muted-content w-full border-none bg-transparent p-0 outline-none focus:ring-0 min-h-10"
+								/>
+							{:else}
+								<SensitiveInput
+									name="vmcp-source-token"
+									placeholder="Personal Access Token"
+									bind:value={editingSource.token}
+								/>
+							{/if}
+						</div>
+					{/if}
+				</div>
+			</div>
+
+			{#if sourceError}
+				<div class="mb-4 flex flex-col gap-2 text-error">
+					<div class="flex items-center gap-2">
+						<TriangleAlert class="size-6 shrink-0 self-start" />
+						<p class="my-0.5 flex flex-col text-sm font-semibold">Error saving source URL:</p>
+					</div>
+					<span class="font-sm font-light break-all">{sourceError}</span>
+				</div>
+			{/if}
+
+			<div class="flex grow mb-4"></div>
+
+			<div class="flex w-full justify-end gap-2">
+				<button class="btn btn-secondary" disabled={saving} onclick={() => closeSourceDialog()}
+					>Cancel</button
+				>
+				<button
+					class="btn btn-primary"
+					disabled={saving || credentialSelectionIncomplete}
+					onclick={async () => {
+						if (!editingSource) {
+							return;
+						}
+
+						saving = true;
+						sourceError = undefined;
+
+						try {
+							const repoURL = editingSource.value.trim();
+							const token = editingSource.token.trim();
+							const manifest: Parameters<typeof AdminService.createVMcpRepository>[0] = {
+								displayName: editingSource.name,
+								repoURL,
+								ref: editingSource.ref
+							};
+							if (editingSource.gitCredentialID) {
+								manifest.gitCredentialID = editingSource.gitCredentialID;
+							} else if (editingSource.credentialType === 'token' && token) {
+								manifest.sourceURLCredentials = { [repoURL]: token };
+							} else if (
+								!token &&
+								(editingSource.clearToken ||
+									(editingSource.credentialType !== 'token' &&
+										hasVMcpRepositoryToken(editingVMcpRepository)))
+							) {
+								manifest.sourceURLCredentials = { [repoURL]: '' };
+							}
+							const response = editingSource.repositoryID
+								? await AdminService.updateVMcpRepository(editingSource.repositoryID, manifest)
+								: await AdminService.createVMcpRepository(manifest);
+							vmcpRepositories = editingSource.repositoryID
+								? vmcpRepositories.map((repository) =>
+										repository.id === response.id ? response : repository
+									)
+								: [...vmcpRepositories, response];
+							sync(response.id);
+							closeSourceDialog();
+						} catch (error) {
+							sourceError = parseErrorContent(error).message;
+						} finally {
+							saving = false;
+						}
+					}}
+				>
+					{editingSource.repositoryID ? 'Save' : 'Add'}
+				</button>
+			</div>
+		{/if}
+	</div>
+	<form class="dialog-backdrop">
+		<button type="button" onclick={() => closeSourceDialog()}>close</button>
+	</form>
+</dialog>
+
 <svelte:head>
-	<title>Obot | vMCPs</title>
+	<title>Obot | {creating ? 'Create vMCP' : 'vMCPs'}</title>
 </svelte:head>

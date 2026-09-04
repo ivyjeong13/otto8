@@ -31,6 +31,24 @@ function componentId(component: { catalogEntryID?: string; mcpServerID?: string 
 	return component.catalogEntryID || component.mcpServerID || '';
 }
 
+/**
+ * Handover from the page that creates a vMCP to the page that shows it. Creating navigates to the
+ * new vMCP, which unmounts the flow that would have opened the tool dialogs, so the id is parked
+ * here for the next flow to claim once it is mounted.
+ */
+let vmcpAwaitingToolSetup: string | undefined;
+
+export function queueToolSetupForCreatedVMcp(id: string) {
+	vmcpAwaitingToolSetup = id;
+}
+
+/** Claims the queued setup, if it is for this vMCP. Only ever succeeds once per creation. */
+export function claimToolSetupForVMcp(id: string) {
+	if (!id || vmcpAwaitingToolSetup !== id) return false;
+	vmcpAwaitingToolSetup = undefined;
+	return true;
+}
+
 function catalogEntryForComponent(component: CatalogComponentServer) {
 	if (component.catalogEntryID) {
 		return mcpServersAndEntries.current.entries.find(
@@ -111,6 +129,8 @@ export function createVMcpToolFlow() {
 	let tools = $state<CompositeServerToolRow[]>([]);
 	let toolPrefix = $state<string>();
 	let modifyingExistingComponent = $state(false);
+	let collecting = $state(false);
+	let collectTools: ((config: CatalogComponentServer) => void) | undefined;
 
 	const otherEffectiveNames = $derived(
 		compositeEffectiveToolNames(
@@ -143,6 +163,8 @@ export function createVMcpToolFlow() {
 		toolPrefix = undefined;
 		tools = [];
 		modifyingExistingComponent = false;
+		collecting = false;
+		collectTools = undefined;
 	}
 
 	function close() {
@@ -180,6 +202,21 @@ export function createVMcpToolFlow() {
 		return (vmcp.manifest.compositeConfig?.componentServers ?? []).find(
 			(candidate) => componentId(candidate) === id
 		);
+	}
+
+	/**
+	 * Fetches this component's tools, opens the tool editor, and returns the chosen
+	 * overrides without writing them onto the vMCP.
+	 */
+	function collectComponentTools(
+		component: CatalogComponentServer,
+		vmcp: MCPCatalogEntry,
+		onCollected: (config: CatalogComponentServer) => void
+	) {
+		if (!configure(vmcp, component, true)) return;
+		collecting = true;
+		collectTools = onCollected;
+		dialog = 'setup';
 	}
 
 	function openComponent(component: { id?: string }, vmcp: MCPCatalogEntry) {
@@ -285,6 +322,14 @@ export function createVMcpToolFlow() {
 	}
 
 	async function saveTools(componentConfig: CatalogComponentServer) {
+		if (collectTools) {
+			const done = collectTools;
+			collectTools = undefined;
+			done(componentConfig);
+			close();
+			return;
+		}
+
 		const vmcpId = modifyingVMcp?.id;
 		if (!vmcpId) {
 			close();
@@ -415,6 +460,9 @@ export function createVMcpToolFlow() {
 		get modifyingExistingComponent() {
 			return modifyingExistingComponent;
 		},
+		get collecting() {
+			return collecting;
+		},
 		get existingToolPrefix() {
 			return existingToolPrefix;
 		},
@@ -428,6 +476,7 @@ export function createVMcpToolFlow() {
 			return excludedComponentIds;
 		},
 		close,
+		collectComponentTools,
 		openComponent,
 		editComponent,
 		promptRemoveComponent,

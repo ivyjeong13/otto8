@@ -69,7 +69,6 @@ export const initVMcp = () => {
 	return formData;
 };
 
-/** Personal servers belong to a power user's workspace rather than the shared catalog. */
 export function isWorkspaceOwned(entry: MCPCatalogEntry) {
 	return Boolean(entry.powerUserWorkspaceID || entry.powerUserID);
 }

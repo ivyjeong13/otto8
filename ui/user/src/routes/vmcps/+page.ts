@@ -1,10 +1,35 @@
+import { AdminService } from '$lib/services';
+import type { GitCredential, VMcpRepository } from '$lib/services/admin/types';
 import type { PageLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 
-export const load: PageLoad = async ({ parent }) => {
-	// temporarily only for admins due to using composite catalog entries
+const views = new Set(['vmcps', 'sources']);
+
+export const load: PageLoad = async ({ fetch, parent, url }) => {
 	const { profile } = await parent();
 	if (!profile.isAdmin?.()) {
 		throw redirect(307, '/');
 	}
+
+	const requestedView = url.searchParams.get('view');
+	const view = requestedView && views.has(requestedView) ? requestedView : 'vmcps';
+
+	let vmcpRepositories: VMcpRepository[] = [];
+	let gitCredentials: GitCredential[] = [];
+
+	if (view === 'sources') {
+		try {
+			[vmcpRepositories, gitCredentials] = await Promise.all([
+				AdminService.listVMcpRepositories({ fetch, dontLogErrors: true }),
+				AdminService.listGitCredentials({ fetch, dontLogErrors: true }).catch(() => [])
+			]);
+		} catch {
+			vmcpRepositories = [];
+		}
+	}
+
+	return {
+		vmcpRepositories,
+		gitCredentials
+	};
 };

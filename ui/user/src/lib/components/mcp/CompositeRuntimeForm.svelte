@@ -17,24 +17,15 @@
 		TOOL_NAME_CHARSET_REGEX,
 		TOOL_NAME_SPECIAL_CHAR_WARNING,
 		isDeprecatedMCPServer,
-		isToolCustomized,
 		toolNameIssue,
 		type ToolNameIssue
 	} from '$lib/services/user/mcp';
-	import Toggle from '../Toggle.svelte';
 	import IconButton from '../primitives/IconButton.svelte';
 	import McpDeprecatedNotice from './McpDeprecatedNotice.svelte';
 	import ToolNameIssueIcon from './ToolNameIssueIcon.svelte';
 	import CompositeToolsSetup from './composite/CompositeSelectServerAndToolsSetup.svelte';
-	import {
-		Plus,
-		Server,
-		Trash2,
-		ChevronDown,
-		ChevronUp,
-		TriangleAlert,
-		RefreshCcw
-	} from '@lucide/svelte';
+	import CompositeToolOverrideList from './composite/CompositeToolOverrideList.svelte';
+	import { Plus, Server, Trash2, ChevronDown, ChevronUp, RefreshCcw } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { slide } from 'svelte/transition';
@@ -61,7 +52,6 @@
 	let componentEntries = $state<MCPCatalogEntry[]>([]);
 	const componentServers = new SvelteMap<string, MCPCatalogServer>();
 	let expanded = $state<Record<string, boolean>>({});
-	let expandedTools = $state<Record<string, boolean>>({});
 	let loading = $state(false);
 
 	let configuringEntry = $state<MCPCatalogEntry | MCPCatalogServer>();
@@ -497,131 +487,13 @@
 								</div>
 							{/if}
 							{#if entry.toolOverrides?.length}
-								<div class="flex flex-col gap-2">
-									{#each entry.toolOverrides as tool, index (index)}
-										{@const currentName = (tool.overrideName || '').trim() || tool.name}
-										{@const currentDescription =
-											(tool.overrideDescription || '').trim() || tool.description}
-										{@const isCustomized = isToolCustomized(tool)}
-										{@const effectiveName = effectiveToolName(
-											tool.name,
-											tool.overrideName,
-											entry.toolPrefix
-										)}
-										{@const conflict =
-											tool.enabled !== false
-												? conflictIssue(effectiveName, effectiveNameDuplicates)
-												: undefined}
-
-										<div
-											class="dark:bg-base-300 dark:border-base-400 flex items-start gap-2 rounded border border-transparent bg-white p-2 shadow-sm"
-										>
-											<div class="flex min-w-0 grow flex-col gap-2">
-												<div class="flex items-start justify-between gap-2">
-													<div class="min-w-0 flex-1">
-														<div class="flex min-w-0 items-center gap-1.5">
-															<div
-																class="min-w-0 flex-1 truncate text-sm font-medium"
-																title={effectiveName}
-															>
-																{#if entry.toolPrefix}<span class="text-base-content/75"
-																		>{entry.toolPrefix}</span
-																	>{/if}{currentName}
-															</div>
-															{#if tool.enabled !== false}
-																<ToolNameIssueIcon
-																	issue={conflict ?? toolNameIssue(effectiveName)}
-																/>
-															{/if}
-														</div>
-														{#if currentDescription}
-															<p class="line-clamp-2 text-xs" title={currentDescription}>
-																{currentDescription}
-															</p>
-														{/if}
-													</div>
-													<div class="flex shrink-0 items-center gap-2">
-														<Toggle
-															checked={tool.enabled === true}
-															disabled={readonly}
-															onChange={(checked) => {
-																tool.enabled = checked;
-															}}
-															label="Enabled"
-															disablePortal
-														/>
-														<button
-															type="button"
-															class="btn btn-secondary btn-sm text-xs"
-															disabled={readonly}
-															onclick={() => {
-																const toolKey = `${componentId}-${tool.name}`;
-																expandedTools[toolKey] = !expandedTools[toolKey];
-															}}
-														>
-															{expandedTools[`${componentId}-${tool.name}`]
-																? 'Hide details'
-																: 'Customize'}
-														</button>
-													</div>
-												</div>
-
-												{#if isCustomized}
-													<div class="mt-1 flex items-center gap-1 text-[11px] text-amber-600">
-														<TriangleAlert class="size-3 shrink-0" />
-														<p>
-															Modified: This tool has been customized. The description or name has
-															been changed.
-														</p>
-													</div>
-												{/if}
-
-												{#if expandedTools[`${componentId}-${tool.name}`]}
-													<div class="mt-2 flex flex-col gap-2">
-														<div class="flex flex-col gap-1">
-															<p class="text-xs text-muted-content">Tool name</p>
-															<input
-																class="text-input-filled flex-1 text-sm"
-																disabled={readonly}
-																bind:value={
-																	() => tool.overrideName ?? tool.name,
-																	(v) => (tool.overrideName = v)
-																}
-															/>
-														</div>
-
-														<div class="flex flex-col gap-1">
-															<p class="text-xs text-muted-content">Description</p>
-															<textarea
-																class="text-input-filled h-24 resize-none text-xs"
-																disabled={readonly}
-																bind:value={
-																	() => tool.overrideDescription ?? tool.description ?? '',
-																	(v) => (tool.overrideDescription = v)
-																}
-																placeholder="Enter tool description..."
-															></textarea>
-														</div>
-
-														<div class="mt-2 flex justify-end">
-															<button
-																type="button"
-																class="btn btn-sm btn-secondary text-xs"
-																disabled={readonly}
-																onclick={() => {
-																	tool.overrideName = undefined;
-																	tool.overrideDescription = undefined;
-																}}
-															>
-																Reset to default
-															</button>
-														</div>
-													</div>
-												{/if}
-											</div>
-										</div>
-									{/each}
-								</div>
+								<CompositeToolOverrideList
+									bind:tools={entry.toolOverrides}
+									toolPrefix={entry.toolPrefix}
+									{componentId}
+									{readonly}
+									{effectiveNameDuplicates}
+								/>
 							{/if}
 						</div>
 					{/if}

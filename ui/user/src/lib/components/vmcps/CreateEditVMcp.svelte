@@ -1,44 +1,35 @@
 <script lang="ts">
 	import Confirm from '$lib/components/Confirm.svelte';
 	import ResponsiveDialog from '$lib/components/ResponsiveDialog.svelte';
-	import IconButton from '$lib/components/primitives/IconButton.svelte';
 	import { DEFAULT_MCP_CATALOG_ID } from '$lib/constants';
 	import Loading from '$lib/icons/Loading.svelte';
 	import {
 		AdminService,
-		type AccessControlRule,
-		type AccessControlRuleManifest,
 		type CatalogComponentServer,
 		type MCPCatalogEntry,
 		type RuntimeFormData
 	} from '$lib/services';
 	import { initVMcp } from '$lib/services/vmcps/utils';
-	import { errors, mcpServersAndEntries, profile } from '$lib/stores';
+	import { errors, mcpServersAndEntries } from '$lib/stores';
 	import { success } from '$lib/stores/success';
-	import SearchAccessPolicies from './SearchAccessPolicies.svelte';
-	import { BookOpenText, Plus, Trash2, X } from '@lucide/svelte';
 	import { twMerge } from 'tailwind-merge';
 
 	interface Props {
 		onCreated?: (created: MCPCatalogEntry) => void | Promise<void>;
+		onDeleted?: (deleted: MCPCatalogEntry) => void | Promise<void>;
 	}
 
-	let { onCreated }: Props = $props();
+	let { onCreated, onDeleted }: Props = $props();
 
 	let creatingVMcp = $state<RuntimeFormData>(initVMcp());
 	let showRequired = $state<Record<string, boolean>>({});
-	let accessPolicies = $state<AccessControlRule[]>([]);
-	let initialAccessPolicies = $state<AccessControlRule[]>([]);
 	let saving = $state(false);
 
 	let createVMcpDialog = $state<ReturnType<typeof ResponsiveDialog>>();
 	let editVMcpDialog = $state<ReturnType<typeof ResponsiveDialog>>();
 	let selectedVMcp = $state<MCPCatalogEntry>();
 	let editingVMcp = $state<RuntimeFormData>();
-	let loadingVMcpAccess = $state(false);
-	let accessLoadController: AbortController | undefined;
 
-	let addAccessPolicyDialog = $state<ReturnType<typeof SearchAccessPolicies>>();
 	let confirmDeleteVMcp = $state<MCPCatalogEntry>();
 	let deletingVMcp = $state(false);
 
@@ -56,10 +47,10 @@
 			return;
 		}
 
-		await saveVMcpAndAccessPolicy();
+		await saveVMcp();
 	}
 
-	async function saveVMcpAndAccessPolicy() {
+	async function saveVMcp() {
 		saving = true;
 		try {
 			const composite = await AdminService.createMCPCatalogEntry(
@@ -94,59 +85,19 @@
 			creatingVMcp.shortDescription = componentServers[0].manifest?.shortDescription ?? '';
 		}
 
-		resetAccessPolicies();
 		showRequired = {};
 		createVMcpDialog?.open();
 	}
 
+	export function openDelete(vmcp: MCPCatalogEntry) {
+		selectedVMcp = vmcp;
+		confirmDeleteVMcp = vmcp;
+	}
+
 	function closeCreate() {
 		creatingVMcp = initVMcp();
-		resetAccessPolicies();
 		showRequired = {};
 		createVMcpDialog?.close();
-	}
-
-	function resetAccessPolicies() {
-		accessPolicies = [];
-		initialAccessPolicies = [];
-	}
-
-	function abortAccessLoad() {
-		accessLoadController?.abort();
-		accessLoadController = undefined;
-	}
-
-	function ruleIncludesVMcp(rule: AccessControlRule, vmcpId: string) {
-		return (
-			rule.resources?.some(
-				(resource) =>
-					(resource.type === 'mcpServerCatalogEntry' && resource.id === vmcpId) ||
-					resource.id === '*'
-			) ?? false
-		);
-	}
-
-	function toPolicyManifest(
-		policy: AccessControlRule,
-		resources: AccessControlRuleManifest['resources']
-	): AccessControlRuleManifest {
-		return {
-			displayName: policy.displayName,
-			subjects: policy.subjects,
-			resources
-		};
-	}
-
-	function isGlobalAccessPolicy(policy: AccessControlRule) {
-		return policy.resources?.some((resource) => resource.id === '*') ?? false;
-	}
-
-	function subjectCountLabel(policy: AccessControlRule) {
-		const count = policy.subjects?.length ?? 0;
-		const isEveryone = policy.subjects?.some((subject) => subject.id === '*');
-		if (count === 0) return 'No subjects';
-		if (isEveryone) return 'Everyone';
-		return count === 1 ? '1 subject' : `${count} subjects`;
 	}
 
 	function vmcpToFormData(vmcp: MCPCatalogEntry): RuntimeFormData {
@@ -163,58 +114,36 @@
 		};
 	}
 
-	export async function openEdit(vmcp: MCPCatalogEntry) {
+	export function openEdit(vmcp: MCPCatalogEntry) {
 		closeCreate();
-		abortAccessLoad();
-		const controller = new AbortController();
-		accessLoadController = controller;
 		selectedVMcp = vmcp;
 		editingVMcp = vmcpToFormData(vmcp);
-		resetAccessPolicies();
 		showRequired = {};
-		loadingVMcpAccess = true;
 		editVMcpDialog?.open();
-
-		const editingId = vmcp.id;
-		try {
-			const rules = await AdminService.listAccessControlRules({ signal: controller.signal });
-			if (controller.signal.aborted || selectedVMcp?.id !== editingId) return;
-			const assigned = rules.filter((rule) => ruleIncludesVMcp(rule, editingId));
-			initialAccessPolicies = [...assigned];
-			accessPolicies = [...assigned];
-		} catch {
-			if (!controller.signal.aborted && selectedVMcp?.id === editingId) resetAccessPolicies();
-		} finally {
-			if (accessLoadController === controller) {
-				accessLoadController = undefined;
-				loadingVMcpAccess = false;
-			}
-		}
 	}
 
 	function closeEdit() {
-		abortAccessLoad();
 		selectedVMcp = undefined;
 		editingVMcp = undefined;
-		resetAccessPolicies();
 		showRequired = {};
-		loadingVMcpAccess = false;
 		editVMcpDialog?.close();
 	}
 
 	async function handleDeleteVMcp() {
 		if (!confirmDeleteVMcp) return;
 
+		const deleted = confirmDeleteVMcp;
 		deletingVMcp = true;
 		try {
-			await AdminService.deleteMCPCatalogEntry(DEFAULT_MCP_CATALOG_ID, confirmDeleteVMcp.id);
+			await AdminService.deleteMCPCatalogEntry(DEFAULT_MCP_CATALOG_ID, deleted.id);
 			mcpServersAndEntries.current.entries = mcpServersAndEntries.current.entries.filter(
-				(entry) => entry.id !== confirmDeleteVMcp?.id
+				(entry) => entry.id !== deleted.id
 			);
-			if (selectedVMcp?.id === confirmDeleteVMcp.id) {
+			if (selectedVMcp?.id === deleted.id) {
 				closeEdit();
 			}
-			success.add(`${confirmDeleteVMcp.manifest.name} vMCP deleted.`);
+			success.add(`${deleted.manifest.name} vMCP deleted.`);
+			await onDeleted?.(deleted);
 		} catch {
 			errors.append('Failed to delete vMCP.');
 		} finally {
@@ -243,37 +172,6 @@
 				selectedVMcp.id,
 				editingVMcp
 			);
-			const vmcpId = updatedVMcp.id;
-			const initialIds = new Set(initialAccessPolicies.map((policy) => policy.id));
-			const currentIds = new Set(accessPolicies.map((policy) => policy.id));
-
-			await Promise.all([
-				...accessPolicies
-					.filter((policy) => !initialIds.has(policy.id))
-					.map((policy) =>
-						AdminService.updateAccessControlRule(
-							policy.id,
-							toPolicyManifest(policy, [
-								...(policy.resources ?? []),
-								{ type: 'mcpServerCatalogEntry', id: vmcpId }
-							])
-						)
-					),
-				...initialAccessPolicies
-					.filter((policy) => !currentIds.has(policy.id) && !isGlobalAccessPolicy(policy))
-					.map((policy) =>
-						AdminService.updateAccessControlRule(
-							policy.id,
-							toPolicyManifest(
-								policy,
-								(policy.resources ?? []).filter(
-									(resource) =>
-										!(resource.type === 'mcpServerCatalogEntry' && resource.id === vmcpId)
-								)
-							)
-						)
-					)
-			]);
 
 			mcpServersAndEntries.current.entries = mcpServersAndEntries.current.entries.map((entry) =>
 				entry.id === updatedVMcp.id ? updatedVMcp : entry
@@ -288,69 +186,7 @@
 	function updateRequired(field: string) {
 		delete showRequired[field];
 	}
-
-	function canManageAccess() {
-		return Boolean(profile.current.hasAdminAccess?.() && !profile.current.isAdminReadonly?.());
-	}
 </script>
-
-{#snippet peopleAccessSection()}
-	<div class="divider mb-2"></div>
-	<div class="flex items-center justify-between">
-		<h2 class="text-sm font-semibold">Access Policies</h2>
-		{#if canManageAccess()}
-			<IconButton
-				variant="primary"
-				tooltip={{ text: 'Add access policy', disablePortal: true }}
-				class="btn-sm"
-				onclick={() => addAccessPolicyDialog?.open()}
-			>
-				<Plus class="size-4" />
-			</IconButton>
-		{/if}
-	</div>
-	<ul class="list">
-		{#if loadingVMcpAccess}
-			<li class="flex min-h-14 items-center justify-center">
-				<Loading class="text-primary size-4" />
-			</li>
-		{:else if accessPolicies.length > 0}
-			{#each accessPolicies as policy (policy.id)}
-				<li class="list-row px-0">
-					<div>
-						<div
-							class="bg-base-300 dark:bg-base-200 flex size-8 items-center justify-center rounded-full text-white"
-						>
-							<BookOpenText class="size-4" />
-						</div>
-					</div>
-					<div>
-						<div>{policy.displayName}</div>
-						<div class="text-xs font-semibold uppercase opacity-60">
-							{subjectCountLabel(policy)}
-						</div>
-					</div>
-					{#if canManageAccess() && !isGlobalAccessPolicy(policy)}
-						<IconButton
-							variant="danger"
-							class="btn-sm"
-							tooltip={{ text: 'Remove access policy', disablePortal: true }}
-							onclick={() => {
-								accessPolicies = accessPolicies.filter((candidate) => candidate.id !== policy.id);
-							}}
-						>
-							<X class="size-4" />
-						</IconButton>
-					{/if}
-				</li>
-			{/each}
-		{:else}
-			<li class="text-muted-content inline-flex min-h-14 items-center justify-center gap-1 text-xs">
-				No assigned access policies.
-			</li>
-		{/if}
-	</ul>
-{/snippet}
 
 <Confirm
 	show={Boolean(confirmDeleteVMcp)}
@@ -365,14 +201,6 @@
 		cannot be undone.
 	{/snippet}
 </Confirm>
-
-<SearchAccessPolicies
-	bind:this={addAccessPolicyDialog}
-	filterIds={accessPolicies.map((policy) => policy.id)}
-	onAdd={(policies) => {
-		accessPolicies = [...accessPolicies, ...policies];
-	}}
-/>
 
 <ResponsiveDialog
 	animate="slide"
@@ -435,12 +263,7 @@
 	</div>
 </ResponsiveDialog>
 
-<ResponsiveDialog
-	class="w-md"
-	bind:this={editVMcpDialog}
-	title={`Edit ${editingVMcp?.name ?? 'vMCP'}`}
-	onClose={closeEdit}
->
+<ResponsiveDialog class="w-md" bind:this={editVMcpDialog} title="Edit vMCP" onClose={closeEdit}>
 	{#if editingVMcp}
 		<div class="mb-4 flex flex-col gap-1">
 			<label
@@ -482,36 +305,17 @@
 			{/if}
 		</div>
 
-		{@render peopleAccessSection()}
-		<div class="divider mt-0 mb-2"></div>
-		<div class="flex items-center justify-between gap-2">
-			<button
-				class="btn btn-error btn-soft btn-sm"
-				onclick={() => {
-					if (!selectedVMcp) return;
-					editVMcpDialog?.close();
-					confirmDeleteVMcp = selectedVMcp;
-				}}
-				disabled={saving || deletingVMcp}
-			>
-				<Trash2 class="size-4" /> Delete
+		<div class="flex justify-end gap-2 mt-4">
+			<button class="btn btn-ghost btn-sm text-xs" onclick={closeEdit} disabled={saving}>
+				Cancel
 			</button>
-			<div class="flex gap-2">
-				<button class="btn btn-ghost btn-sm text-xs" onclick={closeEdit} disabled={saving}>
-					Cancel
-				</button>
-				<button
-					class="btn btn-primary btn-sm text-xs"
-					onclick={handleUpdateVMcp}
-					disabled={saving || loadingVMcpAccess}
-				>
-					{#if saving}
-						<Loading class="text-primary-content size-4" />
-					{:else}
-						Save changes
-					{/if}
-				</button>
-			</div>
+			<button class="btn btn-primary btn-sm text-xs" onclick={handleUpdateVMcp} disabled={saving}>
+				{#if saving}
+					<Loading class="text-primary-content size-4" />
+				{:else}
+					Save
+				{/if}
+			</button>
 		</div>
 	{/if}
 </ResponsiveDialog>

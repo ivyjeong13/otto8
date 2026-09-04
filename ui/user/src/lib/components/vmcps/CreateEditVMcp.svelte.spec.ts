@@ -19,71 +19,19 @@ async function renderEditor() {
 }
 
 describe('CreateEditVMcp.svelte', () => {
-	it('shows assigned access policies when editing a vMCP', async () => {
-		worker.use(
-			http.get('/api/mcp-catalogs/default/access-control-rules', () =>
-				HttpResponse.json({
-					items: [
-						{
-							id: 'policy-assigned',
-							created: '2026-01-01T00:00:00Z',
-							displayName: 'Assigned Policy',
-							subjects: [{ type: 'user', id: 'user-1' }],
-							resources: [{ type: 'mcpServerCatalogEntry', id: vmcp.id }]
-						},
-						{
-							id: 'policy-other',
-							created: '2026-01-01T00:00:00Z',
-							displayName: 'Other Policy',
-							subjects: [],
-							resources: []
-						}
-					]
-				})
-			)
-		);
-
+	it('opens the edit dialog with name and description only', async () => {
 		const result = await renderEditor();
-		await result.component.openEdit(vmcp);
+		result.component.openEdit(vmcp);
 
-		await expect.element(page.getByText('Assigned Policy', { exact: true })).toBeVisible();
-		await expect.element(page.getByText('Other Policy', { exact: true })).not.toBeInTheDocument();
-		await expect.element(page.getByRole('button', { name: 'Add access policy' })).toBeVisible();
-		await expect.element(page.getByRole('button', { name: 'Remove access policy' })).toBeVisible();
-	});
-
-	it('does not allow removing a global access policy', async () => {
-		worker.use(
-			http.get('/api/mcp-catalogs/default/access-control-rules', () =>
-				HttpResponse.json({
-					items: [
-						{
-							id: 'policy-assigned',
-							created: '2026-01-01T00:00:00Z',
-							displayName: 'Assigned Policy',
-							subjects: [{ type: 'user', id: 'user-1' }],
-							resources: [{ type: 'mcpServerCatalogEntry', id: vmcp.id }]
-						},
-						{
-							id: 'policy-global',
-							created: '2026-01-01T00:00:00Z',
-							displayName: 'Global Policy',
-							subjects: [{ type: 'selector', id: '*' }],
-							resources: [{ type: 'selector', id: '*' }]
-						}
-					]
-				})
-			)
-		);
-
-		const result = await renderEditor();
-		await result.component.openEdit(vmcp);
-
-		await expect.element(page.getByText('Assigned Policy', { exact: true })).toBeVisible();
-		await expect.element(page.getByText('Global Policy', { exact: true })).toBeVisible();
-		await expect.element(page.getByRole('button', { name: 'Remove access policy' })).toBeVisible();
 		await expect
-			.element(page.getByRole('button', { name: 'Remove access policy' }).nth(1))
+			.element(page.getByRole('textbox', { name: 'Name' }))
+			.toHaveValue(vmcp.manifest.name!);
+		await expect
+			.element(page.getByRole('textbox', { name: 'Description' }))
+			.toHaveValue(vmcp.manifest.shortDescription!);
+		await expect.element(page.getByText('Access Policies')).not.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('button', { name: 'Add access policy' }))
 			.not.toBeInTheDocument();
 	});
 

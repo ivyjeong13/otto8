@@ -382,7 +382,7 @@ function hasMissingSecretBinding(entry: MCPCatalogEntry, servers: MCPCatalogServ
 	return false;
 }
 
-function serverHasMissingSecretBinding(_entry: MCPCatalogEntry, server: MCPCatalogServer) {
+export function serverHasMissingSecretBinding(_entry: MCPCatalogEntry, server: MCPCatalogServer) {
 	return hasMissingSecretBindingConfig(
 		server.manifest,
 		server.missingRequiredEnvVars,

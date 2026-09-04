@@ -50,6 +50,7 @@ export const handlers = [
 	http.get('/api/model-providers', () => HttpResponse.json({ items: [] })),
 	http.get('/api/models', () => HttpResponse.json({ items: data.listModelsResponse })),
 	http.get('/api/users', () => HttpResponse.json({ items: data.listUsersResponse })),
+	http.get('/api/groups', () => HttpResponse.json({ items: [] })),
 	http.get('/api/version', () => HttpResponse.json(data.getVersionResponse)),
 	http.get('/api/workspaces/all-entries', () =>
 		HttpResponse.json({ items: data.listAllUserWorkspaceCatalogEntriesResponse })
@@ -59,5 +60,6 @@ export const handlers = [
 	),
 	http.get('/api/workspaces/all-servers', () =>
 		HttpResponse.json({ items: data.listAllUserWorkspaceMCPServersResponse })
-	)
+	),
+	http.get('/api/vmcp-repositories', () => HttpResponse.json({ items: [] }))
 ];
