@@ -12,13 +12,14 @@
 	import VMcpDragOverlay from '$lib/components/vmcps/VMcpDragOverlay.svelte';
 	import VMcpGraph from '$lib/components/vmcps/VMcpGraph.svelte';
 	import VMcpGraphRow from '$lib/components/vmcps/VMcpGraphRow.svelte';
+	import VMcpProfiles from '$lib/components/vmcps/VMcpProfiles.svelte';
 	import VMcpSettings from '$lib/components/vmcps/VMcpSettings.svelte';
 	import VMcpTable from '$lib/components/vmcps/VMcpTable.svelte';
 	import VMcpToolDialogs from '$lib/components/vmcps/VMcpToolDialogs.svelte';
 	import ViewModifyCatalogEntry from '$lib/components/vmcps/ViewModifyCatalogEntry.svelte';
 	import { DEFAULT_MCP_CATALOG_ID } from '$lib/constants';
 	import Loading from '$lib/icons/Loading.svelte';
-	import { createEntryDrag } from '$lib/runes/vmcps/entryDrag.svelte';
+	import { CREATE_VMCP_DROP_ID, createEntryDrag } from '$lib/runes/vmcps/entryDrag.svelte';
 	import { createVMcpToolFlow } from '$lib/runes/vmcps/vmcpToolFlow.svelte';
 	import {
 		AdminService,
@@ -46,7 +47,7 @@
 	import { errors, mcpServersAndEntries, profile } from '$lib/stores';
 	import { success } from '$lib/stores/success';
 	import { setUrlParamAndUpdateUrl } from '$lib/url';
-	import { ChartBarStacked, Table } from '@lucide/svelte';
+	import { List, Plus } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { twMerge } from 'tailwind-merge';
 
@@ -54,7 +55,7 @@
 	const EXPANDED_VMCPS_STORAGE_KEY = 'vmcps.expandedIds';
 	const options = COMMON_AI_CLIENTS.slice(0, 4);
 
-	let viewType = $state<'graph' | 'table'>('graph');
+	let viewType = $state<'graph' | 'table' | 'profiles'>('table');
 	let showRightPanel = $state(true);
 	let isLoading = $derived(mcpServersAndEntries.current.loading);
 	let showAllConnectors = $state(false);
@@ -99,8 +100,10 @@
 	let users = $state<OrgUser[]>([]);
 
 	let rightPanelEl = $state<HTMLElement>();
+	let graphCanvasEl = $state<HTMLElement>();
 	let rightPanelWidth = $state(0);
 	let pendingEntryDrop = $state<{ vmcp?: MCPCatalogEntry }>();
+	let selectedVMcpId = $state<string>();
 	let expandedVMcpIds = $state<string[]>([]);
 	let expandedInitialized = $state(false);
 	const toolFlow = createVMcpToolFlow();
@@ -122,6 +125,9 @@
 			sortBy
 		)
 	);
+
+	let selectedVMcp = $derived(composites.find((vmcp) => vmcp.id === selectedVMcpId));
+	let showGraph = $derived(viewType === 'graph' || allComposites.length === 0);
 
 	onMount(() => {
 		UserService.listUsersIncludeDeleted().then((response) => {
@@ -167,6 +173,8 @@
 	const entryDrag = createEntryDrag({
 		composites: () => composites,
 		panelEl: () => rightPanelEl,
+		canvasEl: () => (showGraph ? graphCanvasEl : undefined),
+		canvasDropId: () => selectedVMcp?.id ?? CREATE_VMCP_DROP_ID,
 		openEntry: (entry) => openCatalogEntry(entry),
 		createEntry: (target) => startCatalogEntryCreation(target),
 		dropOnCreate: (entry) => handleDroppedOnCreate(entry),
@@ -276,12 +284,24 @@
 			mcpServersAndEntries.current.entries = mcpServersAndEntries.current.entries.map(
 				(candidate) => (candidate.id === updated.id ? updated : candidate)
 			);
+			selectedVMcpId = updated.id;
 			success.add(`${entry.manifest.name} added to ${updated.manifest.name}.`);
 
 			toolFlow.offerToolSelection(entry, updated);
 		} catch {
 			errors.append('Failed to add MCP server to vMCP.');
 		}
+	}
+
+	/** Picking a vMCP draws it on the canvas, which is the only place it can be worked on. */
+	function selectVMcp(vmcp: MCPCatalogEntry) {
+		selectedVMcpId = vmcp.id;
+		viewType = 'graph';
+	}
+
+	function handleVMcpCreated(vmcp: MCPCatalogEntry) {
+		selectVMcp(vmcp);
+		toolFlow.handleVMcpCreated(vmcp);
 	}
 
 	function vmcpComponents(vmcp: MCPCatalogEntry) {
@@ -384,12 +404,14 @@
 		</div>
 	{/snippet}
 	<div
-		class="@container dark:from-base-300 to-base-200 relative h-full min-h-0 w-full overflow-hidden bg-radial-[at_50%_50%] from-gray-50 p-4 dark:to-black"
+		class="@container dark:from-base-300 to-base-200 relative h-full min-h-0 w-full overflow-hidden bg-radial-[at_50%_50%] from-gray-50 dark:to-black"
 	>
 		{#if isLoading}
 			<Loading class="text-primary" />
-		{:else if allComposites.length > 0}
-			<div class="absolute top-3 left-3 z-10">
+		{:else if showGraph}
+			{@render graphView()}
+		{:else if viewType === 'table'}
+			<div class="absolute top-3 left-3 z-60">
 				<VMcpSettings
 					bind:showAllConnectors
 					bind:sortBy
@@ -398,34 +420,32 @@
 					{componentFilterOptions}
 				/>
 			</div>
-			{#if viewType === 'graph'}
-				{@render graphView()}
-			{:else}
-				{@render tableView()}
-			{/if}
-		{:else}
-			<div class="flex h-full items-center justify-center">
-				<CreateVMcpButton drag={entryDrag} onCreate={() => createEditVMcp?.openCreate()} />
-			</div>
+			{@render tableView()}
+		{:else if viewType === 'profiles'}
+			{@render profilesView()}
 		{/if}
 	</div>
 	{#snippet rightSidebar()}
-		<McpServersSidebar
-			bind:panelEl={rightPanelEl}
-			bind:open={showRightPanel}
-			drag={entryDrag}
-			{query}
-			onSearch={updateSearchQuery}
-			{showAllConnectors}
-			canCreateEntry={canCreateCatalogEntry}
-		/>
+		{#if showGraph}
+			<McpServersSidebar
+				bind:panelEl={rightPanelEl}
+				bind:open={showRightPanel}
+				drag={entryDrag}
+				{query}
+				onSearch={updateSearchQuery}
+				{showAllConnectors}
+				canCreateEntry={canCreateCatalogEntry}
+			/>
+		{/if}
 	{/snippet}
 </Layout>
 
 {#snippet graphView()}
+	{@render toggleSubview()}
 	<VMcpGraph
-		items={composites}
-		expandedIds={expandedVMcpIds}
+		bind:viewportEl={graphCanvasEl}
+		item={selectedVMcp}
+		expanded={selectedVMcp ? isVMcpExpanded(selectedVMcp.id) : false}
 		dragActive={entryDrag.active}
 		estimateHeight={(vmcp, expanded) => vmcpRowHeight(vmcpComponents(vmcp).length, expanded)}
 	>
@@ -445,20 +465,45 @@
 				onModifyComponent={(component) => toolFlow.openComponent(component, vmcp)}
 			/>
 		{/snippet}
-		{#snippet footer()}
-			<CreateVMcpButton drag={entryDrag} embedded onCreate={() => createEditVMcp?.openCreate()} />
+		{#snippet empty()}
+			<CreateVMcpButton drag={entryDrag} onCreate={() => createEditVMcp?.openCreate()} />
 		{/snippet}
 	</VMcpGraph>
+{/snippet}
+
+{#snippet profilesView()}
+	{@render toggleSubview()}
+	<VMcpProfiles vmcp={selectedVMcp} {toolFlow} />
+{/snippet}
+
+{#snippet toggleSubview()}
+	<div class="absolute top-3 left-3 z-60">
+		<div class="tabs tabs-box bg-base-300 shadow-inner dark:bg-base-100">
+			<button
+				class={twMerge(
+					'tab text-xs min-w-24',
+					viewType === 'graph' && 'tab-active dark:bg-base-300/80'
+				)}
+				onclick={() => (viewType = 'graph')}>Designer</button
+			>
+			<button
+				class={twMerge(
+					'tab text-xs min-w-24',
+					viewType === 'profiles' && 'tab-active dark:bg-base-300/80'
+				)}
+				onclick={() => (viewType = 'profiles')}>Profiles</button
+			>
+		</div>
+	</div>
 {/snippet}
 
 {#snippet tableView()}
 	<VMcpTable
 		items={composites}
-		drag={entryDrag}
 		components={vmcpComponents}
-		{rightPanelWidth}
-		onEdit={(component, vmcp) => toolFlow.editComponent(component, vmcp)}
-		onDelete={(component, vmcp) => toolFlow.promptRemoveComponent(component, vmcp)}
+		onSelect={(item) => selectVMcp(item)}
+		onConnect={(item) => handleConnectVMcp(item)}
+		onDelete={(item) => createEditVMcp?.openDelete(item)}
 	>
 		{#snippet actions()}
 			{@render viewActions()}
@@ -475,20 +520,29 @@
 		aria-label="View type"
 		onpointerdown={(event) => event.stopPropagation()}
 	>
-		<IconButton
-			class={twMerge('btn-sm', viewType === 'graph' && 'bg-base-400 dark:bg-base-100')}
-			tooltip={{ text: 'Graph View', placement: 'bottom' }}
-			onclick={() => (viewType = 'graph')}
-		>
-			<ChartBarStacked class="size-4" />
-		</IconButton>
-		<IconButton
-			class={twMerge('btn-sm', viewType === 'table' && 'bg-base-400 dark:bg-base-100')}
-			tooltip={{ text: 'Table View', placement: 'bottom' }}
-			onclick={() => (viewType = 'table')}
-		>
-			<Table class="size-4" />
-		</IconButton>
+		{#if viewType === 'table'}
+			<IconButton
+				class={twMerge('btn-sm', showGraph && 'bg-base-400 dark:bg-base-100')}
+				tooltip={{ text: 'Create vMCP', placement: 'left' }}
+				onclick={() => {
+					selectedVMcpId = undefined;
+					viewType = 'graph';
+				}}
+			>
+				<Plus class="size-4" />
+			</IconButton>
+		{:else}
+			<IconButton
+				class={twMerge('btn-sm', !showGraph && 'bg-base-400 dark:bg-base-100')}
+				tooltip={{ text: 'View All vMCPs', placement: 'bottom' }}
+				onclick={() => {
+					selectedVMcpId = undefined;
+					viewType = 'table';
+				}}
+			>
+				<List class="size-4" />
+			</IconButton>
+		{/if}
 	</div>
 {/snippet}
 
@@ -502,7 +556,7 @@
 	onConnect={handleConnectToServer}
 />
 
-<CreateEditVMcp bind:this={createEditVMcp} onCreated={toolFlow.handleVMcpCreated} />
+<CreateEditVMcp bind:this={createEditVMcp} onCreated={handleVMcpCreated} />
 
 <ViewModifyCatalogEntry
 	bind:this={catalogEntryDialog}

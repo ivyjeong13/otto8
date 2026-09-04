@@ -180,7 +180,7 @@
 		responsive.isMobile
 			? 'fixed z-40 h-[calc(100dvh-4rem)] w-dvw top-16 right-0'
 			: 'static max-h-dvh',
-		open ? (responsive.isMobile ? 'w-dvw' : 'w-4xl') : 'w-10'
+		open ? (responsive.isMobile ? 'w-dvw' : 'w-4xl') : 'w-0'
 	)}
 >
 	<button
@@ -205,7 +205,7 @@
 			)}
 		/>
 	</button>
-	<div class="h-full flex flex-col grow" in:fly={{ x: 100 }}>
+	<div class="h-full flex flex-col grow" in:fly={{ x: 100, duration: 150 }}>
 		{#if open}
 			{@render selectionScreen()}
 		{/if}

@@ -51,6 +51,8 @@
 		otherEffectiveNames?: string[];
 		otherToolPrefixes?: string[];
 		additionalActions?: Snippet;
+		/** After tools are fetched, skip the edit modal and succeed with every tool enabled. */
+		skipEditTools?: boolean;
 	}
 
 	let {
@@ -66,7 +68,8 @@
 		existingToolPrefix,
 		otherEffectiveNames,
 		otherToolPrefixes,
-		additionalActions: additionalActionsSnippet
+		additionalActions: additionalActionsSnippet,
+		skipEditTools = false
 	}: Props = $props();
 	let searchDialog = $state<ReturnType<typeof SearchMcpServers>>();
 	let choiceDialog = $state<ReturnType<typeof ResponsiveDialog>>();
@@ -274,6 +277,21 @@
 
 			tools = newTools;
 			initConfigureToolsDialog?.close();
+			if (skipEditTools) {
+				if (componentConfig && configuringEntry) {
+					onSuccess?.(
+						{
+							...componentConfig,
+							toolOverrides: toolOverridesFromRows(
+								tools.map((tool) => ({ ...tool, enabled: true }))
+							)
+						},
+						configuringEntry,
+						tools
+					);
+				}
+				return;
+			}
 			modifyToolsDialog?.open();
 		} catch (err: unknown) {
 			const msg = err instanceof Error ? err.message : String(err);

@@ -99,6 +99,11 @@
 		createVMcpDialog?.open();
 	}
 
+	export function openDelete(vmcp: MCPCatalogEntry) {
+		selectedVMcp = vmcp;
+		confirmDeleteVMcp = vmcp;
+	}
+
 	function closeCreate() {
 		creatingVMcp = initVMcp();
 		resetAccessPolicies();

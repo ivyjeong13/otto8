@@ -46,9 +46,9 @@ function createVMcp(overrides?: ToolOverride[]) {
 	});
 }
 
-async function renderVMcpsPage(vmcp: MCPCatalogEntry, extraEntries: MCPCatalogEntry[] = []) {
+async function renderPageWithEntries(entries: MCPCatalogEntry[]) {
 	mcpServersAndEntries.current = {
-		entries: [componentEntry, vmcp, ...extraEntries],
+		entries,
 		servers: [],
 		userInstances: [],
 		userConfiguredServers: [],
@@ -60,9 +60,27 @@ async function renderVMcpsPage(vmcp: MCPCatalogEntry, extraEntries: MCPCatalogEn
 	return render(VMcpsPage);
 }
 
+async function renderVMcpsPage(vmcp: MCPCatalogEntry, extraEntries: MCPCatalogEntry[] = []) {
+	return renderPageWithEntries([componentEntry, vmcp, ...extraEntries]);
+}
+
+function vmcpRow(name = 'Issue Tracker vMCP') {
+	return page.getByRole('button', { name, exact: true });
+}
+
 async function expandServers(name = 'Issue Tracker vMCP', count = 1) {
 	const label = count === 1 ? 'server' : 'servers';
 	await page.getByRole('button', { name: `Show ${count} ${label} in ${name}` }).click();
+	await tick();
+}
+
+/**
+ * The page opens on the table and the graph draws one vMCP at a time, so reaching the canvas means
+ * picking which vMCP to draw from its row.
+ */
+async function showGraphView(name = 'Issue Tracker vMCP') {
+	await vmcpRow(name).click();
+	await expect.element(page.getByRole('button', { name: `Edit ${name}` })).toBeVisible();
 	await tick();
 }
 
@@ -136,6 +154,7 @@ describe('vMCPs Page', () => {
 	describe('component with stored tool overrides', () => {
 		it('edits the stored overrides instead of running the tool setup flow', async () => {
 			await renderVMcpsPage(createVMcp(toolOverrides));
+			await showGraphView();
 
 			await componentBlock().click();
 
@@ -160,6 +179,7 @@ describe('vMCPs Page', () => {
 			mockUpdateEntry(vmcp, update);
 
 			await renderVMcpsPage(vmcp);
+			await showGraphView();
 			await componentBlock().click();
 
 			// Enable the tool that is currently excluded from the composite.
@@ -179,6 +199,7 @@ describe('vMCPs Page', () => {
 
 		it('refreshes tools from the server through the setup flow', async () => {
 			await renderVMcpsPage(createVMcp(toolOverrides));
+			await showGraphView();
 
 			await componentBlock().click();
 			await page.getByRole('button', { name: 'Refresh' }).click();
@@ -192,6 +213,7 @@ describe('vMCPs Page', () => {
 	describe('component without stored tool overrides', () => {
 		it('offers modifying tools or deleting the server', async () => {
 			await renderVMcpsPage(createVMcp());
+			await showGraphView();
 
 			await componentBlock().click();
 
@@ -204,6 +226,7 @@ describe('vMCPs Page', () => {
 
 		it('starts the tool setup flow from Modify Tools', async () => {
 			await renderVMcpsPage(createVMcp());
+			await showGraphView();
 
 			await componentBlock().click();
 			await page.getByRole('button', { name: 'Modify Tools' }).click();
@@ -219,6 +242,7 @@ describe('vMCPs Page', () => {
 			mockUpdateEntry(vmcp, update);
 
 			await renderVMcpsPage(vmcp);
+			await showGraphView();
 			await componentBlock().click();
 			await page.getByRole('button', { name: 'Delete MCP Server' }).click();
 
@@ -242,9 +266,8 @@ describe('vMCPs Page', () => {
 			return page.getByRole('button', { name: 'Edit Issue Tracker vMCP' });
 		}
 
-		/** Presses the Slack panel card and drags it over the vMCP card, without releasing. */
-		async function dragSlackOntoVMcp(pointerId: number) {
-			const target = await vmcpCard().element();
+		/** Presses the Slack panel card and drags it over `target`, without releasing. */
+		async function dragSlackOnto(target: Element, pointerId: number) {
 			const { el } = await pressCard(panelCard('Slack'), pointerId);
 			const to = centerOf(target);
 			pointer(el, 'pointermove', pointerId, to);
@@ -252,8 +275,14 @@ describe('vMCPs Page', () => {
 			return { el, to };
 		}
 
+		/** Presses the Slack panel card and drags it over the vMCP card, without releasing. */
+		async function dragSlackOntoVMcp(pointerId: number) {
+			return dragSlackOnto(await vmcpCard().element(), pointerId);
+		}
+
 		it('marks both the dragged card and the vMCP it is linked to', async () => {
 			await renderVMcpsPage(createVMcp(), [slack]);
+			await showGraphView();
 
 			await dragSlackOntoVMcp(12);
 
@@ -269,6 +298,7 @@ describe('vMCPs Page', () => {
 			const update = vi.fn();
 			mockUpdateEntry(vmcp, update);
 			await renderVMcpsPage(vmcp, [slack]);
+			await showGraphView();
 
 			const { el, to } = await dragSlackOntoVMcp(13);
 			pointer(el, 'pointerup', 13, to);
@@ -280,11 +310,48 @@ describe('vMCPs Page', () => {
 			});
 		});
 
+		it('adds the dropped server when the pointer is anywhere on the canvas', async () => {
+			const vmcp = createVMcp();
+			const update = vi.fn();
+			mockUpdateEntry(vmcp, update);
+			await renderVMcpsPage(vmcp, [slack]);
+			await showGraphView();
+
+			const canvas = await page.getByCSS('[data-vmcp-canvas]').element();
+			const rect = canvas.getBoundingClientRect();
+			const { el } = await pressCard(panelCard('Slack'), 16);
+			const to = { x: rect.right - 16, y: rect.bottom - 16 };
+			pointer(el, 'pointermove', 16, to);
+			await tick();
+			pointer(el, 'pointerup', 16, to);
+
+			await vi.waitFor(() => expect(update).toHaveBeenCalled());
+			expect(componentServersFrom(update.mock.calls[0][0]).at(-1)).toEqual({
+				catalogEntryID: slack.id,
+				manifest: slack.manifest
+			});
+		});
+
+		it('creates a vMCP from a drop anywhere on the empty canvas', async () => {
+			await renderPageWithEntries([componentEntry, slack]);
+
+			const canvas = await page.getByCSS('[data-vmcp-canvas]').element();
+			const rect = canvas.getBoundingClientRect();
+			const { el } = await pressCard(panelCard('Slack'), 17);
+			const to = { x: rect.left + 16, y: rect.top + 16 };
+			pointer(el, 'pointermove', 17, to);
+			await tick();
+			pointer(el, 'pointerup', 17, to);
+
+			await expect.element(page.getByText('Create vMCP')).toBeVisible();
+		});
+
 		it('leaves the vMCP alone when Escape cancels the drag before release', async () => {
 			const vmcp = createVMcp();
 			const update = vi.fn();
 			mockUpdateEntry(vmcp, update);
 			await renderVMcpsPage(vmcp, [slack]);
+			await showGraphView();
 
 			const { el, to } = await dragSlackOntoVMcp(14);
 			await userEvent.keyboard('{Escape}');
@@ -297,6 +364,7 @@ describe('vMCPs Page', () => {
 
 		it('opens the server details when the press never travels far enough to drag', async () => {
 			await renderVMcpsPage(createVMcp(), [slack]);
+			await showGraphView();
 
 			const { el, from } = await pressCard(panelCard('Slack'), 15);
 			pointer(el, 'pointerup', 15, from);
@@ -306,163 +374,47 @@ describe('vMCPs Page', () => {
 		});
 	});
 
-	describe('dragging a server from the panel onto the table view', () => {
+	describe('table view', () => {
 		const slack = createMCPCatalogEntry({ id: 'entry-slack', name: 'Slack' });
 
 		beforeEach(() => {
 			mockEntryDetails(slack);
 		});
 
-		async function showTableView() {
-			await page.getByRole('button', { name: 'Table View' }).click({ force: true });
+		it('takes no drops, so it offers no servers to drag', async () => {
+			await renderVMcpsPage(createVMcp(), [slack]);
 			await expect.element(vmcpRow()).toBeVisible();
-		}
 
-		function vmcpRow() {
-			return page.getByRole('cell', { name: 'Issue Tracker vMCP' });
-		}
-
-		function dropZone() {
-			return page.getByRole('region', { name: 'MCP Servers in Issue Tracker vMCP' });
-		}
-
-		function openDialog() {
-			return page.getByCSS('dialog[open]');
-		}
-
-		/** Presses the Slack panel card and drags it over `target`, without releasing. */
-		async function dragSlackOnto(target: ReturnType<typeof page.getByRole>, pointerId: number) {
-			const targetEl = await target.element();
-			const { el } = await pressCard(panelCard('Slack'), pointerId);
-			const to = centerOf(targetEl);
-			pointer(el, 'pointermove', pointerId, to);
-			await tick();
-			return { el, to };
-		}
-
-		it('marks the row the drag is linked to', async () => {
-			await renderVMcpsPage(createVMcp(), [slack]);
-			await showTableView();
-
-			await dragSlackOnto(vmcpRow(), 20);
-
-			await expect.element(page.getByCSS('tbody tr').first()).toHaveClass(/outline-primary/);
-		});
-
-		it('adds the dropped server to the row it landed on', async () => {
-			const vmcp = createVMcp();
-			const update = vi.fn();
-			mockUpdateEntry(vmcp, update);
-			await renderVMcpsPage(vmcp, [slack]);
-			await showTableView();
-
-			const { el, to } = await dragSlackOnto(vmcpRow(), 21);
-			pointer(el, 'pointerup', 21, to);
-
-			await vi.waitFor(() => expect(update).toHaveBeenCalled());
-			expect(componentServersFrom(update.mock.calls[0][0]).at(-1)).toEqual({
-				catalogEntryID: slack.id,
-				manifest: slack.manifest
-			});
-		});
-
-		it('lists the servers of the row that was clicked', async () => {
-			await renderVMcpsPage(createVMcp(), [slack]);
-			await showTableView();
-
-			await vmcpRow().click();
-
-			await expect.element(dropZone()).toBeVisible();
-			await expect
-				.element(
-					page.getByCSS('dialog[open]').getByText(componentEntry.manifest.name!, { exact: true })
-				)
-				.toBeVisible();
-			await expect.element(openDialog().getByRole('button', { name: 'Edit tools' })).toBeVisible();
-			await expect.element(openDialog().getByRole('button', { name: 'Remove' })).toBeVisible();
-		});
-
-		it('opens the tool setup flow from Edit tools when no overrides are stored', async () => {
-			await renderVMcpsPage(createVMcp(), [slack]);
-			await showTableView();
-			await vmcpRow().click();
-
-			await openDialog().getByRole('button', { name: 'Edit tools' }).click();
-
-			await expect
-				.element(page.getByRole('button', { name: 'Get Started', exact: true }))
-				.toBeVisible();
-			await expect
-				.element(page.getByRole('button', { name: 'Modify Tools' }))
-				.not.toBeInTheDocument();
-		});
-
-		it('opens the stored overrides editor from Edit tools', async () => {
-			await renderVMcpsPage(createVMcp(toolOverrides), [slack]);
-			await showTableView();
-			await vmcpRow().click();
-
-			await openDialog().getByRole('button', { name: 'Edit tools' }).click();
-
-			await expect.element(page.getByText('Configure GitHub Tools')).toBeVisible();
-			await expect
-				.element(page.getByRole('button', { name: 'Modify Tools' }))
-				.not.toBeInTheDocument();
-		});
-
-		it('prompts to remove the server without an extra choice dialog', async () => {
-			await renderVMcpsPage(createVMcp(), [slack]);
-			await showTableView();
-			await vmcpRow().click();
-
-			await openDialog().getByRole('button', { name: 'Remove' }).click();
-
-			await expect.element(page.getByText('Confirm Remove')).toBeVisible();
-			await expect
-				.element(page.getByRole('button', { name: 'Modify Tools' }))
-				.not.toBeInTheDocument();
-			await page.getByRole('button', { name: 'Cancel' }).click();
-			await expect.element(page.getByText('Confirm Remove')).not.toBeVisible();
-		});
-
-		it('paints the drag ghost above the open dialog', async () => {
-			await renderVMcpsPage(createVMcp(), [slack]);
-			await showTableView();
-			await vmcpRow().click();
-			await expect.element(dropZone()).toBeVisible();
-
-			await dragSlackOnto(dropZone(), 23);
-
-			const overlay = await page.getByCSS('[data-vmcp-drag-overlay]').element();
-			const dialog = await page.getByCSS('dialog[open]').element();
-			expect(Number(getComputedStyle(overlay).zIndex)).toBeGreaterThan(
-				Number(getComputedStyle(dialog).zIndex)
-			);
-		});
-
-		it('adds the dropped server to the vMCP whose dialog is open', async () => {
-			const vmcp = createVMcp();
-			const update = vi.fn();
-			mockUpdateEntry(vmcp, update);
-			await renderVMcpsPage(vmcp, [slack]);
-			await showTableView();
-			await vmcpRow().click();
-			await expect.element(dropZone()).toBeVisible();
-
-			const { el, to } = await dragSlackOnto(dropZone(), 22);
-			pointer(el, 'pointerup', 22, to);
-
-			await vi.waitFor(() => expect(update).toHaveBeenCalled());
-			expect(componentServersFrom(update.mock.calls[0][0]).at(-1)).toEqual({
-				catalogEntryID: slack.id,
-				manifest: slack.manifest
-			});
+			await expect.element(panelCard('Slack')).not.toBeInTheDocument();
 		});
 	});
 
 	describe('vMCPs graphs view', () => {
-		it('expands the first five connectors by default', async () => {
+		const extras = [2, 3, 4, 5, 6].map((n) =>
+			createMCPCatalogEntry({
+				id: `vmcp-${n}`,
+				name: `vMCP ${n}`,
+				runtime: 'composite',
+				manifest: {
+					compositeConfig: {
+						componentServers: [
+							{
+								catalogEntryID: componentEntry.id,
+								manifest: componentEntry.manifest
+							}
+						]
+					}
+				}
+			})
+		);
+
+		async function showTableView() {
+			await page.getByRole('button', { name: 'Table View' }).click({ force: true });
+		}
+
+		it('draws the vMCP picked from the table, with its servers expanded', async () => {
 			await renderVMcpsPage(createVMcp());
+			await showGraphView();
 
 			await expect.element(componentBlock()).toBeVisible();
 			await expect
@@ -470,57 +422,80 @@ describe('vMCPs Page', () => {
 				.toHaveAttribute('aria-expanded', 'true');
 		});
 
-		it('lets the user expand more than one connector', async () => {
-			const extras = [2, 3, 4, 5, 6].map((n) =>
-				createMCPCatalogEntry({
-					id: `vmcp-${n}`,
-					name: `vMCP ${n}`,
-					runtime: 'composite',
-					manifest: {
-						compositeConfig: {
-							componentServers: [
-								{
-									catalogEntryID: componentEntry.id,
-									manifest: componentEntry.manifest
-								}
-							]
-						}
-					}
-				})
-			);
+		it('draws only the selected vMCP, and swaps it for the next one picked', async () => {
 			await renderVMcpsPage(createVMcp(), extras);
+			await showGraphView();
 
 			await expect
 				.element(page.getByRole('button', { name: 'Hide servers in Issue Tracker vMCP' }))
 				.toBeVisible();
 			await expect
 				.element(page.getByRole('button', { name: 'Hide servers in vMCP 2' }))
-				.toBeVisible();
-			await expect
-				.element(page.getByRole('button', { name: 'Hide servers in vMCP 3' }))
-				.toBeVisible();
-			await expect
-				.element(page.getByRole('button', { name: 'Hide servers in vMCP 4' }))
-				.toBeVisible();
-			await expect
-				.element(page.getByRole('button', { name: 'Hide servers in vMCP 5' }))
-				.toBeVisible();
-			await expect
-				.element(page.getByRole('button', { name: 'Show 1 server in vMCP 6' }))
-				.toBeVisible();
+				.not.toBeInTheDocument();
 
-			await expandServers('vMCP 6');
+			await showTableView();
+			await showGraphView('vMCP 2');
 
 			await expect
-				.element(page.getByRole('button', { name: 'Hide servers in vMCP 6' }))
+				.element(page.getByRole('button', { name: 'Hide servers in vMCP 2' }))
 				.toBeVisible();
 			await expect
 				.element(page.getByRole('button', { name: 'Hide servers in Issue Tracker vMCP' }))
-				.toBeVisible();
+				.not.toBeInTheDocument();
+		});
+
+		it('collapses and re-expands the servers of the selected vMCP', async () => {
+			await renderVMcpsPage(createVMcp());
+			await showGraphView();
+
+			await page.getByRole('button', { name: 'Hide servers in Issue Tracker vMCP' }).click();
+			await tick();
+
+			await expect.element(componentBlock()).not.toBeInTheDocument();
+
+			await expandServers();
+
+			await expect.element(componentBlock()).toBeVisible();
+		});
+
+		it('offers vMCP creation on the canvas while nothing is selected', async () => {
+			await renderVMcpsPage(createVMcp());
+
+			await page.getByRole('button', { name: 'vMCP Designer' }).click({ force: true });
+
+			await expect.element(page.getByRole('button', { name: /Create New vMCP/ })).toBeVisible();
+			await expect.element(page.getByCSS('[data-vmcp-world]')).not.toBeInTheDocument();
+			await expect
+				.element(page.getByRole('button', { name: 'Edit Issue Tracker vMCP' }))
+				.not.toBeInTheDocument();
+		});
+
+		it('switches to the table when the toolbar is used by keyboard, tooltip open', async () => {
+			const thrown: string[] = [];
+			const collect = (event: ErrorEvent) => thrown.push(event.message);
+			window.addEventListener('error', collect);
+			try {
+				await renderVMcpsPage(createVMcp());
+				await showGraphView();
+
+				// Focus opens the tooltip, and Enter never sends the pointerdown that would dismiss
+				// it, so the button is torn down with its tooltip still open. Closing that tooltip
+				// while the view swaps used to be an illegal state write.
+				const tableView = await page.getByRole('button', { name: 'Table View' }).element();
+				(tableView as HTMLElement).focus();
+				await expect.element(page.getByCSS('[role="tooltip"][aria-hidden="false"]')).toBeVisible();
+				await userEvent.keyboard('{Enter}');
+
+				await expect.element(vmcpRow()).toBeVisible();
+				expect(thrown).toEqual([]);
+			} finally {
+				window.removeEventListener('error', collect);
+			}
 		});
 
 		it('zooms the world from the toolbar', async () => {
 			await renderVMcpsPage(createVMcp());
+			await showGraphView();
 			const world = page.getByCSS('[data-vmcp-world]');
 			await expect.element(world).toBeInTheDocument();
 			const before = (await world.element()).getAttribute('style') ?? '';
@@ -535,6 +510,7 @@ describe('vMCPs Page', () => {
 
 		it('does not pan when dragging from a vMCP card', async () => {
 			await renderVMcpsPage(createVMcp());
+			await showGraphView();
 			const world = await page.getByCSS('[data-vmcp-world]').element();
 			const before = world.getAttribute('style');
 			const card = await page.getByRole('button', { name: 'Edit Issue Tracker vMCP' }).element();

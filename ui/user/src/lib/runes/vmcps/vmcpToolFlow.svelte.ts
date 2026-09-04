@@ -111,6 +111,8 @@ export function createVMcpToolFlow() {
 	let tools = $state<CompositeServerToolRow[]>([]);
 	let toolPrefix = $state<string>();
 	let modifyingExistingComponent = $state(false);
+	let collecting = $state(false);
+	let collectTools: ((config: CatalogComponentServer) => void) | undefined;
 
 	const otherEffectiveNames = $derived(
 		compositeEffectiveToolNames(
@@ -143,6 +145,8 @@ export function createVMcpToolFlow() {
 		toolPrefix = undefined;
 		tools = [];
 		modifyingExistingComponent = false;
+		collecting = false;
+		collectTools = undefined;
 	}
 
 	function close() {
@@ -180,6 +184,22 @@ export function createVMcpToolFlow() {
 		return (vmcp.manifest.compositeConfig?.componentServers ?? []).find(
 			(candidate) => componentId(candidate) === id
 		);
+	}
+
+	/**
+	 * Fetches this component's tools and returns them as overrides with every tool enabled,
+	 * without writing them onto the vMCP or opening the tool editor.
+	 */
+	function collectComponentTools(
+		component: CatalogComponentServer,
+		vmcp: MCPCatalogEntry,
+		onCollected: (config: CatalogComponentServer) => void
+	) {
+		if (!configure(vmcp, component, true)) return;
+		collecting = true;
+		collectTools = onCollected;
+		tools = [];
+		dialog = 'setup';
 	}
 
 	function openComponent(component: { id?: string }, vmcp: MCPCatalogEntry) {
@@ -285,6 +305,14 @@ export function createVMcpToolFlow() {
 	}
 
 	async function saveTools(componentConfig: CatalogComponentServer) {
+		if (collectTools) {
+			const done = collectTools;
+			collectTools = undefined;
+			done(componentConfig);
+			close();
+			return;
+		}
+
 		const vmcpId = modifyingVMcp?.id;
 		if (!vmcpId) {
 			close();
@@ -415,6 +443,9 @@ export function createVMcpToolFlow() {
 		get modifyingExistingComponent() {
 			return modifyingExistingComponent;
 		},
+		get collecting() {
+			return collecting;
+		},
 		get existingToolPrefix() {
 			return existingToolPrefix;
 		},
@@ -428,6 +459,7 @@ export function createVMcpToolFlow() {
 			return excludedComponentIds;
 		},
 		close,
+		collectComponentTools,
 		openComponent,
 		editComponent,
 		promptRemoveComponent,

@@ -1,8 +1,5 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import CopyButton from '$lib/components/CopyButton.svelte';
-	import DotDotDot from '$lib/components/DotDotDot.svelte';
-	import { formatNumber } from '$lib/format';
 	import type { EntryDrag } from '$lib/runes/vmcps/entryDrag.svelte';
 	import type { MCPCatalogEntry } from '$lib/services';
 	import { windowRange } from '$lib/services/vmcps/camera';
@@ -13,7 +10,7 @@
 	import type { RowContext, VMcpComponentView } from '$lib/services/vmcps/types';
 	import McpServerIcon from './McpServerIcon.svelte';
 	import './vmcpGraph.css';
-	import { ChevronsRight, ExternalLink, Layers, PencilRuler, Server } from '@lucide/svelte';
+	import { ChevronsRight, Layers, Server } from '@lucide/svelte';
 	import { fade } from 'svelte/transition';
 	import { twMerge } from 'tailwind-merge';
 
@@ -45,8 +42,8 @@
 		onModifyComponent
 	}: Props = $props();
 
-	const roughEstimationText =
-		'This is a rough approximation of the number of tools available. The exact number may vary.';
+	// const roughEstimationText =
+	// 	'This is a rough approximation of the number of tools available. The exact number may vary.';
 
 	let componentRange = $derived.by(() => {
 		if (!expanded) return { start: 0, end: 0 };
@@ -62,25 +59,25 @@
 		});
 	});
 
-	let { toolsCount, totalToolsCount, isRoughToolCountEstimate } = $derived.by(() => {
-		let isRoughToolCountEstimate = false;
-		let totalToolsCount = 0;
-		let toolsCount = components.reduce((count, component) => {
-			if (!component.toolOverrides) {
-				isRoughToolCountEstimate = true;
-			}
-			if (component.toolOverrides) {
-				const enabledCount = component.toolOverrides.filter((tool) => tool.enabled === true).length;
-				totalToolsCount += component.toolOverrides.length;
-				return count + enabledCount;
-			}
+	// let { toolsCount, totalToolsCount, isRoughToolCountEstimate } = $derived.by(() => {
+	// 	let isRoughToolCountEstimate = false;
+	// 	let totalToolsCount = 0;
+	// 	let toolsCount = components.reduce((count, component) => {
+	// 		if (!component.toolOverrides) {
+	// 			isRoughToolCountEstimate = true;
+	// 		}
+	// 		if (component.toolOverrides) {
+	// 			const enabledCount = component.toolOverrides.filter((tool) => tool.enabled === true).length;
+	// 			totalToolsCount += component.toolOverrides.length;
+	// 			return count + enabledCount;
+	// 		}
 
-			const previewCount = component.toolPreview?.length || 0;
-			totalToolsCount += previewCount;
-			return count + previewCount;
-		}, 0);
-		return { toolsCount, totalToolsCount, isRoughToolCountEstimate };
-	});
+	// 		const previewCount = component.toolPreview?.length || 0;
+	// 		totalToolsCount += previewCount;
+	// 		return count + previewCount;
+	// 	}, 0);
+	// 	return { toolsCount, totalToolsCount, isRoughToolCountEstimate };
+	// });
 
 	function chainDelay(index: number) {
 		return Math.min(index, CHAIN_STAGGER_MAX_STEPS) * CHAIN_STAGGER_MS;
@@ -209,7 +206,7 @@
 	<div
 		use:drag.vmcpTarget={vmcp.id}
 		class={twMerge(
-			'max-w-full md:w-sm shrink-0 rounded-lg translate-y-0 transition-transform',
+			'max-w-full md:w-xs shrink-0 rounded-lg translate-y-0 transition-transform',
 			linked
 				? 'vmcp-drop-target border-primary text-primary'
 				: 'p-0.5 hover:aura text-transparent hover:text-primary hover:-translate-y-0.5'
@@ -234,40 +231,6 @@
 							<p class="truncate text-sm font-semibold">{vmcp.manifest.name}</p>
 						</div>
 					</button>
-					<DotDotDot
-						placement="bottom-start"
-						class="relative z-10 size-9 shrink-0"
-						classes={{ menu: 'min-w-48' }}
-					>
-						{#snippet children({ toggle })}
-							<!-- The menu closes itself on any click that reaches it, and cancels that click's
-							     default action along with it, so these links have to close it themselves. -->
-							<a
-								class="menu-button justify-between"
-								href={resolve(`/audit-logs?mcp_id=${encodeURIComponent(vmcp.id)}`)}
-								target="_blank"
-								rel="noopener"
-								onclick={(e) => {
-									e.stopPropagation();
-									toggle(false);
-								}}
-							>
-								View Audit Logs <ExternalLink class="size-4" />
-							</a>
-							<a
-								class="menu-button justify-between"
-								href={resolve(`/usage?mcp_id=${encodeURIComponent(vmcp.id)}`)}
-								target="_blank"
-								rel="noopener"
-								onclick={(e) => {
-									e.stopPropagation();
-									toggle(false);
-								}}
-							>
-								View Usage <ExternalLink class="size-4" />
-							</a>
-						{/snippet}
-					</DotDotDot>
 				</div>
 
 				<div class="flex items-center gap-2">
@@ -289,23 +252,6 @@
 									'size-10 p-2 hover:bg-primary hover:text-primary-content justify-center rounded-r-md border-l border-l-base-300 dark:border-l-base-400'
 							}}
 						/>
-					</div>
-					<div
-						class="relative z-10 badge badge-primary badge-soft py-4 w-26"
-						title={roughEstimationText}
-					>
-						<PencilRuler class="size-4 shrink-0" aria-label="Tools" />
-						<div class="flex grow justify-center">
-							{#if totalToolsCount > 0}
-								<span class="font-mono text-xs">
-									{isRoughToolCountEstimate ? '≈' : ''}{formatNumber(toolsCount)}/{formatNumber(
-										totalToolsCount
-									)}
-								</span>
-							{:else if components.length > 0}
-								<span class="font-mono text-xs">All</span>
-							{/if}
-						</div>
 					</div>
 				</div>
 			</div>

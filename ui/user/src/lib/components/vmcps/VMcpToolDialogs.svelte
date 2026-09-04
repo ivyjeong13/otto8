@@ -127,9 +127,10 @@
 	excluded={flow.excludedComponentIds}
 	onCancel={flow.close}
 	onSuccess={flow.saveTools}
+	skipEditTools={flow.collecting}
 >
 	{#snippet additionalActions()}
-		{#if flow.modifyingExistingComponent}
+		{#if flow.modifyingExistingComponent && !flow.collecting}
 			{@render removeComponentButton()}
 		{/if}
 	{/snippet}
@@ -176,7 +177,9 @@
 >
 	{#snippet additionalActions()}
 		<div class="flex items-center gap-3">
-			{@render removeComponentButton()}
+			{#if !flow.collecting}
+				{@render removeComponentButton()}
+			{/if}
 			<IconButton
 				tooltip={{ text: 'Refresh Tools', disablePortal: true, placement: 'right' }}
 				onclick={flow.refreshTools}

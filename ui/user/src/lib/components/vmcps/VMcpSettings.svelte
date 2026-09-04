@@ -58,14 +58,23 @@
 </script>
 
 <div class="flex items-center gap-2">
-	<IconButton
-		class="bg-base-100/80 dark:bg-base-300/80 rounded-md border border-transparent p-2 shadow-sm hover:bg-base-300 dark:hover:bg-base-300"
-		id={BUTTON_ID}
-		tooltip={{ text: 'vMCPs Settings', placement: 'right' }}
-		onclick={() => dialog?.open()}
+	<div
+		class="bg-base-100/80 dark:bg-base-300/80 flex gap-1 rounded-md border border-transparent p-1 shadow-sm"
+		data-vmcp-ui
+		role="toolbar"
+		tabindex="-1"
+		aria-label="vMCPs Settings"
+		onpointerdown={(event) => event.stopPropagation()}
 	>
-		<Settings class="size-4" />
-	</IconButton>
+		<IconButton
+			class="btn-sm"
+			id={BUTTON_ID}
+			tooltip={{ text: 'vMCPs Settings', placement: 'bottom', disablePortal: true }}
+			onclick={() => dialog?.open()}
+		>
+			<Settings class="size-4" />
+		</IconButton>
+	</div>
 	<div
 		class="bg-base-100/80 dark:bg-base-300/80 rounded-md border border-transparent p-2 shadow-sm flex flex-col @md:flex-row items-center gap-2"
 	>

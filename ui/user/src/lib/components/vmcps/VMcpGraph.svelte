@@ -8,44 +8,40 @@
 		wheelZoomFactor,
 		zoomAt
 	} from '$lib/services/vmcps/camera';
-	import {
-		VMCP_CREATE_HEIGHT,
-		VMCP_OVERSCAN_ROWS,
-		VMCP_ROW_GAP,
-		ZOOM_STEP
-	} from '$lib/services/vmcps/constants';
+	import { ZOOM_STEP } from '$lib/services/vmcps/constants';
 	import type { Camera, RowContext } from '$lib/services/vmcps/types';
 	import { Maximize2, Minus, Plus } from '@lucide/svelte';
-	import type { Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 
 	let {
-		items,
+		item,
 		actions,
-		expandedIds = [],
+		expanded = false,
 		dragActive = false,
 		estimateHeight,
 		row,
-		footer
+		empty,
+		viewportEl = $bindable()
 	}: {
-		items: T[];
+		item?: T;
 		actions?: Snippet;
-		expandedIds?: string[];
+		expanded?: boolean;
 		dragActive?: boolean;
 		estimateHeight: (item: T, expanded: boolean) => number;
 		row: Snippet<[T, RowContext]>;
-		footer?: Snippet;
+		empty?: Snippet;
+		viewportEl?: HTMLElement;
 	} = $props();
-
-	let viewportEl = $state<HTMLElement>();
 	let camera = $state<Camera>({ x: 0, y: 0, zoom: 1 });
 	let viewportSize = $state({ width: 1, height: 1 });
 	let measuredHeights = $state<Record<string, number>>({});
-	let measuredFooterHeight = $state(0);
-	let didFit = $state(false);
+	let centeredId = $state<string>();
+	let cameraMovedByUser = $state(false);
 	let panPointer = $state<{ id: number; x: number; y: number }>();
 	let interacting = $state(false);
 
-	const WORLD_MIN_WIDTH = 900;
+	/** Stands in for the card's width until it has been measured, so the first frame is close. */
+	const ESTIMATED_WORLD_WIDTH = 900;
 	const IDLE_AFTER_MS = 300;
 
 	// Trackpads emit wheel/pointer events faster than the display refreshes. Coalescing them into
@@ -73,56 +69,18 @@
 		});
 	}
 
-	function heightFor(item: T) {
-		return measuredHeights[item.id] ?? estimateHeight(item, expandedIds.includes(item.id));
-	}
-
-	let offsets = $derived.by(() => {
-		const tops: number[] = [];
-		let y = 0;
-		for (const item of items) {
-			tops.push(y);
-			y += heightFor(item) + VMCP_ROW_GAP;
-		}
-		return { tops, contentHeight: y };
-	});
-
-	let footerHeight = $derived(measuredFooterHeight || (footer ? VMCP_CREATE_HEIGHT : 0));
-	let worldHeight = $derived(offsets.contentHeight + footerHeight);
-	let measuredWidth = $state(WORLD_MIN_WIDTH);
-	let worldWidth = $derived(Math.max(WORLD_MIN_WIDTH, measuredWidth));
+	let worldHeight = $derived(
+		item ? (measuredHeights[item.id] ?? estimateHeight(item, expanded)) : 0
+	);
+	let measuredWidth = $state(0);
+	// The world is exactly the selected card, so centering the world centers the card.
+	let worldWidth = $derived(measuredWidth || ESTIMATED_WORLD_WIDTH);
 
 	// Split into scalars so a pan that stays inside the current band compares equal and stops
-	// propagating: rows keep their slice and the frame costs one transform write.
+	// propagating: the row keeps its component slice and the frame costs one transform write.
 	let rawBand = $derived(viewBand(camera, viewportSize));
 	let bandTop = $derived(rawBand.top);
 	let bandBottom = $derived(rawBand.bottom);
-
-	let visible = $derived.by(() => {
-		const view = { top: bandTop, bottom: bandBottom };
-		const start = items.findIndex((_, index) => {
-			const top = offsets.tops[index] ?? 0;
-			const bottom = top + heightFor(items[index]) + VMCP_ROW_GAP;
-			return bottom >= view.top;
-		});
-		if (start < 0) {
-			return { start: 0, end: Math.min(items.length, VMCP_OVERSCAN_ROWS + 1) };
-		}
-		let end = start;
-		while (end < items.length) {
-			const top = offsets.tops[end] ?? 0;
-			if (top > view.bottom) break;
-			end += 1;
-		}
-		return {
-			start: Math.max(0, start - VMCP_OVERSCAN_ROWS),
-			end: Math.min(items.length, end + VMCP_OVERSCAN_ROWS)
-		};
-	});
-
-	let visibleStart = $derived(visible.start);
-	let visibleEnd = $derived(visible.end);
-	let visibleItems = $derived(items.slice(visibleStart, visibleEnd));
 
 	function isCanvasBackground(target: EventTarget | null) {
 		if (!(target instanceof Element)) return false;
@@ -136,14 +94,20 @@
 		return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 	}
 
+	/** Every camera change the user asks for, which also stops the automatic centering below. */
+	function moveCamera(next: Camera) {
+		cameraMovedByUser = true;
+		commitCamera(next);
+	}
+
 	function applyFit() {
 		if (!viewportEl) return;
-		commitCamera(fitCamera(viewportSize, { width: worldWidth, height: Math.max(1, worldHeight) }));
+		moveCamera(fitCamera(viewportSize, { width: worldWidth, height: Math.max(1, worldHeight) }));
 	}
 
 	function zoomToward(viewportX: number, viewportY: number, factor: number) {
 		const current = liveCamera();
-		commitCamera(zoomAt(current, viewportX, viewportY, current.zoom * factor));
+		moveCamera(zoomAt(current, viewportX, viewportY, current.zoom * factor));
 	}
 
 	function zoomFromButton(factor: number) {
@@ -161,7 +125,7 @@
 			zoomToward(point.x, point.y, wheelZoomFactor(event.deltaY, event.deltaMode));
 			return;
 		}
-		commitCamera(panBy(liveCamera(), -event.deltaX, -event.deltaY));
+		moveCamera(panBy(liveCamera(), -event.deltaX, -event.deltaY));
 	}
 
 	function onPointerDown(event: PointerEvent) {
@@ -173,7 +137,7 @@
 
 	function onPointerMove(event: PointerEvent) {
 		if (!panPointer || event.pointerId !== panPointer.id) return;
-		commitCamera(panBy(liveCamera(), event.clientX - panPointer.x, event.clientY - panPointer.y));
+		moveCamera(panBy(liveCamera(), event.clientX - panPointer.x, event.clientY - panPointer.y));
 		panPointer = { ...panPointer, x: event.clientX, y: event.clientY };
 	}
 
@@ -210,11 +174,24 @@
 		};
 	});
 
+	// The selected vMCP sits in the middle of the canvas, and stays there as it is measured, as it
+	// expands, and across viewport resizes. Panning or zooming hands the camera to the user until a
+	// different vMCP is selected.
 	$effect(() => {
-		if (didFit || viewportSize.width < 64 || viewportSize.height < 64 || worldHeight < 10) return;
-		if (items.length === 0) return;
-		commitCamera(defaultCamera(viewportSize, { width: worldWidth }));
-		didFit = true;
+		const id = item?.id;
+		if (!id) return;
+		const viewport = { width: viewportSize.width, height: viewportSize.height };
+		const world = { width: worldWidth, height: worldHeight };
+
+		untrack(() => {
+			if (centeredId !== id) {
+				centeredId = id;
+				cameraMovedByUser = false;
+			}
+			if (cameraMovedByUser) return;
+			if (viewport.width < 64 || viewport.height < 64 || world.height < 10) return;
+			commitCamera(defaultCamera(viewport, world));
+		});
 	});
 
 	function bindRow(id: string) {
@@ -224,20 +201,12 @@
 				if (measuredHeights[id] !== next) {
 					measuredHeights = { ...measuredHeights, [id]: next };
 				}
-				if (node.offsetWidth > measuredWidth) measuredWidth = node.offsetWidth;
+				const width = node.offsetWidth;
+				if (width > 0 && width !== measuredWidth) measuredWidth = width;
 			});
 			observer.observe(node);
 			return () => observer.disconnect();
 		};
-	}
-
-	function bindFooter(node: HTMLElement) {
-		const observer = new ResizeObserver(() => {
-			measuredFooterHeight = node.offsetHeight;
-			if (node.offsetWidth > measuredWidth) measuredWidth = node.offsetWidth;
-		});
-		observer.observe(node);
-		return () => observer.disconnect();
 	}
 </script>
 
@@ -254,9 +223,7 @@
 	onpointerup={onPointerUp}
 	onpointercancel={onPointerUp}
 >
-	<div
-		class="absolute left-0 top-22 @md:top-14 @3xl:top-0 @3xl:left-auto @3xl:right-0 z-20 flex items-center gap-4"
-	>
+	<div class="absolute right-3 top-3 z-20 flex items-center gap-4">
 		<div
 			class="bg-base-100/80 dark:bg-base-300/80 flex gap-1 rounded-md border border-transparent p-1 shadow-sm"
 			data-vmcp-ui
@@ -292,40 +259,33 @@
 		{/if}
 	</div>
 
-	<div
-		data-vmcp-world
-		class="relative origin-top-left"
-		style:will-change={interacting ? 'transform' : null}
-		style:width="{worldWidth}px"
-		style:height="{worldHeight}px"
-		style:transform="translate({camera.x}px, {camera.y}px) scale({camera.zoom})"
-		aria-label="vMCPs"
-	>
-		{#each visibleItems as item, sliceIndex (item.id)}
-			{@const index = visibleStart + sliceIndex}
-			{@const rowY = offsets.tops[index] ?? 0}
+	{#if item}
+		<div
+			data-vmcp-world
+			class="relative origin-top-left"
+			style:will-change={interacting ? 'transform' : null}
+			style:width="{worldWidth}px"
+			style:height="{worldHeight}px"
+			style:transform="translate({camera.x}px, {camera.y}px) scale({camera.zoom})"
+			aria-label="vMCP"
+		>
+			<!-- `w-max` keeps the card at its intrinsic width: shrink-to-fit would otherwise cap it at
+			     the world width it is being measured for. -->
 			<div
 				data-vmcp-node
-				class="absolute top-0 left-0 cursor-auto"
-				style:transform="translateY({rowY}px)"
+				class="absolute top-0 left-0 w-max cursor-auto"
 				{@attach bindRow(item.id)}
 			>
 				{@render row(item, {
-					rowY,
+					rowY: 0,
 					viewTop: bandTop,
 					viewBottom: bandBottom
 				})}
 			</div>
-		{/each}
-		{#if footer}
-			<div
-				data-vmcp-node
-				class="absolute top-0 left-0 cursor-auto"
-				style:transform="translateY({offsets.contentHeight}px)"
-				{@attach bindFooter}
-			>
-				{@render footer()}
-			</div>
-		{/if}
-	</div>
+		</div>
+	{:else if empty}
+		<div data-vmcp-node class="flex h-full cursor-auto items-center justify-center">
+			{@render empty()}
+		</div>
+	{/if}
 </div>
