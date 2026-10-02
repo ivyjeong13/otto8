@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import Skeleton from '$lib/components/Skeleton.svelte';
 	import TabLayout, { type TabView } from '$lib/components/TabLayout.svelte';
 	import IconButton from '$lib/components/primitives/IconButton.svelte';
 	import ConnectAllVMcps from '$lib/components/vmcps/ConnectAllVMcps.svelte';
@@ -8,8 +9,7 @@
 	import VMcpDesigner from '$lib/components/vmcps/VMcpDesigner.svelte';
 	import VMcpList from '$lib/components/vmcps/VMcpList.svelte';
 	import VMcpListSettings from '$lib/components/vmcps/VMcpListSettings.svelte';
-	import Loading from '$lib/icons/Loading.svelte';
-	import { Group, UserService, type OrgUser, type VMCP } from '$lib/services';
+	import { AdminService, Group, UserService, type OrgUser, type VMCP } from '$lib/services';
 	import { COMMON_AI_CLIENTS } from '$lib/services/user/constants';
 	import type {
 		VMcpListSettings as VMcpListSettingsType,
@@ -24,10 +24,9 @@
 	import { mcpServersAndEntries, profile, responsive, vmcpInstances } from '$lib/stores';
 	import { goto, setFilterUrlParams, setUrlParamAndUpdateUrl } from '$lib/url';
 	import { Layers, Pencil, Plus } from '@lucide/svelte';
-	import { onMount, untrack } from 'svelte';
+	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 
-	let { data } = $props();
 	let views = $derived.by((): TabView[] =>
 		profile.current.hasAdminAccess?.()
 			? [
@@ -65,8 +64,8 @@
 		};
 	}
 
-	let listedVMcps = $state<VMCP[]>(untrack(() => data?.vmcps ?? []));
-	let isLoading = $state(false);
+	let listedVMcps = $state<VMCP[]>([]);
+	let isLoading = $state(true);
 	let filters = $state(getInitialFilters());
 	let vmcpList = $state<ReturnType<typeof VMcpList>>();
 
@@ -123,15 +122,25 @@
 		)
 	);
 
-	$effect(() => {
-		listedVMcps = data?.vmcps ?? [];
-	});
-
 	onMount(() => {
+		loadVMcps();
 		UserService.listUsersIncludeDeleted().then((response) => {
 			users = response;
 		});
 	});
+
+	async function loadVMcps() {
+		isLoading = true;
+		try {
+			listedVMcps = profile.current.hasAdminAccess?.()
+				? await AdminService.listAllVMCPs()
+				: await UserService.listVMCPs();
+		} catch {
+			listedVMcps = [];
+		} finally {
+			isLoading = false;
+		}
+	}
 
 	function vmcpComponents(vmcp: VMCP) {
 		return resolveVMcpComponents(vmcp);
@@ -231,25 +240,31 @@
 {/snippet}
 
 {#snippet vmcpsView()}
-	{#if isLoading}
-		<Loading class="text-primary" />
-	{:else}
-		<VMcpListSettings {filters} onChange={handleChange} {componentFilterOptions}>
-			{#snippet actions()}
-				{#if sortedVMcps.length > 0 && filters.variant === 'grid' && !vmcpList?.isInSelectMode()}
-					<div in:fade>
-						<button class="btn btn-secondary" onclick={() => vmcpList?.toggleSelectMode()}>
-							<Pencil class="size-4" /> Edit Mode
-						</button>
-					</div>
-				{/if}
-				{#if sortedVMcps.length > 0 && filters.variant === 'grid' && vmcpList?.isInSelectMode()}
-					<button class="btn btn-secondary" onclick={() => vmcpList?.toggleSelectAll()}>
-						{vmcpList?.isAllSelected() ? 'Deselect All' : 'Select All'}
+	<VMcpListSettings {filters} onChange={handleChange} {componentFilterOptions}>
+		{#snippet actions()}
+			{#if sortedVMcps.length > 0 && filters.variant === 'grid' && !vmcpList?.isInSelectMode()}
+				<div in:fade>
+					<button class="btn btn-secondary" onclick={() => vmcpList?.toggleSelectMode()}>
+						<Pencil class="size-4" /> Edit Mode
 					</button>
-				{/if}
-			{/snippet}
-		</VMcpListSettings>
+				</div>
+			{/if}
+			{#if sortedVMcps.length > 0 && filters.variant === 'grid' && vmcpList?.isInSelectMode()}
+				<button class="btn btn-secondary" onclick={() => vmcpList?.toggleSelectAll()}>
+					{vmcpList?.isAllSelected() ? 'Deselect All' : 'Select All'}
+				</button>
+			{/if}
+		{/snippet}
+	</VMcpListSettings>
+	{#if isLoading}
+		<div class="@container">
+			<div class="grid grid-cols-1 items-start gap-4 @2xl:grid-cols-2 @5xl:grid-cols-3">
+				{#each Array.from({ length: 6 }) as _, i (i)}
+					<Skeleton type="card" class="h-52.5 w-full" />
+				{/each}
+			</div>
+		</div>
+	{:else}
 		<VMcpList
 			bind:this={vmcpList}
 			items={sortedVMcps}

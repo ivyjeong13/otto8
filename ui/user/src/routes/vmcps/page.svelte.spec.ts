@@ -5,7 +5,6 @@ import { createMCPCatalogEntry, createVMCP } from '../../tests/helpers/mcp';
 import { createMockProfile, preparePageData } from '../../tests/helpers/pageData';
 import { getProfileResponse } from '../../tests/mocks/data';
 import { worker } from '../../tests/mocks/worker';
-import type { PageData } from './$types';
 import VMcpsPage from './+page.svelte';
 import { http, HttpResponse } from 'msw';
 import { tick } from 'svelte';
@@ -41,6 +40,7 @@ async function renderPageWithEntries(
 	} else {
 		appPage.url.searchParams.delete('new');
 	}
+	worker.use(http.get('/api/vmcps', () => HttpResponse.json({ items: vmcps })));
 	mcpServersAndEntries.current = {
 		entries,
 		servers: [],
@@ -50,11 +50,10 @@ async function renderPageWithEntries(
 		lastFetched: null,
 		isInitialized: true
 	};
-	const data = await preparePageData<PageData>({
-		vmcps,
+	await preparePageData({
 		profile: createMockProfile(groups)
 	});
-	return render(VMcpsPage, { data });
+	return render(VMcpsPage);
 }
 
 afterEach(() => {
